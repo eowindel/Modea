@@ -1,8 +1,11 @@
-# Bases SQLite : régénérable depuis metamodele.sql + saisie.sql, ou données de travail
+# Bases SQLite de travail (données réelles importées, etc.) — pas de source à versionner
 *.db
 *.db-journal
 *.sqlite
 *.sqlite3
+
+# Exception : base vierge de référence, régénérée depuis metamodele.sql + saisie.sql
+!nouveau-modele.db
 
 # Dépendances de test ponctuelles (Playwright, etc.) installées dans scripts/
 scripts/node_modules/
