@@ -21,11 +21,16 @@ LEFT JOIN classe_objet c ON c.id = o.classe_id;
 CREATE TRIGGER trg_saisie_objet_ins
 INSTEAD OF INSERT ON saisie_objet
 BEGIN
+    -- cree le domaine / la classe s'ils n'existent pas encore (silencieux si NEW.domaine/NEW.classe est NULL,
+    -- car "OR IGNORE" absorbe aussi la violation NOT NULL sur domaine.nom / classe_objet.nom)
+    INSERT OR IGNORE INTO domaine(nom) VALUES (NEW.domaine);
+    INSERT OR IGNORE INTO classe_objet(nom) VALUES (NEW.classe);
+
     INSERT INTO objet(nom, domaine_id, classe_id, definition, origine, statut)
     VALUES (
         NEW.nom,
-        (SELECT id FROM domaine      WHERE nom = NEW.domaine),   -- NULL si domaine absent
-        (SELECT id FROM classe_objet WHERE nom = NEW.classe),    -- NULL si classe absente
+        (SELECT id FROM domaine      WHERE nom = NEW.domaine),
+        (SELECT id FROM classe_objet WHERE nom = NEW.classe),
         NEW.definition,
         NEW.origine,
         COALESCE(NEW.statut, 'brouillon')
