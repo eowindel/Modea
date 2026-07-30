@@ -37,6 +37,25 @@ BEGIN
     );
 END;
 
+CREATE TRIGGER trg_saisie_objet_upd
+INSTEAD OF UPDATE ON saisie_objet
+BEGIN
+    SELECT RAISE(ABORT, 'Objet inconnu')
+    WHERE NOT EXISTS (SELECT 1 FROM objet WHERE nom = OLD.nom);
+
+    INSERT OR IGNORE INTO domaine(nom) VALUES (NEW.domaine);
+    INSERT OR IGNORE INTO classe_objet(nom) VALUES (NEW.classe);
+
+    UPDATE objet
+    SET nom        = NEW.nom,
+        domaine_id = (SELECT id FROM domaine      WHERE nom = NEW.domaine),
+        classe_id  = (SELECT id FROM classe_objet WHERE nom = NEW.classe),
+        definition = NEW.definition,
+        origine    = NEW.origine,
+        statut     = COALESCE(NEW.statut, statut)
+    WHERE nom = OLD.nom;
+END;
+
 -- -----------------------------------------------------------------------------
 --  Saisie d'une PROPRIÉTÉ — définition partagée, indépendante de tout objet.
 --  Créer une propriété ne l'affecte à aucun objet : voir saisie_applicabilite.
