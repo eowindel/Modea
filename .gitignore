@@ -1,0 +1,15 @@
+# Bases SQLite : régénérable depuis metamodele.sql + saisie.sql, ou données de travail
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Dépendances de test ponctuelles (Playwright, etc.) installées dans scripts/
+scripts/node_modules/
+scripts/package.json
+scripts/package-lock.json
+
+# Divers
+__pycache__/
+.DS_Store
+Thumbs.db
