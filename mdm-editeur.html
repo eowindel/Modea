@@ -48,6 +48,30 @@
   .stat span{font-size:10.5px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
   .dbname{font-family:var(--mono);font-size:12px;color:var(--muted);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+  /* ---- Manuel utilisateur ---- */
+  #helpOverlay{position:fixed;inset:0;background:rgba(10,20,24,.45);z-index:100;
+    display:flex;align-items:center;justify-content:center;padding:24px}
+  #helpModal{background:var(--surface);border-radius:14px;max-width:960px;width:100%;max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  #helpTopbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
+    border-bottom:1px solid var(--line-strong);flex:0 0 auto}
+  #helpTopbar .brand-mini{font-family:var(--mono);font-weight:700;color:var(--accent-deep);font-size:13px}
+  #helpFlex{display:flex;flex:1;min-height:0}
+  #helpNav{width:190px;flex:0 0 auto;background:#F3F6F8;border-right:1px solid var(--line);padding:16px 10px;overflow-y:auto}
+  #helpNav a{display:block;padding:7px 10px;border-radius:7px;color:var(--muted);font-size:12.5px;
+    text-decoration:none;margin-bottom:2px;font-weight:500}
+  #helpNav a:hover{background:#E9EEF1;color:var(--ink)}
+  #helpBody{flex:1;overflow-y:auto;padding:26px 32px}
+  #helpBody section{margin-bottom:30px;padding-bottom:22px;border-bottom:1px dashed var(--line)}
+  #helpBody section:last-child{border-bottom:0;margin-bottom:0}
+  #helpBody h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-deep);
+    margin:0 0 6px;font-family:var(--mono);font-weight:700}
+  #helpBody h3{font-size:17px;margin:0 0 12px}
+  #helpBody p{margin:0 0 10px;line-height:1.6}
+  #helpBody ul{margin:0 0 4px;padding-left:20px}
+  #helpBody li{margin-bottom:6px;line-height:1.55}
+  #helpBody code{font-family:var(--mono);background:#EEF2F5;border-radius:4px;padding:1px 5px;font-size:12px}
+
   .btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);
     padding:7px 12px;border-radius:8px;font-weight:500;transition:background .12s,border-color .12s}
   .btn:hover{background:#F3F6F8;border-color:var(--muted)}
@@ -223,7 +247,145 @@
     <div class="stat"><b id="cAffect">0</b><span>affectations</span></div>
     <div class="stat"><b id="cRel">0</b><span>relations</span></div>
   </div>
+  <button class="btn ghost" id="btnHelp" title="Manuel utilisateur">Aide</button>
 </header>
+
+<div id="helpOverlay" class="hidden">
+  <div id="helpModal" role="dialog" aria-modal="true" aria-label="Manuel utilisateur">
+    <div id="helpTopbar">
+      <span class="brand-mini">Manuel utilisateur — MaDaMe</span>
+      <button class="btn ghost sm" id="helpCloseBtn">Fermer ✕</button>
+    </div>
+    <div id="helpFlex">
+      <nav id="helpNav">
+        <a href="#h-concepts" data-target="h-concepts">Concepts clés</a>
+        <a href="#h-objets" data-target="h-objets">Objets</a>
+        <a href="#h-proprietes" data-target="h-proprietes">Propriétés</a>
+        <a href="#h-affectation" data-target="h-affectation">Affectation</a>
+        <a href="#h-relations" data-target="h-relations">Relations</a>
+        <a href="#h-listes" data-target="h-listes">Listes (Fiches)</a>
+        <a href="#h-diagramme" data-target="h-diagramme">Diagramme</a>
+        <a href="#h-fichiers" data-target="h-fichiers">Fichiers</a>
+        <a href="#h-astuces" data-target="h-astuces">Astuces</a>
+      </nav>
+      <div id="helpBody">
+
+        <section id="h-concepts">
+          <h2>Notions de base</h2>
+          <h3>Concepts clés</h3>
+          <p>MaDaMe est un <b>métamodèle</b> : les tables décrivent des objets métier, elles ne <i>sont</i> pas les objets. Cinq notions à connaître :</p>
+          <ul>
+            <li><b>Objet</b> — une entité métier (ex : « Engineering Item », « Vue »). Porte un nom, une nature, un domaine, éventuellement une discipline, et un statut.</li>
+            <li><b>Propriété</b> — une <b>définition d'attribut partagée</b>, indépendante de tout objet. Elle se crée <i>une fois</i> puis s'affecte à autant d'objets que nécessaire. La modifier répercute le changement partout où elle est utilisée.</li>
+            <li><b>Affectation</b> — le lien entre un objet et une propriété. C'est là que vivent les informations qui dépendent du <i>couple</i> objet+propriété plutôt que de la propriété seule : obligatoire ou non, discipline dans ce contexte précis.</li>
+            <li><b>Relation</b> — un lien orienté entre deux objets : association, composition, agrégation ou généralisation.</li>
+            <li><b>Statut</b> — <code>brouillon</code> (valeur par défaut) / <code>validé</code> / <code>obsolète</code>, pour piloter la curation d'un modèle importé.</li>
+          </ul>
+          <p>Trois axes de classement d'un objet, indépendants et combinables :</p>
+          <ul>
+            <li><b>Nature</b> — son stéréotype/sa forme (Engineering Item, Vue, Document…). Ne fait <i>pas</i> hériter de propriétés.</li>
+            <li><b>Domaine</b> — son regroupement fonctionnel dans l'organisation (PLM, Ventes, Qualité…).</li>
+            <li><b>Discipline</b> — le métier technique concerné (ex : « 10 — Mécanique »), identifié par un code.</li>
+          </ul>
+        </section>
+
+        <section id="h-objets">
+          <h2>Saisie</h2>
+          <h3>Objets</h3>
+          <p>Onglet <b>Objet</b> : nom, nature, domaine, discipline (code + nom si le code n'existe pas encore), définition métier.</p>
+          <ul>
+            <li>Nature et domaine se créent à la volée si le nom tapé n'existe pas encore.</li>
+            <li>Retaper le nom d'un objet existant précharge sa fiche et le bouton devient « Mettre à jour l'objet ».</li>
+            <li>Suppression possible depuis la liste (onglet Fiches) — un message indique combien d'affectations et de relations seront aussi retirées.</li>
+          </ul>
+        </section>
+
+        <section id="h-proprietes">
+          <h3>Propriétés</h3>
+          <p>Onglet <b>Propriété</b> : nom, type, description. Une propriété n'est affectée à aucun objet à sa création — voir l'onglet Affectation.</p>
+          <ul>
+            <li><b>Type <code>enum</code></b> : indique le nom d'une liste de valeurs (créée à la volée), puis ajoute ses valeurs (code + libellé) dans le bloc qui apparaît.</li>
+            <li><b>Type <code>grandeur</code></b> : indique une grandeur physique (ex : Pression) et son unité (ex : bar) — réutilisables sur d'autres propriétés.</li>
+            <li><b>Multivaluée</b> : caractéristique intrinsèque de la propriété (pas contextuelle à un objet).</li>
+            <li>Retaper un nom existant précharge sa définition et le bouton devient « Mettre à jour la propriété » — la modification s'applique partout où elle est affectée.</li>
+            <li>Suppression possible depuis la liste — elle retire aussi la propriété des objets qui l'utilisaient.</li>
+          </ul>
+        </section>
+
+        <section id="h-affectation">
+          <h3>Affectation</h3>
+          <p>Relie une propriété <i>existante</i> à un objet <i>existant</i> (tape leur nom exact, une liste de suggestions apparaît).</p>
+          <ul>
+            <li><b>Obligatoire</b> et <b>discipline</b> sont propres à cette affectation précise : la même propriété peut être obligatoire sur un objet et facultative sur un autre.</li>
+            <li>Si la discipline tapée n'existe pas, indique aussi son nom pour la créer.</li>
+            <li>Affecter une propriété déjà liée à cet objet met simplement à jour l'obligation/la discipline.</li>
+            <li>Pour retirer une propriété d'un objet : dans la liste Objets, clique la ligne de l'objet pour la déplier, puis « Retirer » sur la propriété concernée.</li>
+          </ul>
+        </section>
+
+        <section id="h-relations">
+          <h3>Relations</h3>
+          <p>Lien orienté entre un objet source et un objet cible, avec cardinalités et type :</p>
+          <ul>
+            <li><b>Généralisation</b> — source = spécifique, cible = général (« la source hérite de / est un(e) la cible »).</li>
+            <li><b>Composition</b> — la source est le tout, la cible la partie qui n'existe pas sans elle.</li>
+            <li><b>Agrégation</b> — même idée, lien plus lâche (la partie peut exister sans le tout).</li>
+            <li><b>Association</b> — lien simple sans notion de tout/partie.</li>
+          </ul>
+          <p>Suppression possible depuis la liste Relations. Il n'y a pas d'édition de relation : supprime puis recrée si besoin.</p>
+        </section>
+
+        <section id="h-listes">
+          <h2>Consultation</h2>
+          <h3>Listes (Fiches)</h3>
+          <p>Trois listes cherchables et filtrables : <b>Objets</b>, <b>Propriétés</b>, <b>Relations</b>.</p>
+          <ul>
+            <li>Recherche texte + filtres (nature/domaine/discipline pour les objets, type pour les propriétés/relations, statut partout) — cumulables.</li>
+            <li>Le <b>statut</b> s'affiche en badge coloré (brouillon = or, validé = vert, obsolète = gris) et se change directement dans la liste, sans ouvrir de formulaire.</li>
+            <li>Au-delà de 300 résultats, seuls les 300 premiers s'affichent ; affine la recherche pour voir le reste (pensé pour rester fluide avec des milliers de lignes).</li>
+            <li>Cliquer une ligne d'objet la déplie pour voir/retirer ses propriétés affectées.</li>
+          </ul>
+        </section>
+
+        <section id="h-diagramme">
+          <h3>Diagramme</h3>
+          <p>Vue graphe interactive (Cytoscape) du modèle :</p>
+          <ul>
+            <li><b>Recherche</b> + <b>Centrer</b> pour localiser un objet dans un gros modèle.</li>
+            <li><b>Disposition</b> : force dirigée (par défaut, s'en sort bien avec beaucoup de nœuds), hiérarchique, concentrique, cercle, grille.</li>
+            <li><b>Filtres</b> par nature/domaine (repliables) pour masquer une partie du graphe.</li>
+            <li><b>Focus au clic</b> : clique un objet pour estomper tout sauf son voisinage (réglable en nombre de sauts) ; clique dans le vide pour réinitialiser.</li>
+            <li><b>Afficher les propriétés</b> : bascule chaque boîte entre nom seul (compact) et détail façon UML (nom, type, obligatoire ✱) — sans perdre la disposition en cours.</li>
+            <li><b>Plein écran</b> pour explorer un gros modèle sur tout l'écran, avec tous les contrôles.</li>
+            <li><b>PNG</b>/<b>SVG</b> pour exporter une image du graphe tel qu'affiché.</li>
+            <li>Légende des flèches : ▷ héritage · ◆ composition · ◇ agrégation · → association.</li>
+          </ul>
+        </section>
+
+        <section id="h-fichiers">
+          <h2>Fichiers</h2>
+          <h3>Ouvrir, enregistrer, télécharger</h3>
+          <ul>
+            <li><b>Ouvrir…</b> charge un fichier <code>.db</code> SQLite conforme au métamodèle (voir <code>metamodele.sql</code>).</li>
+            <li><b>Nouveau modèle</b> repart d'une base vierge avec le schéma complet.</li>
+            <li><b>Enregistrer</b> réécrit directement le fichier ouvert si ton navigateur le permet (Chrome/Edge), sinon télécharge une copie.</li>
+            <li><b>Télécharger une copie</b> force un téléchargement, sans toucher au fichier d'origine.</li>
+          </ul>
+        </section>
+
+        <section id="h-astuces">
+          <h3>Astuces</h3>
+          <ul>
+            <li>Réutilise toujours le <i>même</i> nom pour une nature, un domaine, une discipline ou une propriété si tu veux qu'ils soient partagés — la casse compte (« Vue » ≠ « vue »).</li>
+            <li>Pour importer en masse (ex : depuis KNIME), vise les vues <code>saisie_*</code> de <code>saisie.sql</code> plutôt que les tables directement — elles gèrent la résolution par nom et les garde-fous.</li>
+            <li>Tout ce qui est créé arrive en statut <code>brouillon</code> — utilise les listes pour cocher au fur et à mesure ce qui est validé.</li>
+          </ul>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
 
 <main id="app">
   <!-- Empty state -->
@@ -1467,6 +1629,15 @@ function wire(){
   el('cyFit').onclick=()=>{ if(cy) cy.fit(undefined,30); };
   el('cyClearFocus').onclick=clearCyFocus;
   el('cyShowProps').addEventListener('change', applyCyLabelMode);
+  // Manuel utilisateur
+  el('btnHelp').onclick=openHelp;
+  el('helpCloseBtn').onclick=closeHelp;
+  el('helpOverlay').addEventListener('click', e=>{ if(e.target===el('helpOverlay')) closeHelp(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !el('helpOverlay').classList.contains('hidden')) closeHelp(); });
+  document.querySelectorAll('#helpNav a').forEach(a=>a.onclick=e=>{
+    e.preventDefault();
+    const target=el(a.dataset.target); if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+  });
   el('cyPng').onclick=()=>{
     if(!cy) return toast("Aucun graphe à exporter","err");
     const a=document.createElement('a'); a.href=cy.png({full:true,scale:2,bg:'#ffffff'}); a.download=baseName()+'.png'; a.click();
@@ -1490,6 +1661,8 @@ function wire(){
   });
 }
 function showLoadErr(m){const e=el('loadErr');e.textContent=m;e.classList.remove('hidden');}
+function openHelp(){ el('helpOverlay').classList.remove('hidden'); }
+function closeHelp(){ el('helpOverlay').classList.add('hidden'); }
 
 fillStaticSelects(); wire(); updatePropTypeUI();
 </script>
