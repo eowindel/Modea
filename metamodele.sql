@@ -89,6 +89,7 @@ CREATE TABLE objet (
     definition  TEXT,                            -- définition métier (le "sens")
     domaine_id  INTEGER REFERENCES domaine(id) ON DELETE SET NULL,
     classe_id   INTEGER REFERENCES classe_objet(id) ON DELETE SET NULL,
+    discipline_id INTEGER REFERENCES discipline(id) ON DELETE SET NULL,
     origine     TEXT,                            -- trace de la conversion : ex "table T_CLI"
     statut      TEXT NOT NULL DEFAULT 'brouillon'
                 CHECK (statut IN ('brouillon','valide','obsolete')),
@@ -174,6 +175,7 @@ CREATE TABLE relation (
 -- -----------------------------------------------------------------------------
 CREATE INDEX idx_objet_domaine          ON objet(domaine_id);
 CREATE INDEX idx_objet_classe           ON objet(classe_id);
+CREATE INDEX idx_objet_discipline       ON objet(discipline_id);
 CREATE INDEX idx_propriete_type_enumere ON propriete(type_enumere_id);
 CREATE INDEX idx_propriete_unite        ON propriete(unite_id);
 CREATE INDEX idx_valeur_enumeree_type   ON valeur_enumeree(type_enumere_id);
@@ -227,12 +229,15 @@ SELECT o.id,
        o.nom,
        d.nom               AS domaine,
        c.nom               AS classe,
+       disc.code           AS discipline_code,
+       disc.nom            AS discipline_nom,
        o.definition,
        o.statut,
        COUNT(a.id)         AS nb_proprietes
 FROM objet o
 LEFT JOIN domaine       d ON d.id = o.domaine_id
 LEFT JOIN classe_objet  c ON c.id = o.classe_id
+LEFT JOIN discipline    disc ON disc.id = o.discipline_id
 LEFT JOIN applicabilite a ON a.objet_id = o.id
 GROUP BY o.id;
 

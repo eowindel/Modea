@@ -56,6 +56,9 @@
   .btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
   .btn.ghost:hover{color:var(--ink);background:#EDF1F4}
   .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.xs{padding:3px 7px;font-size:11px;border-radius:6px}
+  .btn.danger{border-color:transparent;background:transparent;color:var(--danger)}
+  .btn.danger:hover{background:rgba(192,57,43,.1)}
 
   /* ---- Layout ---- */
   main{max-width:1200px;margin:0 auto;padding:22px 20px 60px;
@@ -118,6 +121,31 @@
   .chip.acc{background:rgba(12,133,153,.12);color:var(--accent-deep)}
   .cataloglist{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
   .catitem{border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-family:var(--mono);font-size:11.5px;background:#FCFDFE}
+
+  /* ---- Listes gerables (Objets / Proprietes / Relations) ---- */
+  .mgbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .mgbar input[type=text]{flex:1;min-width:180px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:8px;background:#FCFDFE;font-size:12.5px;font-family:inherit}
+  .mgbar select{padding:7px 9px;border:1px solid var(--line-strong);border-radius:8px;background:#FCFDFE;font-size:12.5px;font-family:inherit}
+  .mgcount{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+  .mgtablewrap{border:1px solid var(--line);border-radius:8px;overflow:auto;max-height:56vh}
+  .mgtable{width:100%;border-collapse:collapse;font-size:12.5px}
+  .mgtable thead th{position:sticky;top:0;background:#F3F6F8;text-align:left;font-size:10.5px;font-weight:700;
+    letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:7px 10px;border-bottom:1px solid var(--line-strong);z-index:1}
+  .mgtable td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .mgtable tbody tr.mgrow{cursor:pointer}
+  .mgtable tbody tr.mgrow:hover{background:#F9FBFC}
+  .mgtable .mgname{font-family:var(--mono);font-weight:600}
+  .mgtable .mgdef{display:block;color:var(--muted);font-size:11px;margin-top:1px}
+  .mgtable .mgactions{white-space:nowrap;text-align:right}
+  .mgdetail td{background:#F9FBFC;padding:10px 14px}
+  .mgdetail table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px}
+  .mgdetail table td{border-bottom:1px dashed var(--line);padding:4px 6px;background:transparent}
+  .mgmsg{font-size:11px;color:var(--muted);font-style:italic;margin:8px 2px 0}
+  .statut-select{border:1px solid transparent;border-radius:6px;padding:3px 6px;font-size:10.5px;font-weight:700;
+    font-family:inherit;cursor:pointer;appearance:none;background-repeat:no-repeat}
+  .statut-select.statut-brouillon{background-color:rgba(138,106,34,.13);color:var(--requis);border-color:rgba(138,106,34,.35)}
+  .statut-select.statut-valide{background-color:rgba(30,122,70,.13);color:var(--ok);border-color:rgba(30,122,70,.35)}
+  .statut-select.statut-obsolete{background-color:rgba(91,106,120,.15);color:var(--muted);border-color:rgba(91,106,120,.35)}
   .catitem span{color:var(--muted);margin-left:4px}
 
   /* ---- Empty state ---- */
@@ -223,13 +251,21 @@
     <!-- Objet -->
     <div class="tabpane active" id="pObjet">
       <div class="field"><label><span class="lab">Nom de l'objet</span>
-        <input type="text" id="o_nom" placeholder="Engineering Item" autocomplete="off"></label></div>
+        <input type="text" id="o_nom" list="dl_objet_all" placeholder="Engineering Item" autocomplete="off"></label>
+        <p class="hint" id="o_editHint" style="display:none">Cet objet existe déjà — valider met à jour sa fiche.</p>
+      </div>
       <div class="field"><label><span class="lab">Nature</span>
         <input type="text" id="o_classe" list="dl_classe" placeholder="Engineering Item, Vue…" autocomplete="off"></label>
         <datalist id="dl_classe"></datalist></div>
       <div class="field"><label><span class="lab">Domaine</span>
         <input type="text" id="o_domaine" list="dl_domaine" placeholder="PLM (créé s'il n'existe pas)" autocomplete="off"></label>
         <datalist id="dl_domaine"></datalist></div>
+      <div class="row2">
+        <div class="field"><label><span class="lab">Discipline — code</span>
+          <input type="text" id="o_disc_code" list="dl_disc_code" placeholder="ex : 99" autocomplete="off"></label></div>
+        <div class="field"><label><span class="lab">Discipline — nom (si code inconnu)</span>
+          <input type="text" id="o_disc_nom" placeholder="ex : Electricité" autocomplete="off"></label></div>
+      </div>
       <div class="field"><label><span class="lab">Définition métier</span>
         <textarea id="o_def" placeholder="Le sens de l'objet, en langage métier"></textarea></label></div>
       <div class="actions"><button class="btn primary" id="addObjet">Ajouter l'objet</button></div>
@@ -282,8 +318,10 @@
     <!-- Affectation (applicabilité) -->
     <div class="tabpane" id="pAffect">
       <div class="row2">
-        <div class="field"><label><span class="lab">Objet</span><select id="a_objet"></select></label></div>
-        <div class="field"><label><span class="lab">Propriété</span><select id="a_propriete"></select></label></div>
+        <div class="field"><label><span class="lab">Objet</span>
+          <input type="text" id="a_objet" list="dl_objet_all" placeholder="nom exact d'un objet existant" autocomplete="off"></label></div>
+        <div class="field"><label><span class="lab">Propriété</span>
+          <input type="text" id="a_propriete" list="dl_propriete" placeholder="nom exact d'une propriété existante" autocomplete="off"></label></div>
       </div>
       <div class="checks">
         <label class="check"><input type="checkbox" id="a_req"> obligatoire (contextuel à cet objet)</label>
@@ -302,9 +340,12 @@
     <!-- Relation -->
     <div class="tabpane" id="pRel">
       <div class="row2">
-        <div class="field"><label><span class="lab">Objet source</span><select id="r_src"></select></label></div>
-        <div class="field"><label><span class="lab">Objet cible</span><select id="r_tgt"></select></label></div>
+        <div class="field"><label><span class="lab">Objet source</span>
+          <input type="text" id="r_src" list="dl_objet_all" placeholder="nom exact d'un objet existant" autocomplete="off"></label></div>
+        <div class="field"><label><span class="lab">Objet cible</span>
+          <input type="text" id="r_tgt" list="dl_objet_all" placeholder="nom exact d'un objet existant" autocomplete="off"></label></div>
       </div>
+      <datalist id="dl_objet_all"></datalist>
       <div class="arrowline" id="r_preview">source ——→ cible</div>
       <div class="row2">
         <div class="field"><label><span class="lab">Cardinalité source</span><select id="r_cs"></select></label></div>
@@ -330,12 +371,55 @@
     </div>
     <div class="body">
       <div id="viewFiches">
-        <div class="group-label"><span class="eyebrow">Catalogue des propriétés</span><span class="n" id="propN"></span></div>
-        <div id="catalogView" class="cataloglist"></div>
-        <div class="group-label" style="margin-top:22px"><span class="eyebrow">Objets</span><span class="n" id="objN"></span></div>
-        <div id="objectsView"></div>
-        <div class="group-label" style="margin-top:22px"><span class="eyebrow">Relations</span><span class="n" id="relN"></span></div>
-        <div id="relationsView"></div>
+        <div class="seg" style="margin-bottom:12px">
+          <button class="segbtn" id="subObjets" aria-selected="true">Objets</button>
+          <button class="segbtn" id="subProps" aria-selected="false">Propriétés</button>
+          <button class="segbtn" id="subRels" aria-selected="false">Relations</button>
+        </div>
+
+        <div id="subViewObjets">
+          <div class="mgbar">
+            <input type="text" id="mgObjSearch" placeholder="Rechercher (nom, définition)…">
+            <select id="mgObjNature"><option value="">Toutes natures</option></select>
+            <select id="mgObjDomaine"><option value="">Tous domaines</option></select>
+            <select id="mgObjDiscipline"><option value="">Toutes disciplines</option></select>
+            <select id="mgObjStatut"><option value="">Tous statuts</option><option value="brouillon">Brouillon</option><option value="valide">Validé</option><option value="obsolete">Obsolète</option></select>
+            <span class="mgcount" id="mgObjCount"></span>
+          </div>
+          <div class="mgtablewrap"><table class="mgtable">
+            <thead><tr><th>Nom</th><th>Nature</th><th>Domaine</th><th>Discipline</th><th>Propriétés</th><th>Statut</th><th></th></tr></thead>
+            <tbody id="mgObjBody"></tbody>
+          </table></div>
+          <p class="mgmsg" id="mgObjMsg"></p>
+        </div>
+
+        <div id="subViewProps" class="hidden">
+          <div class="mgbar">
+            <input type="text" id="mgPropSearch" placeholder="Rechercher (nom, description)…">
+            <select id="mgPropType"><option value="">Tous types</option></select>
+            <select id="mgPropStatut"><option value="">Tous statuts</option><option value="brouillon">Brouillon</option><option value="valide">Validé</option><option value="obsolete">Obsolète</option></select>
+            <span class="mgcount" id="mgPropCount"></span>
+          </div>
+          <div class="mgtablewrap"><table class="mgtable">
+            <thead><tr><th>Nom</th><th>Type</th><th>Multivaluée</th><th>Objets</th><th>Statut</th><th></th></tr></thead>
+            <tbody id="mgPropBody"></tbody>
+          </table></div>
+          <p class="mgmsg" id="mgPropMsg"></p>
+        </div>
+
+        <div id="subViewRels" class="hidden">
+          <div class="mgbar">
+            <input type="text" id="mgRelSearch" placeholder="Rechercher (source, cible, nom du lien)…">
+            <select id="mgRelType"><option value="">Tous types</option></select>
+            <select id="mgRelStatut"><option value="">Tous statuts</option><option value="brouillon">Brouillon</option><option value="valide">Validé</option><option value="obsolete">Obsolète</option></select>
+            <span class="mgcount" id="mgRelCount"></span>
+          </div>
+          <div class="mgtablewrap"><table class="mgtable">
+            <thead><tr><th>Source</th><th></th><th>Cible</th><th>Type</th><th>Lien</th><th>Statut</th><th></th></tr></thead>
+            <tbody id="mgRelBody"></tbody>
+          </table></div>
+          <p class="mgmsg" id="mgRelMsg"></p>
+        </div>
       </div>
       <div id="viewDiag" class="hidden">
         <div class="cybar">
@@ -351,6 +435,7 @@
           </select>
           <button class="btn ghost sm" id="cyRelayout">Réorganiser</button>
           <button class="btn ghost sm" id="cyFit">Ajuster</button>
+          <label class="check" style="margin:0"><input type="checkbox" id="cyShowProps"> afficher les propriétés</label>
           <label class="check" style="margin:0"><input type="checkbox" id="cyFocus" checked> focus au clic</label>
           <button class="btn ghost sm" id="cyClearFocus">Réinitialiser</button>
           <button class="btn ghost sm" id="cyPng">PNG</button>
@@ -453,6 +538,7 @@ CREATE TABLE objet (
     definition  TEXT,
     domaine_id  INTEGER REFERENCES domaine(id) ON DELETE SET NULL,
     classe_id   INTEGER REFERENCES classe_objet(id) ON DELETE SET NULL,
+    discipline_id INTEGER REFERENCES discipline(id) ON DELETE SET NULL,
     origine     TEXT,
     statut      TEXT NOT NULL DEFAULT 'brouillon'
                 CHECK (statut IN ('brouillon','valide','obsolete')),
@@ -515,6 +601,7 @@ CREATE TABLE relation (
 
 CREATE INDEX idx_objet_domaine           ON objet(domaine_id);
 CREATE INDEX idx_objet_classe            ON objet(classe_id);
+CREATE INDEX idx_objet_discipline        ON objet(discipline_id);
 CREATE INDEX idx_propriete_type_enumere  ON propriete(type_enumere_id);
 CREATE INDEX idx_propriete_unite         ON propriete(unite_id);
 CREATE INDEX idx_valeur_enumeree_type    ON valeur_enumeree(type_enumere_id);
@@ -614,17 +701,94 @@ function ensureUnite(grandeurNom, symbole, libelle){
 }
 
 /* ---------- actions de saisie ---------- */
-function addObjet(){
+function checkObjetEdit(){
+  const nom=v('o_nom').trim();
+  const row = nom ? exec(`SELECT o.*, d.nom AS domaine, c.nom AS classe, disc.code AS disc_code FROM objet o
+                          LEFT JOIN domaine d ON d.id=o.domaine_id
+                          LEFT JOIN classe_objet c ON c.id=o.classe_id
+                          LEFT JOIN discipline disc ON disc.id=o.discipline_id
+                          WHERE o.nom=?`,[nom])[0] : null;
+  if(row){
+    el('o_classe').value=row.classe||""; el('o_domaine').value=row.domaine||""; el('o_def').value=row.definition||"";
+    el('o_disc_code').value=row.disc_code||""; el('o_disc_nom').value="";
+    setObjetEditMode(true);
+  }else{
+    setObjetEditMode(false);
+  }
+}
+function setObjetEditMode(on){
+  el('o_editHint').style.display = on ? '' : 'none';
+  el('addObjet').textContent = on ? "Mettre à jour l'objet" : "Ajouter l'objet";
+}
+function resolveOrCreateDiscipline(code, nom){
+  code=(code||"").trim(); if(!code) return null;
+  const found=exec("SELECT id FROM discipline WHERE code=?",[code])[0];
+  if(found) return found.id;
+  nom=(nom||"").trim();
+  if(!nom) throw new Error("Cette discipline n'existe pas — indique aussi son nom pour la créer");
+  run("INSERT INTO discipline(code,nom) VALUES (?,?)",[code,nom]);
+  return exec("SELECT id FROM discipline WHERE code=?",[code])[0].id;
+}
+function addOrUpdateObjet(){
   const nom=v('o_nom').trim();
   if(!nom) return toast("Donne un nom à l'objet","err");
   try{
     const did=ensureDomaine(v('o_domaine'));
     const cid=ensureClasse(v('o_classe'));
-    run("INSERT INTO objet(nom,domaine_id,classe_id,definition) VALUES (?,?,?,?)",
-        [nom,did,cid,v('o_def').trim()||null]);
-    clear(['o_nom','o_domaine','o_classe','o_def']); refreshAll();
-    toast("Objet « "+nom+" » ajouté","ok"); focus('o_nom');
+    const discId=resolveOrCreateDiscipline(v('o_disc_code'), v('o_disc_nom'));
+    const def=v('o_def').trim()||null;
+    const existing=exec("SELECT id FROM objet WHERE nom=?",[nom])[0];
+    if(existing){
+      run("UPDATE objet SET domaine_id=?,classe_id=?,discipline_id=?,definition=? WHERE id=?",[did,cid,discId,def,existing.id]);
+      toast("Objet « "+nom+" » mis à jour","ok");
+    }else{
+      run("INSERT INTO objet(nom,domaine_id,classe_id,discipline_id,definition) VALUES (?,?,?,?,?)",[nom,did,cid,discId,def]);
+      toast("Objet « "+nom+" » ajouté","ok");
+    }
+    clear(['o_nom','o_domaine','o_classe','o_disc_code','o_disc_nom','o_def']); setObjetEditMode(false);
+    refreshAll(); focus('o_nom');
   }catch(e){ toast(friendly(e),"err"); }
+}
+function editObjetRow(id){
+  const row=exec("SELECT nom FROM objet WHERE id=?",[id])[0]; if(!row) return;
+  el('o_nom').value=row.nom; checkObjetEdit(); switchToTab('pObjet'); focus('o_classe');
+}
+function deleteObjet(id){
+  const row=exec("SELECT nom FROM objet WHERE id=?",[id])[0]; if(!row) return;
+  const na=exec("SELECT COUNT(*) n FROM applicabilite WHERE objet_id=?",[id])[0].n;
+  const nr=exec("SELECT COUNT(*) n FROM relation WHERE source_id=? OR cible_id=?",[id,id])[0].n;
+  const detail=[na?na+" affectation(s) de propriété":null, nr?nr+" relation(s)":null].filter(Boolean).join(" et ");
+  const msg="Supprimer « "+row.nom+" » ?"+(detail?" Cela retirera aussi "+detail+".":"");
+  if(!confirm(msg)) return;
+  run("DELETE FROM objet WHERE id=?",[id]);
+  toast("Objet « "+row.nom+" » supprimé","ok"); refreshAll();
+}
+function deleteProp(id){
+  const row=exec("SELECT nom FROM propriete WHERE id=?",[id])[0]; if(!row) return;
+  const n=exec("SELECT COUNT(*) n FROM applicabilite WHERE propriete_id=?",[id])[0].n;
+  const msg="Supprimer « "+row.nom+" » ?"+(n?" Elle sera retirée des "+n+" objet(s) qui l'utilisent.":"");
+  if(!confirm(msg)) return;
+  run("DELETE FROM propriete WHERE id=?",[id]);
+  toast("Propriété « "+row.nom+" » supprimée","ok"); refreshAll();
+}
+function deleteRelation(id){
+  if(!confirm("Supprimer cette relation ?")) return;
+  run("DELETE FROM relation WHERE id=?",[id]);
+  toast("Relation supprimée","ok"); refreshAll();
+}
+function deleteApplicabilite(id, objetNom, propNom){
+  if(!confirm("Retirer « "+propNom+" » de « "+objetNom+" » ?")) return;
+  run("DELETE FROM applicabilite WHERE id=?",[id]);
+  toast("Propriété retirée de l'objet","ok"); refreshAll();
+}
+function findIdByName(table, nom){
+  nom=(nom||"").trim(); if(!nom) return null;
+  const r=exec(`SELECT id FROM ${table} WHERE nom=?`,[nom])[0];
+  return r ? r.id : null;
+}
+function switchToTab(paneId){
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected', String(x.dataset.pane===paneId)));
+  document.querySelectorAll('.tabpane').forEach(x=>x.classList.toggle('active', x.id===paneId));
 }
 
 function updatePropTypeUI(){
@@ -654,6 +818,10 @@ function checkPropEdit(){
 function setPropEditMode(on){
   el('p_editHint').style.display = on ? '' : 'none';
   el('addProp').textContent = on ? "Mettre à jour la propriété" : "Créer la propriété";
+}
+function editPropRow(id){
+  const row=exec("SELECT nom FROM propriete WHERE id=?",[id])[0]; if(!row) return;
+  el('p_nom').value=row.nom; checkPropEdit(); switchToTab('pProp'); focus('p_type');
 }
 function addOrUpdateProp(){
   const nom=v('p_nom').trim();
@@ -723,22 +891,12 @@ function addValeur(){
 }
 
 function addOrUpdateAffect(){
-  const oid=v('a_objet'), pid=v('a_propriete');
-  if(!oid) return toast("Choisis un objet","err");
-  if(!pid) return toast("Choisis une propriété","err");
+  const oid=findIdByName('objet', v('a_objet'));
+  const pid=findIdByName('propriete', v('a_propriete'));
+  if(!oid) return toast("Objet inconnu — choisis un nom existant dans la liste","err");
+  if(!pid) return toast("Propriété inconnue — choisis un nom existant dans la liste","err");
   try{
-    const code=v('a_disc_code').trim();
-    let discId=null;
-    if(code){
-      const found=exec("SELECT id FROM discipline WHERE code=?",[code])[0];
-      if(found){ discId=found.id; }
-      else{
-        const nom=v('a_disc_nom').trim();
-        if(!nom) return toast("Cette discipline n'existe pas — indique aussi son nom pour la créer","err");
-        run("INSERT INTO discipline(code,nom) VALUES (?,?)",[code,nom]);
-        discId=exec("SELECT id FROM discipline WHERE code=?",[code])[0].id;
-      }
-    }
+    const discId=resolveOrCreateDiscipline(v('a_disc_code'), v('a_disc_nom'));
     const oblig = el('a_req').checked?1:0;
     const existing=exec("SELECT id FROM applicabilite WHERE objet_id=? AND propriete_id=?",[+oid,+pid])[0];
     if(existing){
@@ -754,11 +912,12 @@ function addOrUpdateAffect(){
 }
 
 function addRel(){
-  const s=v('r_src'), t=v('r_tgt');
-  if(!s||!t) return toast("Choisis les deux objets","err");
+  const sid=findIdByName('objet', v('r_src'));
+  const tid=findIdByName('objet', v('r_tgt'));
+  if(!sid||!tid) return toast("Choisis deux objets existants (noms exacts)","err");
   try{
     run("INSERT INTO relation(nom,type,source_id,cible_id,card_source,card_cible) VALUES (?,?,?,?,?,?)",
-        [v('r_nom').trim()||null,v('r_type'),+s,+t,v('r_cs'),v('r_cc')]);
+        [v('r_nom').trim()||null,v('r_type'),sid,tid,v('r_cs'),v('r_cc')]);
     clear(['r_nom']); refreshAll(); toast("Relation ajoutée","ok");
   }catch(e){ toast(friendly(e),"err"); }
 }
@@ -776,6 +935,9 @@ function friendly(e){
 }
 
 /* ---------- rendu ---------- */
+const MG_MAX_ROWS = 300;
+let mgExpandedObjId = null;
+
 function refreshAll(){
   const so=exec("SELECT COUNT(*) n FROM objet")[0].n;
   const sp=exec("SELECT COUNT(*) n FROM propriete")[0].n;
@@ -783,106 +945,161 @@ function refreshAll(){
   const sr=exec("SELECT COUNT(*) n FROM relation")[0].n;
   el('cObj').textContent=so; el('cProp').textContent=sp; el('cAffect').textContent=sa; el('cRel').textContent=sr;
   el('dbname').textContent=dbName;
-  el('relN').textContent=sr;
   el('groupMode').textContent="groupé par nature";
 
-  const objets=exec("SELECT id,nom FROM objet ORDER BY nom");
-  const proprietes=exec("SELECT id,nom FROM propriete ORDER BY nom");
-  fillSelect('r_src',objets); fillSelect('r_tgt',objets);
-  fillSelect('a_objet',objets); fillSelect('a_propriete',proprietes);
+  fillDatalist('dl_objet_all', exec("SELECT nom FROM objet ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_domaine',exec("SELECT nom FROM domaine ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_classe',exec("SELECT nom FROM classe_objet ORDER BY nom").map(r=>r.nom));
-  fillDatalist('dl_propriete',proprietes.map(r=>r.nom));
+  fillDatalist('dl_propriete',exec("SELECT nom FROM propriete ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_enum',exec("SELECT nom FROM type_enumere ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_disc_code',exec("SELECT code FROM discipline ORDER BY code").map(r=>r.code));
   fillDatalist('dl_grandeur',exec("SELECT nom FROM grandeur_physique ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_unite',exec("SELECT DISTINCT symbole FROM unite ORDER BY symbole").map(r=>r.symbole));
 
-  renderCatalogue(); renderObjects(); renderRelations(); updateRelPreview();
+  fillFilterSelect('mgObjNature', exec("SELECT DISTINCT COALESCE(c.nom,'— sans nature') n FROM objet o LEFT JOIN classe_objet c ON c.id=o.classe_id ORDER BY n").map(r=>r.n), 'Toutes natures');
+  fillFilterSelect('mgObjDomaine', exec("SELECT DISTINCT COALESCE(d.nom,'— sans domaine') n FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id ORDER BY n").map(r=>r.n), 'Tous domaines');
+  { const sel=el('mgObjDiscipline'); const cur=sel.value;
+    const discs=exec(`SELECT DISTINCT disc.code,disc.nom FROM objet o JOIN discipline disc ON disc.id=o.discipline_id ORDER BY disc.code`);
+    sel.innerHTML='<option value="">Toutes disciplines</option>'+discs.map(d=>`<option value="${esc(d.code)}">${esc(d.code)} — ${esc(d.nom)}</option>`).join('');
+    if(cur && discs.some(d=>d.code===cur)) sel.value=cur; }
+  fillFilterSelect('mgPropType', TYPES, 'Tous types');
+  fillFilterSelect('mgRelType', REL_TYPES, 'Tous types');
+
+  renderMgObjets(); renderMgProps(); renderMgRels(); updateRelPreview();
   if(v('p_type')==='enum') renderValuesFor(v('p_enum'));
   if(v('p_type')==='grandeur') renderUnitesFor(v('p_grandeur'));
   if(viewMode==='diagram') renderDiagram();
 }
-function fillSelect(id,rows){
-  const sel=el(id); const cur=sel.value;
-  sel.innerHTML = rows.length ? "" : '<option value="">— aucune —</option>';
-  rows.forEach(r=>{const o=document.createElement('option');o.value=r.id;o.textContent=r.nom;sel.appendChild(o);});
-  if(cur && rows.some(r=>String(r.id)===cur)) sel.value=cur;
-}
 function fillDatalist(id,vals){
   const dl=el(id); dl.innerHTML=""; vals.forEach(v=>{const o=document.createElement('option');o.value=v;dl.appendChild(o);});
+}
+function fillFilterSelect(id,vals,placeholder){
+  const sel=el(id); const cur=sel.value;
+  sel.innerHTML = `<option value="">${esc(placeholder)}</option>`+vals.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+  if(cur && vals.includes(cur)) sel.value=cur;
 }
 function typeLabel(p){
   if(p.type==='grandeur') return esc(p.grandeur)+' ('+esc(p.unite)+')';
   return p.type;
 }
-function renderCatalogue(){
-  const rows=exec(`SELECT p.nom,p.type,p.multivalue,gp.nom AS grandeur,u.symbole AS unite,COUNT(a.id) n
-                   FROM propriete p
-                   LEFT JOIN applicabilite a ON a.propriete_id=p.id
-                   LEFT JOIN unite u ON u.id=p.unite_id
-                   LEFT JOIN grandeur_physique gp ON gp.id=u.grandeur_id
-                   GROUP BY p.id ORDER BY p.nom`);
-  el('propN').textContent=rows.length;
-  const host=el('catalogView'); host.innerHTML="";
-  if(!rows.length){ host.innerHTML='<p class="noprops">Aucune propriété définie pour l\'instant.</p>'; return; }
-  rows.forEach(r=>{
-    const d=document.createElement('div'); d.className='catitem';
-    d.innerHTML=`<b>${esc(r.nom)}</b><span style="color:var(--accent-deep)"> ${typeLabel(r)}${r.multivalue?'[]':''}</span>`
-      +`<span> · ${r.n} objet${r.n>1?'s':''}</span>`;
-    host.appendChild(d);
-  });
+const STATUT_LABELS = {brouillon:'Brouillon', valide:'Validé', obsolete:'Obsolète'};
+function statutSelectHtml(kind, id, statut){
+  return `<select class="statut-select statut-${statut}" data-kind="${kind}" data-id="${id}">`
+    + Object.keys(STATUT_LABELS).map(s=>`<option value="${s}"${s===statut?' selected':''}>${STATUT_LABELS[s]}</option>`).join('')
+    + `</select>`;
 }
-function renderObjects(){
-  const objs=exec(`SELECT o.id,o.nom,o.definition, COALESCE(c.nom,'— sans nature') AS grp
-                   FROM objet o LEFT JOIN classe_objet c ON c.id=o.classe_id ORDER BY grp,o.nom`);
-  const props=exec(`SELECT a.objet_id,p.nom,p.type,p.multivalue,gp.nom AS grandeur,u.symbole AS unite,a.obligatoire,d.code AS disc
+
+/* ---- Objets : liste filtrable/cherchable avec detail depliable ---- */
+function renderMgObjets(){
+  const search=v('mgObjSearch').trim(), nature=v('mgObjNature'), domaine=v('mgObjDomaine'), discipline=v('mgObjDiscipline'), statut=v('mgObjStatut');
+  const where=[]; const params=[];
+  if(search){ where.push("(o.nom LIKE ? OR o.definition LIKE ?)"); params.push('%'+search+'%','%'+search+'%'); }
+  if(nature){ where.push("COALESCE(c.nom,'— sans nature')=?"); params.push(nature); }
+  if(domaine){ where.push("COALESCE(d.nom,'— sans domaine')=?"); params.push(domaine); }
+  if(discipline){ where.push("disc.code=?"); params.push(discipline); }
+  if(statut){ where.push("o.statut=?"); params.push(statut); }
+  const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
+  const baseFrom = `FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id LEFT JOIN discipline disc ON disc.id=o.discipline_id ${whereSql}`;
+  const total = exec(`SELECT COUNT(*) n ${baseFrom}`, params)[0].n;
+  const rows = exec(`SELECT o.id,o.nom,o.definition, COALESCE(c.nom,'— sans nature') AS classe, COALESCE(d.nom,'— sans domaine') AS domaine,
+                      disc.code AS disc_code, disc.nom AS disc_nom, o.statut,
+                      (SELECT COUNT(*) FROM applicabilite a WHERE a.objet_id=o.id) AS nprop
+                      ${baseFrom} ORDER BY o.nom LIMIT ${MG_MAX_ROWS}`, params);
+  el('mgObjCount').textContent = total+' objet'+(total>1?'s':'');
+  const body=el('mgObjBody'); body.innerHTML='';
+  if(!rows.length) body.innerHTML='<tr><td colspan="7" class="noprops">Aucun objet.</td></tr>';
+  rows.forEach(o=>{
+    const tr=document.createElement('tr'); tr.className='mgrow'; tr.dataset.id=o.id;
+    tr.innerHTML=`<td><span class="mgname">${esc(o.nom)}</span>${o.definition?`<span class="mgdef">${esc(o.definition)}</span>`:''}</td>
+      <td>${esc(o.classe)}</td><td>${esc(o.domaine)}</td>
+      <td>${o.disc_code?esc(o.disc_code)+' — '+esc(o.disc_nom):'—'}</td><td>${o.nprop}</td>
+      <td>${statutSelectHtml('objet',o.id,o.statut)}</td>
+      <td class="mgactions"><button class="btn xs ghost" data-act="edit">Éditer</button>
+        <button class="btn xs danger" data-act="del">Supprimer</button></td>`;
+    body.appendChild(tr);
+    if(mgExpandedObjId===o.id){
+      const dtr=document.createElement('tr'); dtr.className='mgdetail';
+      dtr.innerHTML=`<td colspan="7">${renderObjPropsDetail(o.id)}</td>`;
+      body.appendChild(dtr);
+    }
+  });
+  el('mgObjMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichés sur '+total+' — affine la recherche pour voir le reste.' : '';
+}
+function renderObjPropsDetail(objetId){
+  const props=exec(`SELECT a.id,p.nom,p.type,gp.nom AS grandeur,u.symbole AS unite,a.obligatoire,d.code AS disc
                     FROM applicabilite a JOIN propriete p ON p.id=a.propriete_id
                     LEFT JOIN unite u ON u.id=p.unite_id
                     LEFT JOIN grandeur_physique gp ON gp.id=u.grandeur_id
                     LEFT JOIN discipline d ON d.id=a.discipline_id
-                    ORDER BY a.objet_id,p.nom`);
-  const byObj={}; props.forEach(p=>{(byObj[p.objet_id]=byObj[p.objet_id]||[]).push(p);});
-
-  el('objN').textContent=objs.length;
-  const host=el('objectsView'); host.innerHTML="";
-  if(!objs.length){ host.innerHTML='<p class="noprops">Aucun objet pour l\'instant. Commence par l\'onglet « Objet ».</p>'; return; }
-
-  const groups={}; objs.forEach(o=>{(groups[o.grp]=groups[o.grp]||[]).push(o);});
-  Object.keys(groups).forEach(g=>{
-    const gl=document.createElement('div'); gl.className='group-label';
-    gl.innerHTML=`<span class="eyebrow">${esc(g)}</span><span class="n">${groups[g].length}</span>`;
-    host.appendChild(gl);
-    groups[g].forEach(o=>{
-      const rec=document.createElement('div'); rec.className='record';
-      const list=(byObj[o.id]||[]);
-      rec.innerHTML=`<div class="rhead"><span class="oname">${esc(o.nom)}</span>${o.definition?`<span class="odef">${esc(o.definition)}</span>`:""}</div>`
-        + (list.length? `<div class="props">${list.map(p=>
-            `<div class="prop"><span class="pn">${esc(p.nom)}</span><span class="pt">${typeLabel(p)}</span>`
-            +`${p.obligatoire?'<span class="req">requis</span>':''}${p.multivalue?'<span class="mv">[*]</span>':''}`
-            +`${p.disc?'<span class="chip">'+esc(p.disc)+'</span>':''}</div>`).join("")}</div>`
-          : `<div class="noprops">aucune propriété affectée</div>`);
-      host.appendChild(rec);
-    });
-  });
+                    WHERE a.objet_id=? ORDER BY p.nom`,[objetId]);
+  if(!props.length) return '<span class="noprops">Aucune propriété affectée.</span>';
+  return '<table>'+props.map(p=>
+    `<tr><td>${esc(p.nom)}</td><td>${typeLabel(p)}</td><td>${p.obligatoire?'requis':''}</td><td>${p.disc?esc(p.disc):''}</td>
+     <td style="text-align:right"><button class="btn xs danger" data-act="unaffect" data-aid="${p.id}" data-pnom="${esc(p.nom)}">Retirer</button></td></tr>`
+  ).join('')+'</table>';
 }
-function renderRelations(){
-  const rels=exec(`SELECT s.nom src,r.nom rel,r.type,c.nom tgt,r.card_source cs,r.card_cible cc
-                   FROM relation r JOIN objet s ON s.id=r.source_id JOIN objet c ON c.id=r.cible_id
-                   ORDER BY s.nom,c.nom`);
-  const host=el('relationsView'); host.innerHTML="";
-  if(!rels.length){ host.innerHTML='<p class="noprops">Aucune relation.</p>'; return; }
-  rels.forEach(r=>{
-    const d=document.createElement('div'); d.className='rel';
-    d.innerHTML=`<span>${esc(r.src)}</span><span class="card">[${r.cs}]</span>`
-      +`<span class="arw">──${r.rel?esc(r.rel):''}──▶</span>`
-      +`<span class="card">[${r.cc}]</span><span>${esc(r.tgt)}</span><span class="typ">${r.type}</span>`;
-    host.appendChild(d);
+
+/* ---- Proprietes : liste filtrable/cherchable ---- */
+function renderMgProps(){
+  const search=v('mgPropSearch').trim(), type=v('mgPropType'), statut=v('mgPropStatut');
+  const where=[]; const params=[];
+  if(search){ where.push("(p.nom LIKE ? OR p.description LIKE ?)"); params.push('%'+search+'%','%'+search+'%'); }
+  if(type){ where.push("p.type=?"); params.push(type); }
+  if(statut){ where.push("p.statut=?"); params.push(statut); }
+  const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
+  const total = exec(`SELECT COUNT(*) n FROM propriete p ${whereSql}`, params)[0].n;
+  const rows = exec(`SELECT p.id,p.nom,p.type,p.multivalue,p.statut,gp.nom AS grandeur,u.symbole AS unite,
+                      (SELECT COUNT(*) FROM applicabilite a WHERE a.propriete_id=p.id) AS nobj
+                      FROM propriete p LEFT JOIN unite u ON u.id=p.unite_id LEFT JOIN grandeur_physique gp ON gp.id=u.grandeur_id
+                      ${whereSql} ORDER BY p.nom LIMIT ${MG_MAX_ROWS}`, params);
+  el('mgPropCount').textContent = total+' propriété'+(total>1?'s':'');
+  const body=el('mgPropBody'); body.innerHTML='';
+  if(!rows.length) body.innerHTML='<tr><td colspan="6" class="noprops">Aucune propriété.</td></tr>';
+  rows.forEach(p=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><span class="mgname">${esc(p.nom)}</span></td><td>${typeLabel(p)}</td><td>${p.multivalue?'oui':'—'}</td><td>${p.nobj}</td>
+      <td>${statutSelectHtml('propriete',p.id,p.statut)}</td>
+      <td class="mgactions"><button class="btn xs ghost" data-act="edit" data-id="${p.id}">Éditer</button>
+        <button class="btn xs danger" data-act="del" data-id="${p.id}">Supprimer</button></td>`;
+    body.appendChild(tr);
+  });
+  el('mgPropMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichées sur '+total+' — affine la recherche pour voir le reste.' : '';
+}
+
+/* ---- Relations : liste filtrable/cherchable ---- */
+function renderMgRels(){
+  const search=v('mgRelSearch').trim(), type=v('mgRelType'), statut=v('mgRelStatut');
+  const where=[]; const params=[];
+  if(search){ where.push("(s.nom LIKE ? OR c.nom LIKE ? OR r.nom LIKE ?)"); params.push('%'+search+'%','%'+search+'%','%'+search+'%'); }
+  if(type){ where.push("r.type=?"); params.push(type); }
+  if(statut){ where.push("r.statut=?"); params.push(statut); }
+  const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
+  const baseFrom = `FROM relation r JOIN objet s ON s.id=r.source_id JOIN objet c ON c.id=r.cible_id ${whereSql}`;
+  const total = exec(`SELECT COUNT(*) n ${baseFrom}`, params)[0].n;
+  const rows = exec(`SELECT r.id,s.nom src,r.nom rel,r.type,c.nom tgt,r.card_source cs,r.card_cible cc,r.statut ${baseFrom} ORDER BY s.nom,c.nom LIMIT ${MG_MAX_ROWS}`, params);
+  el('mgRelCount').textContent = total+' relation'+(total>1?'s':'');
+  const body=el('mgRelBody'); body.innerHTML='';
+  if(!rows.length) body.innerHTML='<tr><td colspan="7" class="noprops">Aucune relation.</td></tr>';
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r.src)} <span class="mgdef">[${r.cs}]</span></td><td class="typ">──▶</td>
+      <td>${esc(r.tgt)} <span class="mgdef">[${r.cc}]</span></td><td>${r.type}</td><td>${r.rel?esc(r.rel):''}</td>
+      <td>${statutSelectHtml('relation',r.id,r.statut)}</td>
+      <td class="mgactions"><button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button></td>`;
+    body.appendChild(tr);
+  });
+  el('mgRelMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichées sur '+total+' — affine la recherche pour voir le reste.' : '';
+}
+function setFichesSubView(name){
+  const map={objets:['subObjets','subViewObjets'], props:['subProps','subViewProps'], rels:['subRels','subViewRels']};
+  Object.keys(map).forEach(k=>{
+    el(map[k][0]).setAttribute('aria-selected', String(k===name));
+    el(map[k][1]).classList.toggle('hidden', k!==name);
   });
 }
 function updateRelPreview(){
-  const s=el('r_src').selectedOptions[0], t=el('r_tgt').selectedOptions[0];
-  el('r_preview').textContent=`${s?s.textContent:'source'}  [${v('r_cs')||'1'}] ──${v('r_nom')||''}──▶ [${v('r_cc')||'0..*'}]  ${t?t.textContent:'cible'}`;
+  const s=v('r_src'), t=v('r_tgt');
+  el('r_preview').textContent=`${s||'source'}  [${v('r_cs')||'1'}] ──${v('r_nom')||''}──▶ [${v('r_cc')||'0..*'}]  ${t||'cible'}`;
 }
 
 /* ---------- Diagramme : graphe interactif Cytoscape ---------- */
@@ -910,8 +1127,10 @@ function assignNatureColors(natures){
 
 function buildCyElements(){
   const objs = exec(`SELECT o.id,o.nom,o.definition,
-      COALESCE(d.nom,'— sans domaine') AS domaine, COALESCE(c.nom,'— sans nature') AS classe
-      FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id`);
+      COALESCE(d.nom,'— sans domaine') AS domaine, COALESCE(c.nom,'— sans nature') AS classe,
+      disc.code AS disc_code, disc.nom AS disc_nom
+      FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id
+      LEFT JOIN discipline disc ON disc.id=o.discipline_id`);
   assignNatureColors(objs.map(o=>o.classe));
   cyDomaines=[...new Set(objs.map(o=>o.domaine))].sort((a,b)=>a.localeCompare(b));
 
@@ -925,15 +1144,34 @@ function buildCyElements(){
 
   const rels = exec(`SELECT r.id,r.type,r.nom,r.source_id,r.cible_id FROM relation r`);
 
-  const nodes = objs.map(o=>({
-    data:{ id:'n'+o.id, label:o.nom, classe:o.classe, domaine:o.domaine, definition:o.definition||'', color:natureColor[o.classe] },
-    classes:'obj'
-  }));
+  const nodes = objs.map(o=>{
+    const labelFull = buildCyNodeLabel(o.nom, byObj[o.id]||[]);
+    return { data:{ id:'n'+o.id, label:o.nom, labelCompact:o.nom, labelFull,
+             classe:o.classe, domaine:o.domaine, discCode:o.disc_code||'', discNom:o.disc_nom||'',
+             definition:o.definition||'', color:natureColor[o.classe] },
+      classes:'obj' };
+  });
   const edges = rels.map(r=>({
     data:{ id:'e'+r.id, source:'n'+r.source_id, target:'n'+r.cible_id, type:r.type, label:r.nom||'' },
     classes:'rel-'+r.type
   }));
   return { nodes, edges };
+}
+const CY_MAX_PROPS_IN_NODE = 20;
+function buildCyNodeLabel(nom, props){
+  if(!props.length) return nom;
+  const lines = props.slice(0,CY_MAX_PROPS_IN_NODE).map(p=>{
+    const t = p.type==='grandeur' ? (p.grandeur+'('+p.unite+')') : p.type;
+    return '+'+t+(p.multivalue?'[]':'')+' '+p.nom+(p.obligatoire?' ✱':'');
+  });
+  if(props.length>CY_MAX_PROPS_IN_NODE) lines.push('… et '+(props.length-CY_MAX_PROPS_IN_NODE)+' de plus');
+  const width = Math.max(nom.length, ...lines.map(l=>l.length), 10);
+  return nom+'\n'+'─'.repeat(width)+'\n'+lines.join('\n');
+}
+function applyCyLabelMode(){
+  if(!cy) return;
+  const full = el('cyShowProps').checked;
+  cy.batch(()=>{ cy.nodes('.obj').forEach(n=>n.data('label', full ? n.data('labelFull') : n.data('labelCompact'))); });
 }
 
 function cyStyle(){
@@ -942,7 +1180,7 @@ function cyStyle(){
         'shape':'round-rectangle', 'width':'label', 'height':'label', 'padding':'8px',
         'background-color':'#FCFDFE', 'border-width':4, 'border-color':'data(color)',
         'label':'data(label)', 'color':'#132428', 'font-size':10, 'font-family':'ui-monospace,monospace',
-        'text-valign':'center', 'text-halign':'center', 'text-wrap':'wrap', 'text-max-width':110
+        'text-valign':'center', 'text-halign':'center', 'text-wrap':'wrap', 'text-max-width':220
     }},
     { selector:'node.obj:selected', style:{ 'border-width':6, 'border-color':'#0A4B5D', 'background-color':'#EAF6F7' } },
     { selector:'edge', style:{
@@ -981,6 +1219,7 @@ async function renderDiagram(){
   });
   cy.on('tap', 'node.obj', evt=>onCyNodeSelected(evt.target));
   cy.on('tap', evt=>{ if(evt.target===cy) clearCyFocus(); });
+  applyCyLabelMode();
 
   renderCyLegendFilters();
   fillCySearch();
@@ -1049,8 +1288,9 @@ function clearCyFocus(){
 function renderCyDetail(node){
   const props = (cyPropsByObj[+node.id().slice(1)]||[]);
   const host=el('cyDetail'); host.classList.remove('hidden');
-  host.innerHTML = `<span class="dname">${esc(node.data('label'))}</span>
-    <div class="dmeta">${esc(node.data('classe'))} · ${esc(node.data('domaine'))}</div>`
+  const disc = node.data('discCode') ? node.data('discCode')+' — '+node.data('discNom') : null;
+  host.innerHTML = `<span class="dname">${esc(node.data('labelCompact'))}</span>
+    <div class="dmeta">${esc(node.data('classe'))} · ${esc(node.data('domaine'))}${disc?' · '+esc(disc):''}</div>`
     + (props.length ? props.map(p=>{
         const t = p.type==='grandeur' ? (p.grandeur+' ('+p.unite+')') : p.type;
         return `<div class="dprop"><span>${esc(p.nom)}</span><span>${esc(t)}${p.obligatoire?' *':''}</span></div>`;
@@ -1136,17 +1376,16 @@ function wire(){
   el('file').onchange=async e=>{const f=e.target.files[0]; if(!f)return; fileHandle=null;
     try{ await openBytes(new Uint8Array(await f.arrayBuffer()), f.name); }
     catch(err){ showLoadErr(friendly(err)); } e.target.value="";};
-  el('addObjet').onclick=addObjet;
+  el('addObjet').onclick=addOrUpdateObjet;
   el('addProp').onclick=addOrUpdateProp;
   el('addValeur').onclick=addValeur;
   el('addAffect').onclick=addOrUpdateAffect;
   el('addRel').onclick=addRel;
   // tabs
-  document.querySelectorAll('.tab').forEach(tb=>tb.onclick=()=>{
-    document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected','false'));
-    document.querySelectorAll('.tabpane').forEach(x=>x.classList.remove('active'));
-    tb.setAttribute('aria-selected','true'); el(tb.dataset.pane).classList.add('active');
-  });
+  document.querySelectorAll('.tab').forEach(tb=>tb.onclick=()=>switchToTab(tb.dataset.pane));
+  // Objet : détection création vs édition
+  el('o_nom').addEventListener('change',checkObjetEdit);
+  el('o_nom').addEventListener('blur',checkObjetEdit);
   // Propriété : détection création vs édition, bascule bloc valeurs enum
   el('p_nom').addEventListener('change',checkPropEdit);
   el('p_nom').addEventListener('blur',checkPropEdit);
@@ -1156,19 +1395,78 @@ function wire(){
   // aperçu relation en direct
   ['r_src','r_tgt','r_cs','r_cc','r_nom'].forEach(id=>{const e=el(id); if(e){e.addEventListener('input',updateRelPreview);e.addEventListener('change',updateRelPreview);}});
   // Entrée = ajouter dans l'onglet courant
-  ['o_nom','o_domaine','o_def'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&id!=='o_def'){e.preventDefault();addObjet();}}));
+  ['o_nom','o_domaine','o_disc_code','o_disc_nom','o_def'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&id!=='o_def'){e.preventDefault();addOrUpdateObjet();}}));
   ['p_nom','p_desc','p_grandeur','p_unite','p_unite_libelle'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addOrUpdateProp();}}));
   ['v_valeur','v_libelle'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addValeur();}}));
   ['a_disc_code','a_disc_nom'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addOrUpdateAffect();}}));
   // bascule Fiches / Diagramme
   el('tabFiches').onclick=()=>setView('fiches');
   el('tabDiag').onclick=()=>setView('diagram');
+  // Fiches : sous-onglets Objets / Proprietes / Relations
+  el('subObjets').onclick=()=>setFichesSubView('objets');
+  el('subProps').onclick=()=>setFichesSubView('props');
+  el('subRels').onclick=()=>setFichesSubView('rels');
+  // Fiches : recherche / filtres (debounce leger sur le texte libre)
+  const debounce=(fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
+  el('mgObjSearch').addEventListener('input', debounce(renderMgObjets,150));
+  el('mgObjNature').addEventListener('change', renderMgObjets);
+  el('mgObjDomaine').addEventListener('change', renderMgObjets);
+  el('mgObjDiscipline').addEventListener('change', renderMgObjets);
+  el('mgObjStatut').addEventListener('change', renderMgObjets);
+  el('mgPropSearch').addEventListener('input', debounce(renderMgProps,150));
+  el('mgPropType').addEventListener('change', renderMgProps);
+  el('mgPropStatut').addEventListener('change', renderMgProps);
+  el('mgRelSearch').addEventListener('input', debounce(renderMgRels,150));
+  el('mgRelType').addEventListener('change', renderMgRels);
+  el('mgRelStatut').addEventListener('change', renderMgRels);
+  // Fiches : actions des listes (delegation d'evenements)
+  el('mgObjBody').addEventListener('click', e=>{
+    if(e.target.closest('select.statut-select')){ e.stopPropagation(); return; }
+    const btn=e.target.closest('button[data-act]');
+    if(btn){
+      e.stopPropagation();
+      const tr=btn.closest('tr');
+      const id=+tr.dataset.id;
+      if(btn.dataset.act==='edit') editObjetRow(id);
+      else if(btn.dataset.act==='del') deleteObjet(id);
+      else if(btn.dataset.act==='unaffect'){
+        const objetNom=exec("SELECT nom FROM objet WHERE id=?",[mgExpandedObjId])[0].nom;
+        deleteApplicabilite(+btn.dataset.aid, objetNom, btn.dataset.pnom);
+      }
+      return;
+    }
+    const tr=e.target.closest('tr.mgrow'); if(!tr) return;
+    const id=+tr.dataset.id;
+    mgExpandedObjId = (mgExpandedObjId===id) ? null : id;
+    renderMgObjets();
+  });
+  el('mgPropBody').addEventListener('click', e=>{
+    const btn=e.target.closest('button[data-act]'); if(!btn) return;
+    const id=+btn.dataset.id;
+    if(btn.dataset.act==='edit') editPropRow(id);
+    else if(btn.dataset.act==='del') deleteProp(id);
+  });
+  el('mgRelBody').addEventListener('click', e=>{
+    const btn=e.target.closest('button[data-act]'); if(!btn) return;
+    if(btn.dataset.act==='del') deleteRelation(+btn.dataset.id);
+  });
+  // Statut : select colore, modifiable en place dans les 3 listes
+  const STATUT_TABLES={objet:'objet',propriete:'propriete',relation:'relation'};
+  [el('mgObjBody'),el('mgPropBody'),el('mgRelBody')].forEach(body=>{
+    body.addEventListener('change', e=>{
+      const sel=e.target.closest('select.statut-select'); if(!sel) return;
+      const table=STATUT_TABLES[sel.dataset.kind]; const id=+sel.dataset.id;
+      run(`UPDATE ${table} SET statut=? WHERE id=?`,[sel.value,id]);
+      sel.className='statut-select statut-'+sel.value;
+    });
+  });
   // Diagramme : graphe Cytoscape
   el('cySearchBtn').onclick=doCySearch;
   el('cySearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doCySearch(); } });
   el('cyRelayout').onclick=()=>{ if(cy) cy.layout({name:v('cyLayout'),animate:true,padding:36}).run(); };
   el('cyFit').onclick=()=>{ if(cy) cy.fit(undefined,30); };
   el('cyClearFocus').onclick=clearCyFocus;
+  el('cyShowProps').addEventListener('change', applyCyLabelMode);
   el('cyPng').onclick=()=>{
     if(!cy) return toast("Aucun graphe à exporter","err");
     const a=document.createElement('a'); a.href=cy.png({full:true,scale:2,bg:'#ffffff'}); a.download=baseName()+'.png'; a.click();

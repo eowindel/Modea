@@ -10,13 +10,17 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
---  Saisie d'un OBJET (domaine et classe par leur nom)
+--  Saisie d'un OBJET (domaine et classe par leur nom, discipline par son CODE).
+--  La discipline doit deja exister (comme pour saisie_applicabilite) : sa
+--  creation demande un code ET un libelle, que cette vue ne porte pas a elle
+--  seule.
 -- -----------------------------------------------------------------------------
 CREATE VIEW saisie_objet AS
-SELECT o.id, o.nom, d.nom AS domaine, c.nom AS classe, o.definition, o.origine, o.statut
+SELECT o.id, o.nom, d.nom AS domaine, c.nom AS classe, disc.code AS discipline, o.definition, o.origine, o.statut
 FROM objet o
 LEFT JOIN domaine      d ON d.id = o.domaine_id
-LEFT JOIN classe_objet c ON c.id = o.classe_id;
+LEFT JOIN classe_objet c ON c.id = o.classe_id
+LEFT JOIN discipline   disc ON disc.id = o.discipline_id;
 
 CREATE TRIGGER trg_saisie_objet_ins
 INSTEAD OF INSERT ON saisie_objet
@@ -25,12 +29,16 @@ BEGIN
     -- car "OR IGNORE" absorbe aussi la violation NOT NULL sur domaine.nom / classe_objet.nom)
     INSERT OR IGNORE INTO domaine(nom) VALUES (NEW.domaine);
     INSERT OR IGNORE INTO classe_objet(nom) VALUES (NEW.classe);
+    SELECT RAISE(ABORT, 'Discipline inconnue')
+    WHERE NEW.discipline IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM discipline WHERE code = NEW.discipline);
 
-    INSERT INTO objet(nom, domaine_id, classe_id, definition, origine, statut)
+    INSERT INTO objet(nom, domaine_id, classe_id, discipline_id, definition, origine, statut)
     VALUES (
         NEW.nom,
         (SELECT id FROM domaine      WHERE nom = NEW.domaine),
         (SELECT id FROM classe_objet WHERE nom = NEW.classe),
+        (SELECT id FROM discipline   WHERE code = NEW.discipline),
         NEW.definition,
         NEW.origine,
         COALESCE(NEW.statut, 'brouillon')
@@ -45,14 +53,18 @@ BEGIN
 
     INSERT OR IGNORE INTO domaine(nom) VALUES (NEW.domaine);
     INSERT OR IGNORE INTO classe_objet(nom) VALUES (NEW.classe);
+    SELECT RAISE(ABORT, 'Discipline inconnue')
+    WHERE NEW.discipline IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM discipline WHERE code = NEW.discipline);
 
     UPDATE objet
-    SET nom        = NEW.nom,
-        domaine_id = (SELECT id FROM domaine      WHERE nom = NEW.domaine),
-        classe_id  = (SELECT id FROM classe_objet WHERE nom = NEW.classe),
-        definition = NEW.definition,
-        origine    = NEW.origine,
-        statut     = COALESCE(NEW.statut, statut)
+    SET nom           = NEW.nom,
+        domaine_id    = (SELECT id FROM domaine      WHERE nom = NEW.domaine),
+        classe_id     = (SELECT id FROM classe_objet WHERE nom = NEW.classe),
+        discipline_id = (SELECT id FROM discipline   WHERE code = NEW.discipline),
+        definition    = NEW.definition,
+        origine       = NEW.origine,
+        statut        = COALESCE(NEW.statut, statut)
     WHERE nom = OLD.nom;
 END;
 
