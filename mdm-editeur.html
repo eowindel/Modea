@@ -238,6 +238,7 @@
     <button class="btn" id="btnNew">Nouveau modèle</button>
     <button class="btn primary" id="btnSave" disabled>Enregistrer</button>
     <button class="btn ghost" id="btnDownload" disabled>Télécharger une copie</button>
+    <button class="btn ghost" id="btnExportTtl" disabled>Exporter en RDF (.ttl)</button>
     <input type="file" id="file" accept=".db,.sqlite,.sqlite3" class="hidden">
   </div>
   <div class="stats">
@@ -1472,6 +1473,244 @@ function downloadText(name,text,mime){
 }
 function baseName(){ return (dbName.replace(/\.(db|sqlite3?|)$/,'')||'modele'); }
 
+/* ---------- export RDF/Turtle -----------------------------------------------
+   Mapping : objet -> owl:Class, propriete -> owl:DatatypeProperty partagée
+   (restreinte par objet via applicabilite en owl:Restriction locale),
+   relation type=generalisation -> rdfs:subClassOf, les 3 autres types ->
+   owl:ObjectProperty + restriction de cardinalité sur card_cible.
+   domaine/classe_objet/discipline -> SKOS (classe_objet reste une
+   classification, jamais un rdfs:subClassOf). Enums -> rdfs:Datatype nommé
+   avec owl:oneOf de littéraux (pas d'individus, plus lisible pour une
+   équipe non-ontologue). Unités -> littéraux mdm:* ; migration vers QUDT
+   possible plus tard en ne touchant que emitProperties().
+   --------------------------------------------------------------------------- */
+const MDM_VOCAB = 'http://example.org/mdm-vocab#';
+const TYPE_TO_XSD = {
+  texte:'xsd:string', identifiant:'xsd:string', entier:'xsd:integer',
+  decimal:'xsd:decimal', grandeur:'xsd:decimal', booleen:'xsd:boolean',
+  date:'xsd:date', datetime:'xsd:dateTime'
+};
+
+const DIACRITICS_RE = new RegExp('['+String.fromCharCode(0x0300)+'-'+String.fromCharCode(0x036f)+']','g');
+function slugify(text, style){
+  let s = String(text||'').normalize('NFD').replace(DIACRITICS_RE,'');
+  s = s.replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_+/g,'_');
+  if(!s) s = 'X';
+  if(/^[0-9]/.test(s)) s = '_'+s;
+  return style==='upper' ? s.charAt(0).toUpperCase()+s.slice(1) : s.charAt(0).toLowerCase()+s.slice(1);
+}
+function escTtl(s){ return String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"'); }
+function lit(s){ return '"""'+escTtl(s)+'"""'; }
+function litLang(s){ return lit(s)+'@fr'; }
+function cardRestrictionFragment(card){
+  if(card==='1') return 'owl:cardinality "1"^^xsd:nonNegativeInteger';
+  if(card==='0..1') return 'owl:maxCardinality "1"^^xsd:nonNegativeInteger';
+  if(card==='1..*') return 'owl:minCardinality "1"^^xsd:nonNegativeInteger';
+  return null; // 0..* : aucune restriction, comportement par défaut d'OWL
+}
+
+function prefixHeader(baseIri){
+  const baseRoot = baseIri.replace(/[#/]+$/,'');
+  return [
+    '@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .',
+    '@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .',
+    '@prefix owl:  <http://www.w3.org/2002/07/owl#> .',
+    '@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .',
+    '@prefix skos: <http://www.w3.org/2004/02/skos/core#> .',
+    '@prefix mdm:  <'+MDM_VOCAB+'> .',
+    '@prefix :     <'+baseIri+'> .',
+    '@base <'+baseRoot+'> .',
+    '',
+    ': a owl:Ontology ;',
+    '    rdfs:label '+litLang(baseName())+' ;',
+    '    rdfs:comment '+lit("Généré automatiquement depuis "+dbName+" par mdm-editeur.html le "+new Date().toISOString()+" — ne pas éditer à la main.")+' .',
+    ''
+  ].join('\n');
+}
+function vocabHeader(){
+  const props = [
+    ['origine',"Trace de la conversion depuis le modèle applicatif source"],
+    ['appartientAuDomaine',"Rattachement au domaine fonctionnel"],
+    ['aPourNature',"Classification par nature (stéréotype), pas un mécanisme d'héritage"],
+    ['relatifALaDiscipline',"Rattachement à une discipline métier"],
+    ['natureRelation',"Nature UML brute de la relation (association/composition/agregation)"],
+    ['cardinaliteSource',"Cardinalité brute côté source, telle que saisie dans le modèle"],
+    ['cardinaliteCible',"Cardinalité brute côté cible, telle que saisie dans le modèle"],
+    ['roleSource',"Rôle nommé côté source"],
+    ['roleCible',"Rôle nommé côté cible"],
+    ['discipline',"Code de la discipline associée à cet usage précis de la propriété"],
+    ['ordre',"Ordre d'affichage de la propriété pour cet objet"],
+    ['multivalue',"Indique si la propriété admet plusieurs valeurs"],
+    ['grandeurPhysique',"Grandeur physique de la propriété (ex: Pression)"],
+    ['uniteMesure',"Symbole d'unité de la propriété (ex: bar)"],
+    ['statut',"Statut de cycle de vie brut (brouillon/valide/obsolete)"]
+  ];
+  return props.map(([n,c])=>'mdm:'+n+' a owl:AnnotationProperty ; rdfs:comment '+lit(c)+' .').join('\n')+'\n';
+}
+
+function emitEnumDatatypes(out, slugFor){
+  const types = exec("SELECT id,nom FROM type_enumere ORDER BY nom");
+  const iri = new Map();
+  types.forEach(t=>{
+    const slug = slugFor('typeEnum', t.nom, 'upper');
+    iri.set(t.id, slug);
+    const vals = exec("SELECT valeur,libelle,ordre FROM valeur_enumeree WHERE type_enumere_id=? ORDER BY (ordre IS NULL),ordre,id",[t.id]);
+    out.push(':'+slug+' a rdfs:Datatype ;');
+    out.push('    rdfs:label '+lit(t.nom)+' ;');
+    if(vals.length) out.push('    rdfs:comment '+lit(vals.map(v=>v.valeur+(v.libelle?' = '+v.libelle:'')).join(' ; '))+' ;');
+    out.push('    owl:oneOf ( '+vals.map(v=>lit(v.valeur)).join(' ')+' ) .');
+    out.push('');
+  });
+  return iri;
+}
+function emitSkosScheme(out, table, schemeLocalName, bucket, slugFor, opts){
+  opts = opts||{};
+  out.push(':'+schemeLocalName+' a skos:ConceptScheme ; rdfs:label '+lit(opts.label||schemeLocalName)+' .');
+  const rows = exec('SELECT id,nom'+(opts.notation?',code':'')+' FROM '+table+' ORDER BY nom');
+  const iri = new Map();
+  rows.forEach(r=>{
+    const slug = slugFor(bucket, r.nom, 'upper');
+    iri.set(r.id, slug);
+    let line = ':'+slug+' a skos:Concept ; skos:inScheme :'+schemeLocalName+' ; skos:prefLabel '+lit(r.nom);
+    if(opts.notation && r.code!=null) line += ' ; skos:notation '+lit(r.code);
+    out.push(line+' .');
+  });
+  out.push('');
+  return iri;
+}
+function emitClasses(out, slugFor, domaineIri, classeIri, disciplineIri){
+  const rows = exec('SELECT id,nom,definition,domaine_id,classe_id,discipline_id,origine,statut FROM objet ORDER BY nom');
+  const iri = new Map();
+  rows.forEach(o=>{
+    const slug = slugFor('class', o.nom, 'upper');
+    iri.set(o.id, slug);
+    out.push(':'+slug+' a owl:Class ;');
+    out.push('    rdfs:label '+litLang(o.nom)+' ;');
+    if(o.definition) out.push('    rdfs:comment '+litLang(o.definition)+' ;');
+    if(o.statut==='obsolete') out.push('    owl:deprecated true ;');
+    if(o.origine) out.push('    mdm:origine '+lit(o.origine)+' ;');
+    if(o.domaine_id!=null && domaineIri.has(o.domaine_id)) out.push('    mdm:appartientAuDomaine :'+domaineIri.get(o.domaine_id)+' ;');
+    if(o.classe_id!=null && classeIri.has(o.classe_id)) out.push('    mdm:aPourNature :'+classeIri.get(o.classe_id)+' ;');
+    if(o.discipline_id!=null && disciplineIri.has(o.discipline_id)) out.push('    mdm:relatifALaDiscipline :'+disciplineIri.get(o.discipline_id)+' ;');
+    out.push('    mdm:statut '+lit(o.statut)+' .');
+    out.push('');
+  });
+  return iri;
+}
+function emitProperties(out, slugFor, typeEnumIri){
+  const rows = exec(`SELECT p.id,p.nom,p.type,p.multivalue,p.type_enumere_id,p.description,p.statut,
+      gp.nom AS grandeur, u.symbole AS unite
+      FROM propriete p LEFT JOIN unite u ON u.id=p.unite_id LEFT JOIN grandeur_physique gp ON gp.id=u.grandeur_id
+      ORDER BY p.nom`);
+  const iri = new Map();
+  rows.forEach(p=>{
+    const slug = slugFor('prop', p.nom, 'lower');
+    iri.set(p.id, slug);
+    const range = p.type==='enum' ? ':'+typeEnumIri.get(p.type_enumere_id) : TYPE_TO_XSD[p.type];
+    out.push(':'+slug+' a owl:DatatypeProperty ;');
+    out.push('    rdfs:label '+litLang(p.nom)+' ;');
+    if(p.description) out.push('    rdfs:comment '+litLang(p.description)+' ;');
+    out.push('    rdfs:range '+range+' ;');
+    if(p.type==='grandeur'){
+      out.push('    mdm:grandeurPhysique '+lit(p.grandeur)+' ;');
+      out.push('    mdm:uniteMesure '+lit(p.unite)+' ;');
+    }
+    if(p.multivalue) out.push('    mdm:multivalue true ;');
+    if(p.statut==='obsolete') out.push('    owl:deprecated true ;');
+    out.push('    mdm:statut '+lit(p.statut)+' .');
+    out.push('');
+  });
+  return iri;
+}
+function emitApplicabilite(out, objIri, propIri){
+  const rows = exec(`SELECT a.objet_id,a.propriete_id,a.obligatoire,a.ordre,p.multivalue,disc.code AS disc_code
+      FROM applicabilite a JOIN propriete p ON p.id=a.propriete_id
+      LEFT JOIN discipline disc ON disc.id=a.discipline_id`);
+  rows.forEach(a=>{
+    const cls=objIri.get(a.objet_id), prop=propIri.get(a.propriete_id);
+    if(!cls||!prop) return;
+    const parts=['a owl:Restriction','owl:onProperty :'+prop];
+    if(a.obligatoire && !a.multivalue) parts.push('owl:cardinality "1"^^xsd:nonNegativeInteger');
+    else if(a.obligatoire && a.multivalue) parts.push('owl:minCardinality "1"^^xsd:nonNegativeInteger');
+    else if(!a.obligatoire && !a.multivalue) parts.push('owl:maxCardinality "1"^^xsd:nonNegativeInteger');
+    if(a.disc_code) parts.push('mdm:discipline '+lit(a.disc_code));
+    if(a.ordre!=null) parts.push('mdm:ordre '+Number(a.ordre));
+    out.push(':'+cls+' rdfs:subClassOf [ '+parts.join(' ; ')+' ] .');
+  });
+  out.push('');
+}
+function emitGeneralisations(out, objIri){
+  const rows = exec("SELECT source_id,cible_id FROM relation WHERE type='generalisation'");
+  rows.forEach(r=>{
+    const s=objIri.get(r.source_id), c=objIri.get(r.cible_id);
+    if(s && c) out.push(':'+s+' rdfs:subClassOf :'+c+' .');
+  });
+  out.push('');
+}
+function emitObjectProperties(out, slugFor, objIri){
+  const rows = exec(`SELECT id,nom,type,source_id,cible_id,card_source,card_cible,role_source,role_cible
+      FROM relation WHERE type<>'generalisation'`);
+  rows.forEach(r=>{
+    const src=objIri.get(r.source_id), tgt=objIri.get(r.cible_id);
+    if(!src||!tgt) return;
+    const label = r.nom || r.role_cible || ('a'+tgt);
+    const slug = slugFor('prop', label, 'lower');
+    out.push(':'+slug+' a owl:ObjectProperty ;');
+    out.push('    rdfs:label '+litLang(r.nom||label)+' ;');
+    out.push('    rdfs:domain :'+src+' ;');
+    out.push('    rdfs:range :'+tgt+' ;');
+    out.push('    mdm:natureRelation '+lit(r.type)+' ;');
+    out.push('    mdm:cardinaliteSource '+lit(r.card_source)+' ;');
+    if(r.role_source) out.push('    mdm:roleSource '+lit(r.role_source)+' ;');
+    if(r.role_cible) out.push('    mdm:roleCible '+lit(r.role_cible)+' ;');
+    out.push('    mdm:cardinaliteCible '+lit(r.card_cible)+' .');
+    const cardFrag = cardRestrictionFragment(r.card_cible);
+    if(cardFrag) out.push(':'+src+' rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :'+slug+' ; '+cardFrag+' ] .');
+    out.push('');
+  });
+}
+
+function buildTurtle(baseIri){
+  const usedSlugs = {};
+  function slugFor(bucket, text, style){
+    usedSlugs[bucket] = usedSlugs[bucket] || new Set();
+    const set = usedSlugs[bucket];
+    let base = slugify(text, style), candidate = base, n = 2;
+    while(set.has(candidate)){ candidate = base+'_'+n; n++; }
+    set.add(candidate);
+    return candidate;
+  }
+  const out = [];
+  out.push(prefixHeader(baseIri));
+  out.push(vocabHeader());
+  const typeEnumIri = emitEnumDatatypes(out, slugFor);
+  const domaineIri = emitSkosScheme(out, 'domaine', 'SchemaDomaines', 'domaineConcept', slugFor, {label:'Domaines'});
+  const classeIri = emitSkosScheme(out, 'classe_objet', 'SchemaClassesObjet', 'classeConcept', slugFor, {label:"Classes d'objet"});
+  const disciplineIri = emitSkosScheme(out, 'discipline', 'SchemaDisciplines', 'disciplineConcept', slugFor, {label:'Disciplines', notation:true});
+  const objIri = emitClasses(out, slugFor, domaineIri, classeIri, disciplineIri);
+  const propIri = emitProperties(out, slugFor, typeEnumIri);
+  emitApplicabilite(out, objIri, propIri);
+  emitGeneralisations(out, objIri);
+  emitObjectProperties(out, slugFor, objIri);
+  return out.join('\n');
+}
+
+function exportTurtle(){
+  const n = exec("SELECT COUNT(*) n FROM objet")[0].n;
+  if(!n) return toast("Le modèle est vide","err");
+  const defaultIri = 'http://example.org/mdm/'+slugify(baseName(),'lower')+'#';
+  let baseIri = prompt("IRI de base de l'ontologie (namespace du modèle) :", defaultIri);
+  if(baseIri===null) return;
+  baseIri = baseIri.trim();
+  if(!/^https?:\/\//.test(baseIri)) return toast("L'IRI de base doit commencer par http:// ou https://","err");
+  if(!/[#/]$/.test(baseIri)) baseIri += '#';
+  try{
+    const ttl = buildTurtle(baseIri);
+    downloadText(baseName()+'.ttl', ttl, 'text/turtle');
+    toast("Export RDF (.ttl) généré","ok");
+  }catch(e){ toast(friendly(e),"err"); }
+}
+
 /* ---------- enregistrement ---------- */
 function currentBytes(){ return db.export(); }
 async function saveToHandle(){
@@ -1523,7 +1762,7 @@ function toast(msg,kind){
 function enterEditor(){
   el('empty').classList.add('hidden');
   el('editor').classList.remove('hidden'); el('readout').classList.remove('hidden');
-  el('btnSave').disabled=false; el('btnDownload').disabled=false;
+  el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false;
 }
 function fillStaticSelects(){
   const set=(id,vals,def)=>{const s=el(id);s.innerHTML="";vals.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;if(x===def)o.selected=true;s.appendChild(o);});};
@@ -1535,6 +1774,7 @@ function wire(){
   el('btnNew').onclick=()=>newModel();
   el('btnNew2').onclick=()=>newModel();
   el('btnSave').onclick=save; el('btnDownload').onclick=download;
+  el('btnExportTtl').onclick=()=>exportTurtle();
   el('file').onchange=async e=>{const f=e.target.files[0]; if(!f)return; fileHandle=null;
     try{ await openBytes(new Uint8Array(await f.arrayBuffer()), f.name); }
     catch(err){ showLoadErr(friendly(err)); } e.target.value="";};
