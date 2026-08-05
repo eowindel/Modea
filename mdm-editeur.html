@@ -1551,6 +1551,7 @@ function prefixHeader(baseIri){
     '@base <'+baseRoot+'> .',
     '',
     ': a owl:Ontology ;',
+    '    owl:imports <http://www.w3.org/2004/02/skos/core#> ;',
     '    rdfs:label '+litLang(baseName())+' ;',
     '    rdfs:comment '+lit("Généré automatiquement depuis "+dbName+" par mdm-editeur.html le "+new Date().toISOString()+" — ne pas éditer à la main.")+' .',
     ''
