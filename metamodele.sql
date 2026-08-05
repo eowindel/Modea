@@ -141,7 +141,22 @@ CREATE TABLE applicabilite (
 );
 
 -- -----------------------------------------------------------------------------
+--  Verbe de relation — définition partagée du nom d'une relation (ex :
+--  "possède", "est rattaché à"), réutilisable entre plusieurs lignes de
+--  RELATION. Même principe que PROPRIETE : un nom de relation n'est pas
+--  ressaisi à chaque usage, il est défini une fois et référencé. C'est ce
+--  qui permet, à l'export RDF/OWL, de ne déclarer qu'une seule fois la
+--  owl:ObjectProperty correspondante au lieu d'une par ligne de relation.
+-- -----------------------------------------------------------------------------
+CREATE TABLE verbe_relation (
+    id          INTEGER PRIMARY KEY,
+    nom         TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- -----------------------------------------------------------------------------
 --  Relation — lien orienté entre deux objets
+--    verbe_id    : nom du lien, référence à VERBE_RELATION (facultatif)
 --    type        : nature du lien (mappe UML / ArchiMate)
 --    card_*      : cardinalités façon UML, lisibles telles quelles
 --    role_*      : nom du rôle à chaque bout (facultatif, aide à la relecture)
@@ -150,7 +165,7 @@ CREATE TABLE applicabilite (
 -- -----------------------------------------------------------------------------
 CREATE TABLE relation (
     id          INTEGER PRIMARY KEY,
-    nom         TEXT,                            -- ex : "possède", "est rattaché à"
+    verbe_id    INTEGER REFERENCES verbe_relation(id) ON DELETE SET NULL,
     type        TEXT NOT NULL DEFAULT 'association'
                 CHECK (type IN ('association','composition','agregation','generalisation')),
     source_id   INTEGER NOT NULL REFERENCES objet(id) ON DELETE CASCADE,
@@ -185,6 +200,7 @@ CREATE INDEX idx_applicabilite_propriete ON applicabilite(propriete_id);
 CREATE INDEX idx_applicabilite_discipline ON applicabilite(discipline_id);
 CREATE INDEX idx_relation_source        ON relation(source_id);
 CREATE INDEX idx_relation_cible         ON relation(cible_id);
+CREATE INDEX idx_relation_verbe         ON relation(verbe_id);
 
 -- -----------------------------------------------------------------------------
 --  Horodatage automatique de la dernière modif (un trigger par table : les
@@ -246,14 +262,15 @@ CREATE VIEW v_relation AS
 SELECT r.id,
        s.nom        AS source,
        r.card_source,
-       r.nom        AS relation,
+       vb.nom       AS relation,
        r.type,
        r.card_cible,
        c.nom        AS cible,
        r.statut
 FROM relation r
 JOIN objet s ON s.id = r.source_id
-JOIN objet c ON c.id = r.cible_id;
+JOIN objet c ON c.id = r.cible_id
+LEFT JOIN verbe_relation vb ON vb.id = r.verbe_id;
 
 -- Affectations en lecture naturelle : Objet -- propriete (obligatoire, discipline)
 CREATE VIEW v_applicabilite AS

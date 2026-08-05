@@ -517,7 +517,8 @@
       <div class="row2">
         <div class="field"><label><span class="lab">Type de lien</span><select id="r_type"></select></label></div>
         <div class="field"><label><span class="lab">Nom du lien</span>
-          <input type="text" id="r_nom" placeholder="porte, est rattaché à…" autocomplete="off"></label></div>
+          <input type="text" id="r_nom" list="dl_relNom" placeholder="porte, est rattaché à…" autocomplete="off">
+          <datalist id="dl_relNom"></datalist></label></div>
       </div>
       <div class="actions"><button class="btn primary" id="addRel">Ajouter la relation</button></div>
     </div>
@@ -599,6 +600,7 @@
           <button class="btn ghost sm" id="cyRelayout">Réorganiser</button>
           <button class="btn ghost sm" id="cyFit">Ajuster</button>
           <label class="check" style="margin:0"><input type="checkbox" id="cyShowProps"> afficher les propriétés</label>
+          <label class="check" style="margin:0"><input type="checkbox" id="cyShowRel"> afficher les relations</label>
           <label class="check" style="margin:0"><input type="checkbox" id="cyFocus" checked> focus au clic</label>
           <button class="btn ghost sm" id="cyClearFocus">Réinitialiser</button>
           <button class="btn ghost sm" id="cyPng">PNG</button>
@@ -741,9 +743,15 @@ CREATE TABLE applicabilite (
     UNIQUE (objet_id, propriete_id)
 );
 
+CREATE TABLE verbe_relation (
+    id          INTEGER PRIMARY KEY,
+    nom         TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+
 CREATE TABLE relation (
     id          INTEGER PRIMARY KEY,
-    nom         TEXT,
+    verbe_id    INTEGER REFERENCES verbe_relation(id) ON DELETE SET NULL,
     type        TEXT NOT NULL DEFAULT 'association'
                 CHECK (type IN ('association','composition','agregation','generalisation')),
     source_id   INTEGER NOT NULL REFERENCES objet(id) ON DELETE CASCADE,
@@ -774,6 +782,7 @@ CREATE INDEX idx_applicabilite_propriete ON applicabilite(propriete_id);
 CREATE INDEX idx_applicabilite_discipline ON applicabilite(discipline_id);
 CREATE INDEX idx_relation_source         ON relation(source_id);
 CREATE INDEX idx_relation_cible          ON relation(cible_id);
+CREATE INDEX idx_relation_verbe          ON relation(verbe_id);
 
 CREATE TRIGGER trg_objet_maj AFTER UPDATE ON objet FOR EACH ROW
 BEGIN UPDATE objet SET maj_le = datetime('now') WHERE id = NEW.id; END;
@@ -845,6 +854,11 @@ function ensureClasse(nom){
   nom=(nom||"").trim(); if(!nom) return null;
   run("INSERT OR IGNORE INTO classe_objet(nom) VALUES (?)",[nom]);
   return exec("SELECT id FROM classe_objet WHERE nom=?",[nom])[0].id;
+}
+function ensureVerbeRelation(nom){
+  nom=(nom||"").trim(); if(!nom) return null;
+  run("INSERT OR IGNORE INTO verbe_relation(nom) VALUES (?)",[nom]);
+  return exec("SELECT id FROM verbe_relation WHERE nom=?",[nom])[0].id;
 }
 function ensureTypeEnumere(nom){
   nom=(nom||"").trim(); if(!nom) return null;
@@ -1079,8 +1093,9 @@ function addRel(){
   const tid=findIdByName('objet', v('r_tgt'));
   if(!sid||!tid) return toast("Choisis deux objets existants (noms exacts)","err");
   try{
-    run("INSERT INTO relation(nom,type,source_id,cible_id,card_source,card_cible) VALUES (?,?,?,?,?,?)",
-        [v('r_nom').trim()||null,v('r_type'),sid,tid,v('r_cs'),v('r_cc')]);
+    const vid=ensureVerbeRelation(v('r_nom'));
+    run("INSERT INTO relation(verbe_id,type,source_id,cible_id,card_source,card_cible) VALUES (?,?,?,?,?,?)",
+        [vid,v('r_type'),sid,tid,v('r_cs'),v('r_cc')]);
     clear(['r_nom']); refreshAll(); toast("Relation ajoutée","ok");
   }catch(e){ toast(friendly(e),"err"); }
 }
@@ -1114,6 +1129,7 @@ function refreshAll(){
   fillDatalist('dl_domaine',exec("SELECT nom FROM domaine ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_classe',exec("SELECT nom FROM classe_objet ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_propriete',exec("SELECT nom FROM propriete ORDER BY nom").map(r=>r.nom));
+  fillDatalist('dl_relNom',exec("SELECT nom FROM verbe_relation ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_enum',exec("SELECT nom FROM type_enumere ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_disc_code',exec("SELECT code FROM discipline ORDER BY code").map(r=>r.code));
   fillDatalist('dl_grandeur',exec("SELECT nom FROM grandeur_physique ORDER BY nom").map(r=>r.nom));
@@ -1233,13 +1249,13 @@ function renderMgProps(){
 function renderMgRels(){
   const search=v('mgRelSearch').trim(), type=v('mgRelType'), statut=v('mgRelStatut');
   const where=[]; const params=[];
-  if(search){ where.push("(s.nom LIKE ? OR c.nom LIKE ? OR r.nom LIKE ?)"); params.push('%'+search+'%','%'+search+'%','%'+search+'%'); }
+  if(search){ where.push("(s.nom LIKE ? OR c.nom LIKE ? OR vb.nom LIKE ?)"); params.push('%'+search+'%','%'+search+'%','%'+search+'%'); }
   if(type){ where.push("r.type=?"); params.push(type); }
   if(statut){ where.push("r.statut=?"); params.push(statut); }
   const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
-  const baseFrom = `FROM relation r JOIN objet s ON s.id=r.source_id JOIN objet c ON c.id=r.cible_id ${whereSql}`;
+  const baseFrom = `FROM relation r JOIN objet s ON s.id=r.source_id JOIN objet c ON c.id=r.cible_id LEFT JOIN verbe_relation vb ON vb.id=r.verbe_id ${whereSql}`;
   const total = exec(`SELECT COUNT(*) n ${baseFrom}`, params)[0].n;
-  const rows = exec(`SELECT r.id,s.nom src,r.nom rel,r.type,c.nom tgt,r.card_source cs,r.card_cible cc,r.statut ${baseFrom} ORDER BY s.nom,c.nom LIMIT ${MG_MAX_ROWS}`, params);
+  const rows = exec(`SELECT r.id,s.nom src,vb.nom rel,r.type,c.nom tgt,r.card_source cs,r.card_cible cc,r.statut ${baseFrom} ORDER BY s.nom,c.nom LIMIT ${MG_MAX_ROWS}`, params);
   el('mgRelCount').textContent = total+' relation'+(total>1?'s':'');
   const body=el('mgRelBody'); body.innerHTML='';
   if(!rows.length) body.innerHTML='<tr><td colspan="7" class="noprops">Aucune relation.</td></tr>';
@@ -1305,7 +1321,8 @@ function buildCyElements(){
   const byObj={}; props.forEach(p=>{(byObj[p.objet_id]=byObj[p.objet_id]||[]).push(p);});
   cyPropsByObj = byObj;
 
-  const rels = exec(`SELECT r.id,r.type,r.nom,r.source_id,r.cible_id FROM relation r`);
+  const rels = exec(`SELECT r.id,r.type,vb.nom,r.source_id,r.cible_id,r.card_source,r.card_cible
+                     FROM relation r LEFT JOIN verbe_relation vb ON vb.id=r.verbe_id`);
 
   const nodes = objs.map(o=>{
     const labelFull = buildCyNodeLabel(o.nom, byObj[o.id]||[]);
@@ -1315,7 +1332,8 @@ function buildCyElements(){
       classes:'obj' };
   });
   const edges = rels.map(r=>({
-    data:{ id:'e'+r.id, source:'n'+r.source_id, target:'n'+r.cible_id, type:r.type, label:r.nom||'' },
+    data:{ id:'e'+r.id, source:'n'+r.source_id, target:'n'+r.cible_id, type:r.type, label:r.nom||'',
+           cs:r.card_source, cc:r.card_cible },
     classes:'rel-'+r.type
   }));
   return { nodes, edges };
@@ -1335,6 +1353,11 @@ function applyCyLabelMode(){
   if(!cy) return;
   const full = el('cyShowProps').checked;
   cy.batch(()=>{ cy.nodes('.obj').forEach(n=>n.data('label', full ? n.data('labelFull') : n.data('labelCompact'))); });
+}
+function applyCyRelLabelMode(){
+  if(!cy) return;
+  const on = el('cyShowRel').checked;
+  cy.batch(()=>{ cy.edges().toggleClass('rel-label', on); });
 }
 
 function cyStyle(){
@@ -1360,7 +1383,12 @@ function cyStyle(){
         'source-arrow-shape':'diamond', 'source-arrow-fill':'hollow' } },
     { selector:'edge.rel-association', style:{ 'width':1.2, 'line-style':'dashed',
         'target-arrow-shape':'vee', 'target-arrow-fill':'filled' } },
-    { selector:'edge.show-label', style:{ 'label':'data(label)' } },
+    { selector:'edge.show-label, edge.rel-label', style:{
+        'label':'data(label)', 'source-label':'data(cs)', 'target-label':'data(cc)',
+        'font-size':8, 'source-text-offset':14, 'target-text-offset':14,
+        'color':'#5B6A78', 'text-background-color':'#E9EDEE',
+        'text-background-opacity':1, 'text-background-padding':1
+    } },
     { selector:'.dim', style:{ 'opacity':0.08 } },
     { selector:'.flt-hidden', style:{ 'display':'none' } }
   ];
@@ -1383,6 +1411,7 @@ async function renderDiagram(){
   cy.on('tap', 'node.obj', evt=>onCyNodeSelected(evt.target));
   cy.on('tap', evt=>{ if(evt.target===cy) clearCyFocus(); });
   applyCyLabelMode();
+  applyCyRelLabelMode();
 
   renderCyLegendFilters();
   fillCySearch();
@@ -1647,25 +1676,49 @@ function emitGeneralisations(out, objIri){
   });
   out.push('');
 }
-function emitObjectProperties(out, slugFor, objIri){
-  const rows = exec(`SELECT id,nom,type,source_id,cible_id,card_source,card_cible,role_source,role_cible
+function emitVerbRelations(out, slugFor){
+  // seuls les verbes réellement utilisés par une relation non-generalisation deviennent une
+  // owl:ObjectProperty ; un verbe qui ne sert qu'à des generalisation (-> rdfs:subClassOf) n'a
+  // aucune assertion à porter et resterait une propriété fantôme, jamais utilisée.
+  const rows = exec(`SELECT DISTINCT vb.id,vb.nom,vb.description
+      FROM verbe_relation vb JOIN relation r ON r.verbe_id=vb.id
+      WHERE r.type<>'generalisation' ORDER BY vb.nom`);
+  const iri = new Map();
+  rows.forEach(v=>{
+    const slug = slugFor('prop', v.nom, 'lower'); // bucket partagé avec propriete : un seul espace de prédicats
+    iri.set(v.id, slug);
+    out.push(':'+slug+' a owl:ObjectProperty ;');
+    if(v.description) out.push('    rdfs:comment '+litLang(v.description)+' ;');
+    out.push('    rdfs:label '+litLang(v.nom)+' .');
+    out.push('');
+  });
+  return iri;
+}
+function emitObjectProperties(out, slugFor, objIri, verbIri){
+  const rows = exec(`SELECT id,verbe_id,type,source_id,cible_id,card_source,card_cible,role_source,role_cible
       FROM relation WHERE type<>'generalisation'`);
   rows.forEach(r=>{
     const src=objIri.get(r.source_id), tgt=objIri.get(r.cible_id);
     if(!src||!tgt) return;
-    const label = r.nom || r.role_cible || ('a'+tgt);
-    const slug = slugFor('prop', label, 'lower');
-    out.push(':'+slug+' a owl:ObjectProperty ;');
-    out.push('    rdfs:label '+litLang(r.nom||label)+' ;');
-    out.push('    rdfs:domain :'+src+' ;');
-    out.push('    rdfs:range :'+tgt+' ;');
-    out.push('    mdm:natureRelation '+lit(r.type)+' ;');
-    out.push('    mdm:cardinaliteSource '+lit(r.card_source)+' ;');
-    if(r.role_source) out.push('    mdm:roleSource '+lit(r.role_source)+' ;');
-    if(r.role_cible) out.push('    mdm:roleCible '+lit(r.role_cible)+' ;');
-    out.push('    mdm:cardinaliteCible '+lit(r.card_cible)+' .');
+    // pas de verbe partagé (relation non nommée) : propriété propre à cet unique usage
+    let verbSlug = r.verbe_id!=null ? verbIri.get(r.verbe_id) : null;
+    if(!verbSlug){
+      const fallback = r.role_cible || ('a'+tgt);
+      verbSlug = slugFor('prop', fallback, 'lower');
+      out.push(':'+verbSlug+' a owl:ObjectProperty ; rdfs:label '+litLang(fallback)+' .');
+      out.push('');
+    }
+    // pas de rdfs:domain/range fixe sur la propriété : cf. propriete/applicabilite, une
+    // owl:ObjectProperty partagée par plusieurs paires source/cible ne peut pas porter un
+    // domain/range unique — la contrainte est restreinte localement à chaque usage ici.
+    const parts=['a owl:Restriction','owl:onProperty :'+verbSlug,'owl:allValuesFrom :'+tgt,
+                 'mdm:natureRelation '+lit(r.type),'mdm:cardinaliteSource '+lit(r.card_source),
+                 'mdm:cardinaliteCible '+lit(r.card_cible)];
     const cardFrag = cardRestrictionFragment(r.card_cible);
-    if(cardFrag) out.push(':'+src+' rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :'+slug+' ; '+cardFrag+' ] .');
+    if(cardFrag) parts.push(cardFrag);
+    if(r.role_source) parts.push('mdm:roleSource '+lit(r.role_source));
+    if(r.role_cible) parts.push('mdm:roleCible '+lit(r.role_cible));
+    out.push(':'+src+' rdfs:subClassOf [ '+parts.join(' ; ')+' ] .');
     out.push('');
   });
 }
@@ -1691,7 +1744,8 @@ function buildTurtle(baseIri){
   const propIri = emitProperties(out, slugFor, typeEnumIri);
   emitApplicabilite(out, objIri, propIri);
   emitGeneralisations(out, objIri);
-  emitObjectProperties(out, slugFor, objIri);
+  const verbIri = emitVerbRelations(out, slugFor);
+  emitObjectProperties(out, slugFor, objIri, verbIri);
   return out.join('\n');
 }
 
@@ -1869,6 +1923,7 @@ function wire(){
   el('cyFit').onclick=()=>{ if(cy) cy.fit(undefined,30); };
   el('cyClearFocus').onclick=clearCyFocus;
   el('cyShowProps').addEventListener('change', applyCyLabelMode);
+  el('cyShowRel').addEventListener('change', applyCyRelLabelMode);
   // Manuel utilisateur
   el('btnHelp').onclick=openHelp;
   el('helpCloseBtn').onclick=closeHelp;

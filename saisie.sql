@@ -245,12 +245,13 @@ END;
 --  Saisie d'une RELATION entre deux objets, désignés par leur NOM
 -- -----------------------------------------------------------------------------
 CREATE VIEW saisie_relation AS
-SELECT r.id, s.nom AS source, r.nom AS relation, r.type,
+SELECT r.id, s.nom AS source, vb.nom AS relation, r.type,
        c.nom AS cible, r.card_source, r.card_cible, r.role_source, r.role_cible,
        r.statut
 FROM relation r
 JOIN objet s ON s.id = r.source_id
-JOIN objet c ON c.id = r.cible_id;
+JOIN objet c ON c.id = r.cible_id
+LEFT JOIN verbe_relation vb ON vb.id = r.verbe_id;
 
 CREATE TRIGGER trg_saisie_relation_ins
 INSTEAD OF INSERT ON saisie_relation
@@ -260,10 +261,14 @@ BEGIN
     SELECT RAISE(ABORT, 'Objet cible inconnu')
     WHERE NOT EXISTS (SELECT 1 FROM objet WHERE nom = NEW.cible);
 
-    INSERT INTO relation(nom, type, source_id, cible_id,
+    -- cree le verbe de relation s'il n'existe pas encore (silencieux si NEW.relation
+    -- est NULL, car "OR IGNORE" absorbe aussi la violation NOT NULL sur verbe_relation.nom)
+    INSERT OR IGNORE INTO verbe_relation(nom) VALUES (NEW.relation);
+
+    INSERT INTO relation(verbe_id, type, source_id, cible_id,
                          card_source, card_cible, role_source, role_cible, statut)
     VALUES (
-        NEW.relation,
+        (SELECT id FROM verbe_relation WHERE nom = NEW.relation),
         COALESCE(NEW.type, 'association'),
         (SELECT id FROM objet WHERE nom = NEW.source),
         (SELECT id FROM objet WHERE nom = NEW.cible),
