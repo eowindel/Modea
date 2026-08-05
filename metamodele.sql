@@ -122,6 +122,51 @@ CREATE TABLE propriete (
 );
 
 -- -----------------------------------------------------------------------------
+--  Contrainte — règle de validation portée par une PROPRIETE (même logique
+--  que multivalue : intrinsèque à la définition, pas à un usage particulier).
+--  Une propriété peut porter plusieurs contraintes de nature différente
+--  (UNIQUE(propriete_id, type) empêche seulement les doublons du même type).
+--  Conçue pour être projetée en SHACL (regex -> sh:pattern, min/max ->
+--  sh:minInclusive/maxInclusive) ; le trigger ci-dessous garde-fou le type
+--  de contrainte contre le type de valeur de la propriété qu'elle contraint.
+-- -----------------------------------------------------------------------------
+CREATE TABLE contrainte (
+    id            INTEGER PRIMARY KEY,
+    propriete_id  INTEGER NOT NULL REFERENCES propriete(id) ON DELETE CASCADE,
+    type          TEXT NOT NULL CHECK (type IN ('regex','min','max')),
+    valeur        TEXT NOT NULL,
+    message       TEXT,                           -- message d'erreur affiché en cas de violation
+    severite      TEXT NOT NULL DEFAULT 'violation'
+                  CHECK (severite IN ('violation','avertissement')),
+    cree_le       TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (propriete_id, type)
+);
+
+CREATE TRIGGER trg_contrainte_type_ins
+BEFORE INSERT ON contrainte
+FOR EACH ROW
+BEGIN
+    SELECT RAISE(ABORT, 'Un motif (regex) ne s''applique qu''aux propriétés de type texte ou identifiant')
+    WHERE NEW.type = 'regex'
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('texte','identifiant'));
+    SELECT RAISE(ABORT, 'Une borne min/max ne s''applique qu''aux propriétés de type entier, decimal ou grandeur')
+      WHERE NEW.type IN ('min','max')
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('entier','decimal','grandeur'));
+END;
+
+CREATE TRIGGER trg_contrainte_type_upd
+BEFORE UPDATE ON contrainte
+FOR EACH ROW
+BEGIN
+    SELECT RAISE(ABORT, 'Un motif (regex) ne s''applique qu''aux propriétés de type texte ou identifiant')
+    WHERE NEW.type = 'regex'
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('texte','identifiant'));
+    SELECT RAISE(ABORT, 'Une borne min/max ne s''applique qu''aux propriétés de type entier, decimal ou grandeur')
+      WHERE NEW.type IN ('min','max')
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('entier','decimal','grandeur'));
+END;
+
+-- -----------------------------------------------------------------------------
 --  Applicabilité — affectation d'une propriété à un objet, avec ce qui est
 --  contextuel à cet usage précis (obligatoire, discipline). multivalue reste
 --  sur propriete car c'est une caractéristique intrinsèque de la propriété.
@@ -193,6 +238,7 @@ CREATE INDEX idx_objet_classe           ON objet(classe_id);
 CREATE INDEX idx_objet_discipline       ON objet(discipline_id);
 CREATE INDEX idx_propriete_type_enumere ON propriete(type_enumere_id);
 CREATE INDEX idx_propriete_unite        ON propriete(unite_id);
+CREATE INDEX idx_contrainte_propriete   ON contrainte(propriete_id);
 CREATE INDEX idx_valeur_enumeree_type   ON valeur_enumeree(type_enumere_id);
 CREATE INDEX idx_unite_grandeur         ON unite(grandeur_id);
 CREATE INDEX idx_applicabilite_objet    ON applicabilite(objet_id);
@@ -292,6 +338,17 @@ JOIN propriete p    ON p.id = a.propriete_id
 LEFT JOIN unite u ON u.id = p.unite_id
 LEFT JOIN grandeur_physique gp ON gp.id = u.grandeur_id
 LEFT JOIN discipline disc ON disc.id = a.discipline_id;
+
+-- Contraintes en lecture naturelle : Propriete -- type (valeur)
+CREATE VIEW v_contrainte AS
+SELECT c.id,
+       p.nom     AS propriete,
+       c.type,
+       c.valeur,
+       c.message,
+       c.severite
+FROM contrainte c
+JOIN propriete p ON p.id = c.propriete_id;
 
 -- Propriétés effectives d'un objet : celles qui lui sont affectées directement,
 -- + celles héritées de ses ancêtres le long des relations de généralisation

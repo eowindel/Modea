@@ -137,6 +137,33 @@ BEGIN
 END;
 
 -- -----------------------------------------------------------------------------
+--  Saisie d'une CONTRAINTE, rattachée à une propriété par son NOM. La
+--  propriété doit déjà exister (pas d'auto-vivify : une contrainte n'a pas
+--  de sens sans la propriété qu'elle valide). Le garde-fou type-vs-type est
+--  déjà porté par trg_contrainte_type_ins sur la table sous-jacente.
+-- -----------------------------------------------------------------------------
+CREATE VIEW saisie_contrainte AS
+SELECT c.id, p.nom AS propriete, c.type, c.valeur, c.message, c.severite
+FROM contrainte c
+JOIN propriete p ON p.id = c.propriete_id;
+
+CREATE TRIGGER trg_saisie_contrainte_ins
+INSTEAD OF INSERT ON saisie_contrainte
+BEGIN
+    SELECT RAISE(ABORT, 'Propriété inconnue')
+    WHERE NOT EXISTS (SELECT 1 FROM propriete WHERE nom = NEW.propriete);
+
+    INSERT INTO contrainte(propriete_id, type, valeur, message, severite)
+    VALUES (
+        (SELECT id FROM propriete WHERE nom = NEW.propriete),
+        NEW.type,
+        NEW.valeur,
+        NEW.message,
+        COALESCE(NEW.severite, 'violation')
+    );
+END;
+
+-- -----------------------------------------------------------------------------
 --  Saisie d'une VALEUR ÉNUMÉRÉE, rattachée à un type énuméré par son NOM.
 --  Le type énuméré est créé automatiquement s'il n'existe pas encore (pas de
 --  champ obligatoire autre que son nom, donc pas de garde-fou nécessaire).

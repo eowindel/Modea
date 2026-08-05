@@ -473,6 +473,18 @@
         <div class="field" style="margin-bottom:0"><label><span class="lab">Libellé de l'unité (si nouvelle)</span>
           <input type="text" id="p_unite_libelle" placeholder="ex : bar (facultatif)" autocomplete="off"></label></div>
       </div>
+      <div class="subblock" id="p_regexBlock">
+        <div class="field" style="margin-bottom:0"><label><span class="lab">Motif attendu (regex)</span>
+          <input type="text" id="p_regex" placeholder="ex : ^[A-Z]{2}-[0-9]{4}$" autocomplete="off"></label></div>
+      </div>
+      <div class="subblock" id="p_minmaxBlock">
+        <div class="row2">
+          <div class="field" style="margin-bottom:0"><label><span class="lab">Valeur minimale</span>
+            <input type="number" id="p_min" step="any" placeholder="facultatif" autocomplete="off"></label></div>
+          <div class="field" style="margin-bottom:0"><label><span class="lab">Valeur maximale</span>
+            <input type="number" id="p_max" step="any" placeholder="facultatif" autocomplete="off"></label></div>
+        </div>
+      </div>
       <div class="field"><label><span class="lab">Description</span>
         <input type="text" id="p_desc" placeholder="facultatif" autocomplete="off"></label></div>
       <div class="actions"><button class="btn primary" id="addProp">Créer la propriété</button></div>
@@ -729,6 +741,42 @@ CREATE TABLE propriete (
             AND (type = 'grandeur') = (unite_id IS NOT NULL) )
 );
 
+CREATE TABLE contrainte (
+    id            INTEGER PRIMARY KEY,
+    propriete_id  INTEGER NOT NULL REFERENCES propriete(id) ON DELETE CASCADE,
+    type          TEXT NOT NULL CHECK (type IN ('regex','min','max')),
+    valeur        TEXT NOT NULL,
+    message       TEXT,
+    severite      TEXT NOT NULL DEFAULT 'violation'
+                  CHECK (severite IN ('violation','avertissement')),
+    cree_le       TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (propriete_id, type)
+);
+
+CREATE TRIGGER trg_contrainte_type_ins
+BEFORE INSERT ON contrainte
+FOR EACH ROW
+BEGIN
+    SELECT RAISE(ABORT, 'Un motif (regex) ne s''applique qu''aux propriétés de type texte ou identifiant')
+    WHERE NEW.type = 'regex'
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('texte','identifiant'));
+    SELECT RAISE(ABORT, 'Une borne min/max ne s''applique qu''aux propriétés de type entier, decimal ou grandeur')
+      WHERE NEW.type IN ('min','max')
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('entier','decimal','grandeur'));
+END;
+
+CREATE TRIGGER trg_contrainte_type_upd
+BEFORE UPDATE ON contrainte
+FOR EACH ROW
+BEGIN
+    SELECT RAISE(ABORT, 'Un motif (regex) ne s''applique qu''aux propriétés de type texte ou identifiant')
+    WHERE NEW.type = 'regex'
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('texte','identifiant'));
+    SELECT RAISE(ABORT, 'Une borne min/max ne s''applique qu''aux propriétés de type entier, decimal ou grandeur')
+      WHERE NEW.type IN ('min','max')
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE id = NEW.propriete_id AND type IN ('entier','decimal','grandeur'));
+END;
+
 CREATE TABLE applicabilite (
     id              INTEGER PRIMARY KEY,
     objet_id        INTEGER NOT NULL REFERENCES objet(id) ON DELETE CASCADE,
@@ -775,6 +823,7 @@ CREATE INDEX idx_objet_classe            ON objet(classe_id);
 CREATE INDEX idx_objet_discipline        ON objet(discipline_id);
 CREATE INDEX idx_propriete_type_enumere  ON propriete(type_enumere_id);
 CREATE INDEX idx_propriete_unite         ON propriete(unite_id);
+CREATE INDEX idx_contrainte_propriete    ON contrainte(propriete_id);
 CREATE INDEX idx_valeur_enumeree_type    ON valeur_enumeree(type_enumere_id);
 CREATE INDEX idx_unite_grandeur          ON unite(grandeur_id);
 CREATE INDEX idx_applicabilite_objet     ON applicabilite(objet_id);
@@ -968,10 +1017,14 @@ function switchToTab(paneId){
   document.querySelectorAll('.tabpane').forEach(x=>x.classList.toggle('active', x.id===paneId));
 }
 
+const CONTRAINTE_REGEX_TYPES = ['texte','identifiant'];
+const CONTRAINTE_MINMAX_TYPES = ['entier','decimal','grandeur'];
 function updatePropTypeUI(){
   const t = v('p_type');
   el('p_valuesBlock').classList.toggle('hidden', t!=='enum');
   el('p_grandeurBlock').classList.toggle('hidden', t!=='grandeur');
+  el('p_regexBlock').classList.toggle('hidden', !CONTRAINTE_REGEX_TYPES.includes(t));
+  el('p_minmaxBlock').classList.toggle('hidden', !CONTRAINTE_MINMAX_TYPES.includes(t));
   if(t==='enum') renderValuesFor(v('p_enum'));
   if(t==='grandeur') renderUnitesFor(v('p_grandeur'));
 }
@@ -987,6 +1040,9 @@ function checkPropEdit(){
     el('p_type').value=row.type; el('p_mv').checked=!!row.multivalue;
     el('p_enum').value=row.type_enumere||""; el('p_desc').value=row.description||"";
     el('p_grandeur').value=row.grandeur||""; el('p_unite').value=row.unite_symbole||""; el('p_unite_libelle').value="";
+    const cons=exec("SELECT type,valeur FROM contrainte WHERE propriete_id=?",[row.id]);
+    const consVal=t=>{const c=cons.find(x=>x.type===t); return c?c.valeur:"";};
+    el('p_regex').value=consVal('regex'); el('p_min').value=consVal('min'); el('p_max').value=consVal('max');
     updatePropTypeUI(); setPropEditMode(true);
   }else{
     setPropEditMode(false);
@@ -1024,9 +1080,20 @@ function addOrUpdateProp(){
           [nom,type,mv,teid,uid,desc]);
       toast("Propriété « "+nom+" » créée","ok");
     }
-    clear(['p_nom','p_enum','p_grandeur','p_unite','p_unite_libelle','p_desc']); el('p_mv').checked=false; setPropEditMode(false);
+    const pid=exec("SELECT id FROM propriete WHERE nom=?",[nom])[0].id;
+    saveContraintes(pid);
+    clear(['p_nom','p_enum','p_grandeur','p_unite','p_unite_libelle','p_desc','p_regex','p_min','p_max']); el('p_mv').checked=false; setPropEditMode(false);
     refreshAll(); focus('p_nom');
   }catch(e){ toast(friendly(e),"err"); }
+}
+function saveContraintes(propId){
+  run("DELETE FROM contrainte WHERE propriete_id=?",[propId]);
+  const regex=v('p_regex').trim();
+  if(regex) run("INSERT INTO contrainte(propriete_id,type,valeur) VALUES (?,?,?)",[propId,'regex',regex]);
+  const min=v('p_min').trim();
+  if(min!=='') run("INSERT INTO contrainte(propriete_id,type,valeur) VALUES (?,?,?)",[propId,'min',min]);
+  const max=v('p_max').trim();
+  if(max!=='') run("INSERT INTO contrainte(propriete_id,type,valeur) VALUES (?,?,?)",[propId,'max',max]);
 }
 function renderValuesFor(name){
   el('p_enumName').textContent = name||'—';
@@ -1105,6 +1172,8 @@ function friendly(e){
   if(/valeur_enumeree\.type_enumere_id, valeur_enumeree\.valeur/.test(m)) return "Cette valeur existe déjà dans cette liste.";
   if(/unite\.grandeur_id, unite\.symbole/.test(m)) return "Cette unité existe déjà pour cette grandeur.";
   if(/type = 'enum'/.test(m)) return "Le type « enum » nécessite une liste de valeurs, le type « grandeur » une unité (et inversement).";
+  if(/motif \(regex\)/.test(m)) return "Un motif (regex) ne s'applique qu'aux propriétés de type texte ou identifiant.";
+  if(/borne min\/max/.test(m)) return "Une borne min/max ne s'applique qu'aux propriétés de type entier, decimal ou grandeur.";
   if(/UNIQUE/.test(m)) return "Ce nom existe déjà.";
   if(/generalisation/.test(m)) return "Une généralisation ne peut pas relier un objet à lui-même.";
   if(/CHECK/.test(m)) return "Valeur non autorisée par le modèle.";
@@ -1160,6 +1229,12 @@ function fillFilterSelect(id,vals,placeholder){
 function typeLabel(p){
   if(p.type==='grandeur') return esc(p.grandeur)+' ('+esc(p.unite)+')';
   return p.type;
+}
+function contrainteLabel(p){
+  const parts=[];
+  if(p.c_regex) parts.push('motif '+esc(p.c_regex));
+  if(p.c_min!=null || p.c_max!=null) parts.push('['+esc(p.c_min??'')+' … '+esc(p.c_max??'')+']');
+  return parts.length ? ' <span class="mgdef">'+parts.join(' · ')+'</span>' : '';
 }
 const STATUT_LABELS = {brouillon:'Brouillon', valide:'Validé', obsolete:'Obsolète'};
 function statutSelectHtml(kind, id, statut){
@@ -1228,7 +1303,10 @@ function renderMgProps(){
   const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
   const total = exec(`SELECT COUNT(*) n FROM propriete p ${whereSql}`, params)[0].n;
   const rows = exec(`SELECT p.id,p.nom,p.type,p.multivalue,p.statut,gp.nom AS grandeur,u.symbole AS unite,
-                      (SELECT COUNT(*) FROM applicabilite a WHERE a.propriete_id=p.id) AS nobj
+                      (SELECT COUNT(*) FROM applicabilite a WHERE a.propriete_id=p.id) AS nobj,
+                      (SELECT valeur FROM contrainte c WHERE c.propriete_id=p.id AND c.type='regex') AS c_regex,
+                      (SELECT valeur FROM contrainte c WHERE c.propriete_id=p.id AND c.type='min') AS c_min,
+                      (SELECT valeur FROM contrainte c WHERE c.propriete_id=p.id AND c.type='max') AS c_max
                       FROM propriete p LEFT JOIN unite u ON u.id=p.unite_id LEFT JOIN grandeur_physique gp ON gp.id=u.grandeur_id
                       ${whereSql} ORDER BY p.nom LIMIT ${MG_MAX_ROWS}`, params);
   el('mgPropCount').textContent = total+' propriété'+(total>1?'s':'');
@@ -1236,7 +1314,7 @@ function renderMgProps(){
   if(!rows.length) body.innerHTML='<tr><td colspan="6" class="noprops">Aucune propriété.</td></tr>';
   rows.forEach(p=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td><span class="mgname">${esc(p.nom)}</span></td><td>${typeLabel(p)}</td><td>${p.multivalue?'oui':'—'}</td><td>${p.nobj}</td>
+    tr.innerHTML=`<td><span class="mgname">${esc(p.nom)}</span></td><td>${typeLabel(p)}${contrainteLabel(p)}</td><td>${p.multivalue?'oui':'—'}</td><td>${p.nobj}</td>
       <td>${statutSelectHtml('propriete',p.id,p.statut)}</td>
       <td class="mgactions"><button class="btn xs ghost" data-act="edit" data-id="${p.id}">Éditer</button>
         <button class="btn xs danger" data-act="del" data-id="${p.id}">Supprimer</button></td>`;
