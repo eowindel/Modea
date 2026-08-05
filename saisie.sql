@@ -306,3 +306,38 @@ BEGIN
         COALESCE(NEW.statut, 'brouillon')
     );
 END;
+
+-- -----------------------------------------------------------------------------
+--  Saisie d'un LIEN D'EXIGENCE depuis un élément externe (IRI, ex : ARIS)
+--  vers un OBJET ou une PROPRIETE de ce modèle, désignés par leur NOM.
+--  Cible-toi un objet OU une propriete, jamais les deux (porté par le CHECK
+--  de la table lien_exigence : renseigner les deux, ou aucun, l'echoue).
+--  Le ciblage d'une RELATION n'est pas exposé ici (pas de nom unique pour
+--  identifier une relation précise) — la colonne relation_id existe dans
+--  le schéma pour un usage futur, à saisir directement en SQL si besoin.
+-- -----------------------------------------------------------------------------
+CREATE VIEW saisie_lien_exigence AS
+SELECT l.id, l.iri_externe, l.systeme_externe, o.nom AS objet, p.nom AS propriete, l.commentaire
+FROM lien_exigence l
+LEFT JOIN objet     o ON o.id = l.objet_id
+LEFT JOIN propriete p ON p.id = l.propriete_id;
+
+CREATE TRIGGER trg_saisie_lien_exigence_ins
+INSTEAD OF INSERT ON saisie_lien_exigence
+BEGIN
+    SELECT RAISE(ABORT, 'Objet inconnu')
+    WHERE NEW.objet IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM objet WHERE nom = NEW.objet);
+    SELECT RAISE(ABORT, 'Propriété inconnue')
+    WHERE NEW.propriete IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM propriete WHERE nom = NEW.propriete);
+
+    INSERT INTO lien_exigence(iri_externe, systeme_externe, objet_id, propriete_id, commentaire)
+    VALUES (
+        NEW.iri_externe,
+        NEW.systeme_externe,
+        (SELECT id FROM objet WHERE nom = NEW.objet),
+        (SELECT id FROM propriete WHERE nom = NEW.propriete),
+        NEW.commentaire
+    );
+END;

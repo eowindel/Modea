@@ -102,6 +102,19 @@ for propriete, type_, valeur, message in contraintes:
         (propriete, type_, valeur, message),
     )
 
+# --- liens d'exigence : tracabilite depuis un A-Box externe (ex : ARIS) ---
+liens_exigence = [
+    ("http://aris.exemple/process/42", "ARIS", "Vérin hydraulique VH-100", None,
+     "Le processus de conception impose une pression de service tracee"),
+    ("http://aris.exemple/process/42-A", "ARIS", None, "Pression de service",
+     "Exigence de tracabilite sur la pression de service"),
+]
+for iri, systeme, objet, propriete, commentaire in liens_exigence:
+    run(
+        "INSERT INTO saisie_lien_exigence(iri_externe, systeme_externe, objet, propriete, commentaire) VALUES (?,?,?,?,?)",
+        (iri, systeme, objet, propriete, commentaire),
+    )
+
 # --- applicabilite : affectation contextuelle (obligatoire, discipline) ---
 applicabilites = [
     ("Vérin hydraulique VH-100", "Statut", 1, "10"),

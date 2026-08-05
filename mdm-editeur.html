@@ -240,6 +240,7 @@
     <button class="btn ghost" id="btnDownload" disabled>Télécharger une copie</button>
     <button class="btn ghost" id="btnExportTtl" disabled>Exporter en RDF (.ttl)</button>
     <button class="btn ghost" id="btnExportShacl" disabled>Exporter en SHACL (.ttl)</button>
+    <button class="btn ghost" id="btnExportLiens" disabled>Exporter les liens externes (.ttl)</button>
     <input type="file" id="file" accept=".db,.sqlite,.sqlite3" class="hidden">
   </div>
   <div class="stats">
@@ -410,6 +411,7 @@
       <button class="tab" role="tab" aria-selected="false" data-pane="pProp">Propriété</button>
       <button class="tab" role="tab" aria-selected="false" data-pane="pAffect">Affectation</button>
       <button class="tab" role="tab" aria-selected="false" data-pane="pRel">Relation</button>
+      <button class="tab" role="tab" aria-selected="false" data-pane="pExigence">Lien externe</button>
     </div>
 
     <!-- Objet -->
@@ -535,6 +537,28 @@
       </div>
       <div class="actions"><button class="btn primary" id="addRel">Ajouter la relation</button></div>
     </div>
+
+    <!-- Lien d'exigence (traçabilité vers un A-Box externe, ex : ARIS) -->
+    <div class="tabpane" id="pExigence">
+      <p class="hint">Trace un élément externe (ex : un processus ARIS) qui impose une exigence sur une zone de ce modèle. Le A-Box externe n'est pas géré ici — seule l'IRI de l'élément est enregistrée.</p>
+      <div class="row2">
+        <div class="field"><label><span class="lab">IRI de l'élément externe</span>
+          <input type="text" id="ex_iri" placeholder="http://aris.exemple/process/42" autocomplete="off"></label></div>
+        <div class="field"><label><span class="lab">Système externe</span>
+          <input type="text" id="ex_systeme" list="dl_systemeExterne" placeholder="ex : ARIS" autocomplete="off"></label>
+          <datalist id="dl_systemeExterne"></datalist></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label><span class="lab">Cible</span><select id="ex_type"><option value="objet">Objet</option><option value="propriete">Propriété</option></select></label></div>
+        <div class="field" id="ex_objetField"><label><span class="lab">Objet visé</span>
+          <input type="text" id="ex_objet" list="dl_objet_all" placeholder="nom exact d'un objet existant" autocomplete="off"></label></div>
+        <div class="field hidden" id="ex_proprieteField"><label><span class="lab">Propriété visée</span>
+          <input type="text" id="ex_propriete" list="dl_propriete" placeholder="nom exact d'une propriété existante" autocomplete="off"></label></div>
+      </div>
+      <div class="field"><label><span class="lab">Commentaire</span>
+        <input type="text" id="ex_commentaire" placeholder="facultatif" autocomplete="off"></label></div>
+      <div class="actions"><button class="btn primary" id="addExigence">Enregistrer le lien</button></div>
+    </div>
   </section>
 
   <!-- Live readout -->
@@ -552,6 +576,7 @@
           <button class="segbtn" id="subObjets" aria-selected="true">Objets</button>
           <button class="segbtn" id="subProps" aria-selected="false">Propriétés</button>
           <button class="segbtn" id="subRels" aria-selected="false">Relations</button>
+          <button class="segbtn" id="subLiens" aria-selected="false">Liens externes</button>
         </div>
 
         <div id="subViewObjets">
@@ -596,6 +621,18 @@
             <tbody id="mgRelBody"></tbody>
           </table></div>
           <p class="mgmsg" id="mgRelMsg"></p>
+        </div>
+
+        <div id="subViewLiens" class="hidden">
+          <div class="mgbar">
+            <input type="text" id="mgExSearch" placeholder="Rechercher (IRI, système, cible)…">
+            <span class="mgcount" id="mgExCount"></span>
+          </div>
+          <div class="mgtablewrap"><table class="mgtable">
+            <thead><tr><th>IRI externe</th><th>Système</th><th>Cible</th><th>Commentaire</th><th></th></tr></thead>
+            <tbody id="mgExBody"></tbody>
+          </table></div>
+          <p class="mgmsg" id="mgExMsg"></p>
         </div>
       </div>
       <div id="viewDiag" class="hidden">
@@ -819,6 +856,18 @@ CREATE TABLE relation (
     CHECK (source_id <> cible_id OR type <> 'generalisation')
 );
 
+CREATE TABLE lien_exigence (
+    id              INTEGER PRIMARY KEY,
+    iri_externe     TEXT NOT NULL,
+    systeme_externe TEXT NOT NULL,
+    objet_id        INTEGER REFERENCES objet(id) ON DELETE CASCADE,
+    propriete_id    INTEGER REFERENCES propriete(id) ON DELETE CASCADE,
+    relation_id     INTEGER REFERENCES relation(id) ON DELETE CASCADE,
+    commentaire     TEXT,
+    cree_le         TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK ( (objet_id IS NOT NULL) + (propriete_id IS NOT NULL) + (relation_id IS NOT NULL) = 1 )
+);
+
 CREATE INDEX idx_objet_domaine           ON objet(domaine_id);
 CREATE INDEX idx_objet_classe            ON objet(classe_id);
 CREATE INDEX idx_objet_discipline        ON objet(discipline_id);
@@ -833,6 +882,9 @@ CREATE INDEX idx_applicabilite_discipline ON applicabilite(discipline_id);
 CREATE INDEX idx_relation_source         ON relation(source_id);
 CREATE INDEX idx_relation_cible          ON relation(cible_id);
 CREATE INDEX idx_relation_verbe          ON relation(verbe_id);
+CREATE INDEX idx_lien_exigence_objet     ON lien_exigence(objet_id);
+CREATE INDEX idx_lien_exigence_propriete ON lien_exigence(propriete_id);
+CREATE INDEX idx_lien_exigence_relation  ON lien_exigence(relation_id);
 
 CREATE TRIGGER trg_objet_maj AFTER UPDATE ON objet FOR EACH ROW
 BEGIN UPDATE objet SET maj_le = datetime('now') WHERE id = NEW.id; END;
@@ -1167,6 +1219,36 @@ function addRel(){
     clear(['r_nom']); refreshAll(); toast("Relation ajoutée","ok");
   }catch(e){ toast(friendly(e),"err"); }
 }
+function updateExigenceTypeUI(){
+  const t = v('ex_type');
+  el('ex_objetField').classList.toggle('hidden', t!=='objet');
+  el('ex_proprieteField').classList.toggle('hidden', t!=='propriete');
+}
+function addLienExigence(){
+  const iri=v('ex_iri').trim();
+  const systeme=v('ex_systeme').trim();
+  if(!iri) return toast("Donne l'IRI de l'élément externe","err");
+  if(!systeme) return toast("Indique le système externe (ex : ARIS)","err");
+  const type=v('ex_type');
+  const objetNom = type==='objet' ? v('ex_objet').trim() : '';
+  const propNom = type==='propriete' ? v('ex_propriete').trim() : '';
+  if(type==='objet' && !objetNom) return toast("Choisis l'objet visé","err");
+  if(type==='propriete' && !propNom) return toast("Choisis la propriété visée","err");
+  try{
+    const oid = objetNom ? findIdByName('objet', objetNom) : null;
+    const pid = propNom ? findIdByName('propriete', propNom) : null;
+    if(objetNom && !oid) return toast("Objet inconnu","err");
+    if(propNom && !pid) return toast("Propriété inconnue","err");
+    run("INSERT INTO lien_exigence(iri_externe,systeme_externe,objet_id,propriete_id,commentaire) VALUES (?,?,?,?,?)",
+        [iri,systeme,oid,pid,v('ex_commentaire').trim()||null]);
+    clear(['ex_iri','ex_objet','ex_propriete','ex_commentaire']); refreshAll(); toast("Lien enregistré","ok");
+  }catch(e){ toast(friendly(e),"err"); }
+}
+function deleteLienExigence(id){
+  if(!confirm("Supprimer ce lien externe ?")) return;
+  run("DELETE FROM lien_exigence WHERE id=?",[id]);
+  toast("Lien supprimé","ok"); refreshAll();
+}
 function friendly(e){
   const m=(e&&e.message)||String(e);
   if(/applicabilite\.objet_id, applicabilite\.propriete_id/.test(m)) return "Cette propriété est déjà affectée à cet objet.";
@@ -1204,6 +1286,7 @@ function refreshAll(){
   fillDatalist('dl_disc_code',exec("SELECT code FROM discipline ORDER BY code").map(r=>r.code));
   fillDatalist('dl_grandeur',exec("SELECT nom FROM grandeur_physique ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_unite',exec("SELECT DISTINCT symbole FROM unite ORDER BY symbole").map(r=>r.symbole));
+  fillDatalist('dl_systemeExterne',exec("SELECT DISTINCT systeme_externe FROM lien_exigence ORDER BY systeme_externe").map(r=>r.systeme_externe));
 
   fillFilterSelect('mgObjNature', exec("SELECT DISTINCT COALESCE(c.nom,'— sans nature') n FROM objet o LEFT JOIN classe_objet c ON c.id=o.classe_id ORDER BY n").map(r=>r.n), 'Toutes natures');
   fillFilterSelect('mgObjDomaine', exec("SELECT DISTINCT COALESCE(d.nom,'— sans domaine') n FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id ORDER BY n").map(r=>r.n), 'Tous domaines');
@@ -1214,7 +1297,7 @@ function refreshAll(){
   fillFilterSelect('mgPropType', TYPES, 'Tous types');
   fillFilterSelect('mgRelType', REL_TYPES, 'Tous types');
 
-  renderMgObjets(); renderMgProps(); renderMgRels(); updateRelPreview();
+  renderMgObjets(); renderMgProps(); renderMgRels(); renderMgLiens(); updateRelPreview();
   if(v('p_type')==='enum') renderValuesFor(v('p_enum'));
   if(v('p_type')==='grandeur') renderUnitesFor(v('p_grandeur'));
   if(viewMode==='diagram') renderDiagram();
@@ -1348,8 +1431,31 @@ function renderMgRels(){
   });
   el('mgRelMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichées sur '+total+' — affine la recherche pour voir le reste.' : '';
 }
+
+/* ---- Liens externes : liste filtrable/cherchable ---- */
+function renderMgLiens(){
+  const search=v('mgExSearch').trim();
+  const where=[]; const params=[];
+  if(search){ where.push("(l.iri_externe LIKE ? OR l.systeme_externe LIKE ? OR o.nom LIKE ? OR p.nom LIKE ?)"); params.push('%'+search+'%','%'+search+'%','%'+search+'%','%'+search+'%'); }
+  const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
+  const baseFrom = `FROM lien_exigence l LEFT JOIN objet o ON o.id=l.objet_id LEFT JOIN propriete p ON p.id=l.propriete_id ${whereSql}`;
+  const total = exec(`SELECT COUNT(*) n ${baseFrom}`, params)[0].n;
+  const rows = exec(`SELECT l.id,l.iri_externe,l.systeme_externe,l.commentaire,o.nom AS objet,p.nom AS propriete,l.relation_id
+                     ${baseFrom} ORDER BY l.iri_externe LIMIT ${MG_MAX_ROWS}`, params);
+  el('mgExCount').textContent = total+' lien'+(total>1?'s':'');
+  const body=el('mgExBody'); body.innerHTML='';
+  if(!rows.length) body.innerHTML='<tr><td colspan="5" class="noprops">Aucun lien externe.</td></tr>';
+  rows.forEach(l=>{
+    const cible = l.objet ? 'objet · '+esc(l.objet) : (l.propriete ? 'propriété · '+esc(l.propriete) : 'relation #'+l.relation_id);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="mono">${esc(l.iri_externe)}</td><td>${esc(l.systeme_externe)}</td><td>${cible}</td><td>${l.commentaire?esc(l.commentaire):''}</td>
+      <td class="mgactions"><button class="btn xs danger" data-act="del" data-id="${l.id}">Supprimer</button></td>`;
+    body.appendChild(tr);
+  });
+  el('mgExMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichés sur '+total+' — affine la recherche pour voir le reste.' : '';
+}
 function setFichesSubView(name){
-  const map={objets:['subObjets','subViewObjets'], props:['subProps','subViewProps'], rels:['subRels','subViewRels']};
+  const map={objets:['subObjets','subViewObjets'], props:['subProps','subViewProps'], rels:['subRels','subViewRels'], liens:['subLiens','subViewLiens']};
   Object.keys(map).forEach(k=>{
     el(map[k][0]).setAttribute('aria-selected', String(k===name));
     el(map[k][1]).classList.toggle('hidden', k!==name);
@@ -1978,6 +2084,52 @@ function exportShacl(){
   }catch(e){ toast(friendly(e),"err"); }
 }
 
+/* ---------- export des liens externes (.liens.ttl) -------------------------
+   Troisième graphe, séparé de l'ontologie et des shapes : relie une IRI
+   A-Box externe (ex : un processus ARIS) à une classe/propriété de CE
+   T-Box, sans jamais mélanger les deux. Réutilise computeModelMaps() pour
+   résoudre la cible vers le même slug que l'export RDF/OWL.
+   --------------------------------------------------------------------------- */
+function buildLiensTurtle(baseIri){
+  const maps = computeModelMaps();
+  const baseRoot = baseIri.replace(/[#/]+$/,'');
+  const out = [
+    '@prefix owl:  <http://www.w3.org/2002/07/owl#> .',
+    '@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .',
+    '@prefix mdm:  <'+MDM_VOCAB+'> .',
+    '@prefix :     <'+baseIri+'> .',
+    '@base <'+baseRoot+'> .',
+    '',
+    'mdm:exigence a owl:AnnotationProperty ; rdfs:comment '+lit("Lien de traçabilité depuis un élément A-Box externe (ex : ARIS) vers cette zone du T-Box.")+' .',
+    'mdm:systemeExterne a owl:AnnotationProperty ; rdfs:comment '+lit("Système source de l'élément externe lié (ex : ARIS).")+' .',
+    ''
+  ];
+  const rows = exec('SELECT iri_externe,systeme_externe,objet_id,propriete_id,relation_id,commentaire FROM lien_exigence ORDER BY iri_externe');
+  rows.forEach(l=>{
+    let targetSlug=null;
+    if(l.objet_id!=null) targetSlug=maps.objIri.get(l.objet_id);
+    else if(l.propriete_id!=null) targetSlug=maps.propIri.get(l.propriete_id);
+    else if(l.relation_id!=null) targetSlug=maps.relSlugById.get(l.relation_id);
+    if(!targetSlug) return;
+    const parts=['mdm:exigence :'+targetSlug, 'mdm:systemeExterne '+lit(l.systeme_externe)];
+    if(l.commentaire) parts.push('rdfs:comment '+litLang(l.commentaire));
+    out.push('<'+l.iri_externe+'> '+parts.join(' ; ')+' .');
+  });
+  return out.join('\n');
+}
+function exportLiens(){
+  const n = exec("SELECT COUNT(*) n FROM lien_exigence")[0].n;
+  if(!n) return toast("Aucun lien externe enregistré","err");
+  const baseIri = promptBaseIri("IRI de base (doit être la même que pour l'export RDF/OWL, pour que les liens ciblent les bonnes classes) :");
+  if(baseIri===null) return;
+  try{
+    const ttl = buildLiensTurtle(baseIri);
+    downloadText(baseName()+'.liens.ttl', ttl, 'text/turtle');
+    lastBaseIri = baseIri;
+    toast("Export des liens externes (.liens.ttl) généré","ok");
+  }catch(e){ toast(friendly(e),"err"); }
+}
+
 /* ---------- enregistrement ---------- */
 function currentBytes(){ return db.export(); }
 async function saveToHandle(){
@@ -2029,7 +2181,7 @@ function toast(msg,kind){
 function enterEditor(){
   el('empty').classList.add('hidden');
   el('editor').classList.remove('hidden'); el('readout').classList.remove('hidden');
-  el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false;
+  el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false; el('btnExportLiens').disabled=false;
 }
 function fillStaticSelects(){
   const set=(id,vals,def)=>{const s=el(id);s.innerHTML="";vals.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;if(x===def)o.selected=true;s.appendChild(o);});};
@@ -2043,6 +2195,7 @@ function wire(){
   el('btnSave').onclick=save; el('btnDownload').onclick=download;
   el('btnExportTtl').onclick=()=>exportTurtle();
   el('btnExportShacl').onclick=()=>exportShacl();
+  el('btnExportLiens').onclick=()=>exportLiens();
   el('file').onchange=async e=>{const f=e.target.files[0]; if(!f)return; fileHandle=null;
     try{ await openBytes(new Uint8Array(await f.arrayBuffer()), f.name); }
     catch(err){ showLoadErr(friendly(err)); } e.target.value="";};
@@ -2051,6 +2204,8 @@ function wire(){
   el('addValeur').onclick=addValeur;
   el('addAffect').onclick=addOrUpdateAffect;
   el('addRel').onclick=addRel;
+  el('addExigence').onclick=addLienExigence;
+  el('ex_type').addEventListener('change', updateExigenceTypeUI);
   // tabs
   document.querySelectorAll('.tab').forEach(tb=>tb.onclick=()=>switchToTab(tb.dataset.pane));
   // Objet : détection création vs édition
@@ -2076,6 +2231,7 @@ function wire(){
   el('subObjets').onclick=()=>setFichesSubView('objets');
   el('subProps').onclick=()=>setFichesSubView('props');
   el('subRels').onclick=()=>setFichesSubView('rels');
+  el('subLiens').onclick=()=>setFichesSubView('liens');
   // Fiches : recherche / filtres (debounce leger sur le texte libre)
   const debounce=(fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
   el('mgObjSearch').addEventListener('input', debounce(renderMgObjets,150));
@@ -2089,6 +2245,7 @@ function wire(){
   el('mgRelSearch').addEventListener('input', debounce(renderMgRels,150));
   el('mgRelType').addEventListener('change', renderMgRels);
   el('mgRelStatut').addEventListener('change', renderMgRels);
+  el('mgExSearch').addEventListener('input', debounce(renderMgLiens,150));
   // Fiches : actions des listes (delegation d'evenements)
   el('mgObjBody').addEventListener('click', e=>{
     if(e.target.closest('select.statut-select')){ e.stopPropagation(); return; }
@@ -2119,6 +2276,10 @@ function wire(){
   el('mgRelBody').addEventListener('click', e=>{
     const btn=e.target.closest('button[data-act]'); if(!btn) return;
     if(btn.dataset.act==='del') deleteRelation(+btn.dataset.id);
+  });
+  el('mgExBody').addEventListener('click', e=>{
+    const btn=e.target.closest('button[data-act]'); if(!btn) return;
+    if(btn.dataset.act==='del') deleteLienExigence(+btn.dataset.id);
   });
   // Statut : select colore, modifiable en place dans les 3 listes
   const STATUT_TABLES={objet:'objet',propriete:'propriete',relation:'relation'};
@@ -2173,7 +2334,7 @@ function showLoadErr(m){const e=el('loadErr');e.textContent=m;e.classList.remove
 function openHelp(){ el('helpOverlay').classList.remove('hidden'); }
 function closeHelp(){ el('helpOverlay').classList.add('hidden'); }
 
-fillStaticSelects(); wire(); updatePropTypeUI();
+fillStaticSelects(); wire(); updatePropTypeUI(); updateExigenceTypeUI();
 </script>
 </body>
 </html>

@@ -231,6 +231,26 @@ CREATE TABLE relation (
 );
 
 -- -----------------------------------------------------------------------------
+--  Lien d'exigence — traçabilité depuis un élément A-Box externe (ex : un
+--  processus ARIS) vers une zone précise du T-Box de CE modèle. Le A-Box
+--  n'est jamais géré ici (aucune table d'instances) : seule l'IRI de
+--  l'élément externe est enregistrée, à côté d'un pointeur vers l'objet, la
+--  propriété ou la relation qu'il contraint. Arc exclusif (CHECK) : chaque
+--  lien cible exactement UN des trois, jamais plusieurs à la fois.
+-- -----------------------------------------------------------------------------
+CREATE TABLE lien_exigence (
+    id              INTEGER PRIMARY KEY,
+    iri_externe     TEXT NOT NULL,
+    systeme_externe TEXT NOT NULL,                -- ex : "ARIS"
+    objet_id        INTEGER REFERENCES objet(id) ON DELETE CASCADE,
+    propriete_id    INTEGER REFERENCES propriete(id) ON DELETE CASCADE,
+    relation_id     INTEGER REFERENCES relation(id) ON DELETE CASCADE,
+    commentaire     TEXT,
+    cree_le         TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK ( (objet_id IS NOT NULL) + (propriete_id IS NOT NULL) + (relation_id IS NOT NULL) = 1 )
+);
+
+-- -----------------------------------------------------------------------------
 --  Index sur les clés étrangères (non créés automatiquement par SQLite)
 -- -----------------------------------------------------------------------------
 CREATE INDEX idx_objet_domaine          ON objet(domaine_id);
@@ -247,6 +267,9 @@ CREATE INDEX idx_applicabilite_discipline ON applicabilite(discipline_id);
 CREATE INDEX idx_relation_source        ON relation(source_id);
 CREATE INDEX idx_relation_cible         ON relation(cible_id);
 CREATE INDEX idx_relation_verbe         ON relation(verbe_id);
+CREATE INDEX idx_lien_exigence_objet    ON lien_exigence(objet_id);
+CREATE INDEX idx_lien_exigence_propriete ON lien_exigence(propriete_id);
+CREATE INDEX idx_lien_exigence_relation ON lien_exigence(relation_id);
 
 -- -----------------------------------------------------------------------------
 --  Horodatage automatique de la dernière modif (un trigger par table : les
@@ -349,6 +372,19 @@ SELECT c.id,
        c.severite
 FROM contrainte c
 JOIN propriete p ON p.id = c.propriete_id;
+
+-- Liens d'exigence en lecture naturelle : IRI externe -- cible (objet/propriete/relation)
+CREATE VIEW v_lien_exigence AS
+SELECT l.id,
+       l.iri_externe,
+       l.systeme_externe,
+       o.nom          AS objet,
+       p.nom          AS propriete,
+       l.relation_id,
+       l.commentaire
+FROM lien_exigence l
+LEFT JOIN objet     o ON o.id = l.objet_id
+LEFT JOIN propriete p ON p.id = l.propriete_id;
 
 -- Propriétés effectives d'un objet : celles qui lui sont affectées directement,
 -- + celles héritées de ses ancêtres le long des relations de généralisation
