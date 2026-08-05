@@ -89,6 +89,19 @@ for nom, type_, mv, type_enum, grandeur, unite, desc in proprietes:
         (nom, type_, mv, type_enum, grandeur, unite, desc),
     )
 
+# --- contraintes : regles de validation portees par la propriete (definition) ---
+contraintes = [
+    ("Référence fournisseur", "regex", r"^[A-Z0-9]{2,}-[A-Z0-9]+$", "Format attendu : PREFIXE-REFERENCE"),
+    ("Poids", "min", "0", None),
+    ("Pression de service", "min", "0", None),
+    ("Pression de service", "max", "400", "Au-dela de 400 bar, verifier le circuit hydraulique"),
+]
+for propriete, type_, valeur, message in contraintes:
+    run(
+        "INSERT INTO saisie_contrainte(propriete, type, valeur, message) VALUES (?,?,?,?)",
+        (propriete, type_, valeur, message),
+    )
+
 # --- applicabilite : affectation contextuelle (obligatoire, discipline) ---
 applicabilites = [
     ("Vérin hydraulique VH-100", "Statut", 1, "10"),

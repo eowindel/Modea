@@ -239,6 +239,7 @@
     <button class="btn primary" id="btnSave" disabled>Enregistrer</button>
     <button class="btn ghost" id="btnDownload" disabled>Télécharger une copie</button>
     <button class="btn ghost" id="btnExportTtl" disabled>Exporter en RDF (.ttl)</button>
+    <button class="btn ghost" id="btnExportShacl" disabled>Exporter en SHACL (.ttl)</button>
     <input type="file" id="file" accept=".db,.sqlite,.sqlite3" class="hidden">
   </div>
   <div class="stats">
@@ -1776,6 +1777,7 @@ function emitVerbRelations(out, slugFor){
 function emitObjectProperties(out, slugFor, objIri, verbIri){
   const rows = exec(`SELECT id,verbe_id,type,source_id,cible_id,card_source,card_cible,role_source,role_cible
       FROM relation WHERE type<>'generalisation'`);
+  const relSlugById = new Map();
   rows.forEach(r=>{
     const src=objIri.get(r.source_id), tgt=objIri.get(r.cible_id);
     if(!src||!tgt) return;
@@ -1787,6 +1789,7 @@ function emitObjectProperties(out, slugFor, objIri, verbIri){
       out.push(':'+verbSlug+' a owl:ObjectProperty ; rdfs:label '+litLang(fallback)+' .');
       out.push('');
     }
+    relSlugById.set(r.id, verbSlug);
     // pas de rdfs:domain/range fixe sur la propriété : cf. propriete/applicabilite, une
     // owl:ObjectProperty partagée par plusieurs paires source/cible ne peut pas porter un
     // domain/range unique — la contrainte est restreinte localement à chaque usage ici.
@@ -1800,6 +1803,7 @@ function emitObjectProperties(out, slugFor, objIri, verbIri){
     out.push(':'+src+' rdfs:subClassOf [ '+parts.join(' ; ')+' ] .');
     out.push('');
   });
+  return relSlugById;
 }
 
 function buildTurtle(baseIri){
@@ -1828,19 +1832,149 @@ function buildTurtle(baseIri){
   return out.join('\n');
 }
 
+let lastBaseIri = null;
+function defaultBaseIri(){
+  return lastBaseIri || ('http://example.org/mdm/'+slugify(baseName(),'lower')+'#');
+}
+function promptBaseIri(label){
+  let baseIri = prompt(label, defaultBaseIri());
+  if(baseIri===null) return null;
+  baseIri = baseIri.trim();
+  if(!/^https?:\/\//.test(baseIri)){ toast("L'IRI de base doit commencer par http:// ou https://","err"); return null; }
+  if(!/[#/]$/.test(baseIri)) baseIri += '#';
+  return baseIri;
+}
 function exportTurtle(){
   const n = exec("SELECT COUNT(*) n FROM objet")[0].n;
   if(!n) return toast("Le modèle est vide","err");
-  const defaultIri = 'http://example.org/mdm/'+slugify(baseName(),'lower')+'#';
-  let baseIri = prompt("IRI de base de l'ontologie (namespace du modèle) :", defaultIri);
+  const baseIri = promptBaseIri("IRI de base de l'ontologie (namespace du modèle) :");
   if(baseIri===null) return;
-  baseIri = baseIri.trim();
-  if(!/^https?:\/\//.test(baseIri)) return toast("L'IRI de base doit commencer par http:// ou https://","err");
-  if(!/[#/]$/.test(baseIri)) baseIri += '#';
   try{
     const ttl = buildTurtle(baseIri);
     downloadText(baseName()+'.ttl', ttl, 'text/turtle');
+    lastBaseIri = baseIri;
     toast("Export RDF (.ttl) généré","ok");
+  }catch(e){ toast(friendly(e),"err"); }
+}
+
+/* ---------- export SHACL (.shapes.ttl) -----------------------------------
+   Cible les mêmes IRI que l'export RDF/OWL (mêmes fonctions emitClasses/
+   emitProperties/emitVerbRelations/emitObjectProperties, rejouées sur une
+   sortie jetable) : les deux fichiers doivent être régénérés ensemble si le
+   modèle change, pour que sh:targetClass/sh:path restent alignés avec les
+   classes/propriétés OWL correspondantes.
+   Contraintes de valeur (regex, min/max, enum) portées par une forme
+   nommée réutilisable par propriete (:propSlug_shape, référencée via
+   sh:node) ; la cardinalité (minCount/maxCount) reste locale à chaque
+   usage (applicabilite / relation), comme pour les restrictions OWL.
+   --------------------------------------------------------------------------- */
+function computeModelMaps(){
+  const usedSlugs = {};
+  function slugFor(bucket, text, style){
+    usedSlugs[bucket] = usedSlugs[bucket] || new Set();
+    const set = usedSlugs[bucket];
+    let base = slugify(text, style), candidate = base, n = 2;
+    while(set.has(candidate)){ candidate = base+'_'+n; n++; }
+    set.add(candidate);
+    return candidate;
+  }
+  const out = [];
+  const typeEnumIri = emitEnumDatatypes(out, slugFor);
+  const domaineIri = emitSkosScheme(out, 'domaine', 'SchemaDomaines', 'domaineConcept', slugFor, {label:'Domaines'});
+  const classeIri = emitSkosScheme(out, 'classe_objet', 'SchemaClassesObjet', 'classeConcept', slugFor, {label:"Classes d'objet"});
+  const disciplineIri = emitSkosScheme(out, 'discipline', 'SchemaDisciplines', 'disciplineConcept', slugFor, {label:'Disciplines', notation:true});
+  const objIri = emitClasses(out, slugFor, domaineIri, classeIri, disciplineIri);
+  const propIri = emitProperties(out, slugFor, typeEnumIri);
+  emitApplicabilite(out, objIri, propIri);
+  emitGeneralisations(out, objIri);
+  const verbIri = emitVerbRelations(out, slugFor);
+  const relSlugById = emitObjectProperties(out, slugFor, objIri, verbIri);
+  return { typeEnumIri, objIri, propIri, verbIri, relSlugById };
+}
+function shaclHeader(baseIri){
+  const baseRoot = baseIri.replace(/[#/]+$/,'');
+  return [
+    '@prefix sh:   <http://www.w3.org/ns/shacl#> .',
+    '@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .',
+    '@prefix :     <'+baseIri+'> .',
+    '@base <'+baseRoot+'> .',
+    ''
+  ].join('\n');
+}
+function emitShaclValueShapes(out, propIri, typeEnumIri){
+  const rows = exec('SELECT id,nom,type,type_enumere_id FROM propriete ORDER BY nom');
+  rows.forEach(p=>{
+    const slug = propIri.get(p.id); if(!slug) return;
+    out.push(':'+slug+'_shape a sh:NodeShape ;');
+    if(p.type==='enum'){
+      const vals = exec("SELECT valeur FROM valeur_enumeree WHERE type_enumere_id=? ORDER BY (ordre IS NULL),ordre,id",[p.type_enumere_id]);
+      out.push('    sh:in ( '+vals.map(v=>lit(v.valeur)).join(' ')+' ) .');
+    }else{
+      const xsdType = TYPE_TO_XSD[p.type];
+      const lines = ['sh:datatype '+xsdType];
+      exec("SELECT type,valeur FROM contrainte WHERE propriete_id=?",[p.id]).forEach(c=>{
+        if(c.type==='regex') lines.push('sh:pattern '+lit(c.valeur));
+        if(c.type==='min') lines.push('sh:minInclusive "'+c.valeur+'"^^'+xsdType);
+        if(c.type==='max') lines.push('sh:maxInclusive "'+c.valeur+'"^^'+xsdType);
+      });
+      out.push('    '+lines.join(' ;\n    ')+' .');
+    }
+    out.push('');
+  });
+}
+function shaclCardParts(card){
+  if(card==='1') return ['sh:minCount 1','sh:maxCount 1'];
+  if(card==='0..1') return ['sh:maxCount 1'];
+  if(card==='1..*') return ['sh:minCount 1'];
+  return []; // 0..* : aucune borne
+}
+function emitShaclNodeShapes(out, objIri, propIri, verbIri, relSlugById){
+  exec('SELECT id FROM objet ORDER BY nom').forEach(o=>{
+    const cls = objIri.get(o.id); if(!cls) return;
+    out.push(':'+cls+'Shape a sh:NodeShape ; sh:targetClass :'+cls+' .');
+  });
+  out.push('');
+
+  const apps = exec(`SELECT a.objet_id,a.propriete_id,a.obligatoire,p.multivalue,p.nom AS pnom
+      FROM applicabilite a JOIN propriete p ON p.id=a.propriete_id`);
+  apps.forEach(a=>{
+    const cls=objIri.get(a.objet_id), prop=propIri.get(a.propriete_id);
+    if(!cls||!prop) return;
+    const parts=['sh:path :'+prop,'sh:node :'+prop+'_shape','sh:name '+litLang(a.pnom)];
+    if(a.obligatoire && !a.multivalue) parts.push('sh:minCount 1','sh:maxCount 1');
+    else if(a.obligatoire && a.multivalue) parts.push('sh:minCount 1');
+    else if(!a.obligatoire && !a.multivalue) parts.push('sh:maxCount 1');
+    out.push(':'+cls+'Shape sh:property [ '+parts.join(' ; ')+' ] .');
+  });
+  out.push('');
+
+  const rels = exec(`SELECT id,source_id,cible_id,card_cible FROM relation WHERE type<>'generalisation'`);
+  rels.forEach(r=>{
+    const cls=objIri.get(r.source_id), tgt=objIri.get(r.cible_id), verbSlug=relSlugById.get(r.id);
+    if(!cls||!tgt||!verbSlug) return;
+    const parts=['sh:path :'+verbSlug,'sh:class :'+tgt, ...shaclCardParts(r.card_cible)];
+    out.push(':'+cls+'Shape sh:property [ '+parts.join(' ; ')+' ] .');
+  });
+  out.push('');
+}
+function buildShacl(baseIri){
+  const maps = computeModelMaps();
+  const out = [];
+  out.push(shaclHeader(baseIri));
+  emitShaclValueShapes(out, maps.propIri, maps.typeEnumIri);
+  emitShaclNodeShapes(out, maps.objIri, maps.propIri, maps.verbIri, maps.relSlugById);
+  return out.join('\n');
+}
+function exportShacl(){
+  const n = exec("SELECT COUNT(*) n FROM objet")[0].n;
+  if(!n) return toast("Le modèle est vide","err");
+  const baseIri = promptBaseIri("IRI de base (doit être la même que pour l'export RDF/OWL, pour que les forms ciblent les bonnes classes) :");
+  if(baseIri===null) return;
+  try{
+    const shacl = buildShacl(baseIri);
+    downloadText(baseName()+'.shapes.ttl', shacl, 'text/turtle');
+    lastBaseIri = baseIri;
+    toast("Export SHACL (.shapes.ttl) généré","ok");
   }catch(e){ toast(friendly(e),"err"); }
 }
 
@@ -1895,7 +2029,7 @@ function toast(msg,kind){
 function enterEditor(){
   el('empty').classList.add('hidden');
   el('editor').classList.remove('hidden'); el('readout').classList.remove('hidden');
-  el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false;
+  el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false;
 }
 function fillStaticSelects(){
   const set=(id,vals,def)=>{const s=el(id);s.innerHTML="";vals.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;if(x===def)o.selected=true;s.appendChild(o);});};
@@ -1908,6 +2042,7 @@ function wire(){
   el('btnNew2').onclick=()=>newModel();
   el('btnSave').onclick=save; el('btnDownload').onclick=download;
   el('btnExportTtl').onclick=()=>exportTurtle();
+  el('btnExportShacl').onclick=()=>exportShacl();
   el('file').onchange=async e=>{const f=e.target.files[0]; if(!f)return; fileHandle=null;
     try{ await openBytes(new Uint8Array(await f.arrayBuffer()), f.name); }
     catch(err){ showLoadErr(friendly(err)); } e.target.value="";};
