@@ -227,6 +227,19 @@
   #cyDetail .dprop{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-top:1px dashed var(--line);font-family:var(--mono);font-size:10.5px}
   #cyStats{position:absolute;right:10px;top:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);
     background:rgba(255,255,255,.85);border-radius:6px;padding:3px 8px;border:1px solid var(--line)}
+
+  /* ---- Impact : graphe propriété↔objet (memes regles que #cyWrap, id dedies) ---- */
+  #cyImpactWrap{position:relative;height:62vh;min-height:360px;border:1px solid var(--line);border-radius:8px;background:
+    radial-gradient(var(--line) 1px, transparent 1px) 0 0/20px 20px, #FCFDFE}
+  #cyImpact{position:absolute;inset:0}
+  #cyImpactDetail{position:absolute;left:10px;bottom:10px;max-width:320px;max-height:70%;overflow-y:auto;overflow-x:auto;
+    background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:10px;font-size:11.5px;box-shadow:0 4px 14px rgba(0,0,0,.1)}
+  #cyImpactDetail .dname{font-family:var(--mono);font-weight:700;font-size:12.5px;display:block;margin-bottom:2px}
+  #cyImpactDetail .dmeta{color:var(--muted);font-size:10px;margin-bottom:5px}
+  #cyImpactDetail table{border-collapse:collapse;font-size:11px}
+  #cyImpactDetail td{padding:2px 6px 2px 0;white-space:nowrap}
+  #cyImpactStats{position:absolute;right:10px;top:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);
+    background:rgba(255,255,255,.85);border-radius:6px;padding:3px 8px;border:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -568,6 +581,7 @@
       <div class="seg" style="margin-left:auto">
         <button class="segbtn" id="tabFiches" aria-selected="true">Fiches</button>
         <button class="segbtn" id="tabDiag" aria-selected="false">Diagramme</button>
+        <button class="segbtn" id="tabImpact" aria-selected="false">Impact</button>
       </div>
     </div>
     <div class="body">
@@ -671,6 +685,32 @@
           <div id="cyStats"></div>
         </div>
       </div>
+      <div id="viewImpact" class="hidden">
+        <div class="cybar">
+          <input type="text" id="cyImpactSearch" list="dl_cyImpactSearch" placeholder="Rechercher un objet ou une propriété…" autocomplete="off">
+          <datalist id="dl_cyImpactSearch"></datalist>
+          <button class="btn ghost sm" id="cyImpactSearchBtn">Centrer</button>
+          <select id="cyImpactLayout">
+            <option value="cose">Force dirigée</option>
+            <option value="breadthfirst">Hiérarchique</option>
+            <option value="concentric">Concentrique</option>
+            <option value="circle">Cercle</option>
+            <option value="grid">Grille</option>
+          </select>
+          <button class="btn ghost sm" id="cyImpactRelayout">Réorganiser</button>
+          <button class="btn ghost sm" id="cyImpactFit">Ajuster</button>
+          <label class="check" style="margin:0"><input type="checkbox" id="cyImpactFocus" checked> focus au clic</label>
+          <button class="btn ghost sm" id="cyImpactClearFocus">Réinitialiser</button>
+          <button class="btn ghost sm" id="cyImpactPng">PNG</button>
+          <button class="btn ghost sm" id="cyImpactSvgBtn">SVG</button>
+        </div>
+        <div class="legend" style="margin:0 0 8px">● propriété (pointillé = orpheline) · ▢ objet · trait plein = obligatoire · trait pointillé = optionnelle</div>
+        <div id="cyImpactWrap">
+          <div id="cyImpact"></div>
+          <div id="cyImpactDetail" class="hidden"></div>
+          <div id="cyImpactStats"></div>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -698,8 +738,10 @@ const TYPES = ['texte','entier','decimal','booleen','date','datetime','enum','id
 const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
+const SCHEMA_VERSION = 4; // à incrémenter ici ET dans metamodele.sql à chaque migration
 const SCHEMA_BASE = `
 PRAGMA foreign_keys = ON;
+PRAGMA user_version = ${SCHEMA_VERSION};
 
 CREATE TABLE domaine (
     id          INTEGER PRIMARY KEY,
@@ -897,10 +939,73 @@ BEGIN UPDATE applicabilite SET maj_le = datetime('now') WHERE id = NEW.id; END;
 
 CREATE TRIGGER trg_relation_maj AFTER UPDATE ON relation FOR EACH ROW
 BEGIN UPDATE relation SET maj_le = datetime('now') WHERE id = NEW.id; END;
+
+CREATE VIEW v_objet AS
+SELECT o.id, o.nom, d.nom AS domaine, c.nom AS classe, disc.code AS discipline_code,
+       disc.nom AS discipline_nom, o.definition, o.statut, COUNT(a.id) AS nb_proprietes
+FROM objet o
+LEFT JOIN domaine       d ON d.id = o.domaine_id
+LEFT JOIN classe_objet  c ON c.id = o.classe_id
+LEFT JOIN discipline    disc ON disc.id = o.discipline_id
+LEFT JOIN applicabilite a ON a.objet_id = o.id
+GROUP BY o.id;
+
+CREATE VIEW v_relation AS
+SELECT r.id, s.nom AS source, r.card_source, vb.nom AS relation, r.type, r.card_cible,
+       c.nom AS cible, r.statut
+FROM relation r
+JOIN objet s ON s.id = r.source_id
+JOIN objet c ON c.id = r.cible_id
+LEFT JOIN verbe_relation vb ON vb.id = r.verbe_id;
+
+CREATE VIEW v_applicabilite AS
+SELECT a.id, o.nom AS objet, p.nom AS propriete, p.type, a.obligatoire, p.multivalue,
+       gp.nom AS grandeur, u.symbole AS unite, disc.code AS discipline_code,
+       disc.nom AS discipline_nom, a.ordre, a.statut
+FROM applicabilite a
+JOIN objet     o    ON o.id = a.objet_id
+JOIN propriete p    ON p.id = a.propriete_id
+LEFT JOIN unite u ON u.id = p.unite_id
+LEFT JOIN grandeur_physique gp ON gp.id = u.grandeur_id
+LEFT JOIN discipline disc ON disc.id = a.discipline_id;
+
+CREATE VIEW v_contrainte AS
+SELECT c.id, p.nom AS propriete, c.type, c.valeur, c.message, c.severite
+FROM contrainte c
+JOIN propriete p ON p.id = c.propriete_id;
+
+CREATE VIEW v_lien_exigence AS
+SELECT l.id, l.iri_externe, l.systeme_externe, o.nom AS objet, p.nom AS propriete,
+       l.relation_id, l.commentaire
+FROM lien_exigence l
+LEFT JOIN objet     o ON o.id = l.objet_id
+LEFT JOIN propriete p ON p.id = l.propriete_id;
+
+CREATE VIEW v_propriete_effective AS
+WITH RECURSIVE ancetres(objet_id, ancetre_id) AS (
+    SELECT id, id FROM objet
+    UNION
+    SELECT a.objet_id, r.cible_id
+    FROM ancetres a
+    JOIN relation r ON r.source_id = a.ancetre_id AND r.type = 'generalisation'
+)
+SELECT anc.objet_id, o.nom AS objet, p.id AS propriete_id, p.nom AS propriete, p.type,
+       p.multivalue, gp.nom AS grandeur, u.symbole AS unite, app.obligatoire,
+       disc.code AS discipline_code, (anc.objet_id <> anc.ancetre_id) AS heritee,
+       oa.nom AS heritee_de
+FROM ancetres anc
+JOIN objet          o   ON o.id = anc.objet_id
+JOIN objet          oa  ON oa.id = anc.ancetre_id
+JOIN applicabilite   app ON app.objet_id = anc.ancetre_id
+JOIN propriete       p   ON p.id = app.propriete_id
+LEFT JOIN unite u ON u.id = p.unite_id
+LEFT JOIN grandeur_physique gp ON gp.id = u.grandeur_id
+LEFT JOIN discipline disc ON disc.id = app.discipline_id;
 `;
 
 let SQL=null, db=null, fileHandle=null, dbName="modele.db", viewMode='fiches';
 let cy=null, cySvgReady=false, natureColor={}, cyNatures=[], cyDomaines=[], cyPropsByObj={};
+let cyImpact=null, impactSelectedNode=null;
 
 /* ---------- chargement de sql.js ---------- */
 function loadSqlJs(){
@@ -934,6 +1039,16 @@ async function openBytes(bytes,name){
   if(!hasObjet.length){ throw new Error("Ce fichier n'est pas un modèle MDM (table « objet » absente)."); }
   const hasApplic=exec("SELECT 1 FROM sqlite_master WHERE type='table' AND name='applicabilite'");
   if(!hasApplic.length){ throw new Error("Ce fichier utilise l'ancien schéma (propriété liée directement à un objet) — incompatible avec cet éditeur. Repars d'un nouveau modèle."); }
+  // schéma trop ancien : détection par version (PRAGMA user_version), avec repli structurel
+  // pour les fichiers créés avant l'introduction de ce suivi (jamais versionnés mais déjà à jour)
+  const uv = exec("PRAGMA user_version")[0].user_version;
+  if(uv < SCHEMA_VERSION){
+    const recentTables = exec("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('verbe_relation','contrainte','lien_exigence')");
+    if(recentTables.length < 3){
+      throw new Error("Ce fichier utilise un schéma plus ancien (v"+uv+", attendu v"+SCHEMA_VERSION+") — il lui manque au moins une table récente (verbe_relation, contrainte ou lien_exigence). Régénère-le depuis metamodele.sql à jour, ou repars d'un nouveau modèle.");
+    }
+    run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
+  }
   dbName=name||"modele.db"; enterEditor(); refreshAll();
   toast("Modèle chargé","ok");
 }
@@ -1267,6 +1382,7 @@ function friendly(e){
 /* ---------- rendu ---------- */
 const MG_MAX_ROWS = 300;
 let mgExpandedObjId = null;
+let mgExpandedPropId = null;
 
 function refreshAll(){
   const so=exec("SELECT COUNT(*) n FROM objet")[0].n;
@@ -1301,6 +1417,7 @@ function refreshAll(){
   if(v('p_type')==='enum') renderValuesFor(v('p_enum'));
   if(v('p_type')==='grandeur') renderUnitesFor(v('p_grandeur'));
   if(viewMode==='diagram') renderDiagram();
+  if(viewMode==='impact') renderImpact();
 }
 function fillDatalist(id,vals){
   const dl=el(id); dl.innerHTML=""; vals.forEach(v=>{const o=document.createElement('option');o.value=v;dl.appendChild(o);});
@@ -1397,14 +1514,30 @@ function renderMgProps(){
   const body=el('mgPropBody'); body.innerHTML='';
   if(!rows.length) body.innerHTML='<tr><td colspan="6" class="noprops">Aucune propriété.</td></tr>';
   rows.forEach(p=>{
-    const tr=document.createElement('tr');
+    const tr=document.createElement('tr'); tr.className='mgrow'; tr.dataset.id=p.id;
     tr.innerHTML=`<td><span class="mgname">${esc(p.nom)}</span></td><td>${typeLabel(p)}${contrainteLabel(p)}</td><td>${p.multivalue?'oui':'—'}</td><td>${p.nobj}</td>
       <td>${statutSelectHtml('propriete',p.id,p.statut)}</td>
       <td class="mgactions"><button class="btn xs ghost" data-act="edit" data-id="${p.id}">Éditer</button>
         <button class="btn xs danger" data-act="del" data-id="${p.id}">Supprimer</button></td>`;
     body.appendChild(tr);
+    if(mgExpandedPropId===p.id){
+      const dtr=document.createElement('tr'); dtr.className='mgdetail';
+      dtr.innerHTML=`<td colspan="6">${renderPropObjetsDetail(p.id)}</td>`;
+      body.appendChild(dtr);
+    }
   });
   el('mgPropMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichées sur '+total+' — affine la recherche pour voir le reste.' : '';
+}
+function renderPropObjetsDetail(proprieteId){
+  const objs=exec(`SELECT a.id,o.nom,a.obligatoire,d.code AS disc
+                   FROM applicabilite a JOIN objet o ON o.id=a.objet_id
+                   LEFT JOIN discipline d ON d.id=a.discipline_id
+                   WHERE a.propriete_id=? ORDER BY o.nom`,[proprieteId]);
+  if(!objs.length) return '<span class="noprops">Cette propriété n\'est affectée à aucun objet.</span>';
+  return '<table>'+objs.map(o=>
+    `<tr><td>${esc(o.nom)}</td><td>${o.obligatoire?'requis':''}</td><td>${o.disc?esc(o.disc):''}</td>
+     <td style="text-align:right"><button class="btn xs danger" data-act="unaffect" data-aid="${o.id}" data-onom="${esc(o.nom)}">Retirer</button></td></tr>`
+  ).join('')+'</table>';
 }
 
 /* ---- Relations : liste filtrable/cherchable ---- */
@@ -1523,6 +1656,34 @@ function buildCyElements(){
   }));
   return { nodes, edges };
 }
+function buildCyImpactElements(){
+  const objs = exec(`SELECT o.id,o.nom, COALESCE(d.nom,'— sans domaine') AS domaine, COALESCE(c.nom,'— sans nature') AS classe
+      FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id`);
+  assignNatureColors(objs.map(o=>o.classe));
+
+  const props = exec(`SELECT p.id,p.nom,p.type,gp.nom AS grandeur,u.symbole AS unite,
+                      (SELECT COUNT(*) FROM applicabilite a WHERE a.propriete_id=p.id) AS nobj
+                      FROM propriete p LEFT JOIN unite u ON u.id=p.unite_id LEFT JOIN grandeur_physique gp ON gp.id=u.grandeur_id
+                      ORDER BY p.nom`);
+
+  const apps = exec(`SELECT id,objet_id,propriete_id,obligatoire FROM applicabilite`);
+
+  // prefixes 'o'/'p' distincts : objet.id et propriete.id sont deux sequences independantes,
+  // pouvant partager une meme valeur numerique (contrairement au diagramme objet, qui n'a
+  // qu'une seule table et peut se permettre un prefixe 'n' unique)
+  const nodes = objs.map(o=>({
+    data:{ id:'o'+o.id, label:o.nom, classe:o.classe, domaine:o.domaine, color:natureColor[o.classe] },
+    classes:'obj'
+  })).concat(props.map(p=>({
+    data:{ id:'p'+p.id, label:p.nom, type:typeLabel(p), nobj:p.nobj },
+    classes:'prop'+(p.nobj===0?' prop-orphan':'')
+  })));
+  const edges = apps.map(a=>({
+    data:{ id:'a'+a.id, source:'p'+a.propriete_id, target:'o'+a.objet_id },
+    classes:'app-'+(a.obligatoire?'req':'opt')
+  }));
+  return { nodes, edges };
+}
 const CY_MAX_PROPS_IN_NODE = 20;
 function buildCyNodeLabel(nom, props){
   if(!props.length) return nom;
@@ -1576,6 +1737,24 @@ function cyStyle(){
     } },
     { selector:'.dim', style:{ 'opacity':0.08 } },
     { selector:'.flt-hidden', style:{ 'display':'none' } }
+  ];
+}
+function cyImpactStyle(){
+  // reutilise cyStyle() (node.obj, .dim, .flt-hidden...) : Cytoscape ignore les selecteurs
+  // qui ne matchent rien dans une instance donnee, donc sans risque pour le diagramme objet
+  return [...cyStyle(),
+    { selector:'node.prop', style:{
+        'shape':'ellipse', 'width':'label', 'height':'label', 'padding':'10px',
+        'background-color':'#F3F0FA', 'border-width':3, 'border-color':'#6B4FA0',
+        'label':'data(label)', 'color':'#2E2547', 'font-size':10, 'font-family':'ui-monospace,monospace',
+        'text-valign':'center', 'text-halign':'center', 'text-wrap':'wrap', 'text-max-width':160
+    }},
+    { selector:'node.prop:selected', style:{ 'border-width':5, 'background-color':'#E4DBF5' } },
+    { selector:'node.prop-orphan', style:{ 'border-style':'dashed' } },
+    { selector:'edge.app-req', style:{ 'width':1.8, 'line-style':'solid',
+        'target-arrow-shape':'triangle', 'target-arrow-fill':'filled', 'line-color':'#6B4FA0', 'target-arrow-color':'#6B4FA0' } },
+    { selector:'edge.app-opt', style:{ 'width':1.2, 'line-style':'dashed',
+        'target-arrow-shape':'triangle', 'target-arrow-fill':'hollow', 'line-color':'#9D8FC2', 'target-arrow-color':'#9D8FC2' } }
   ];
 }
 
@@ -1673,13 +1852,84 @@ function renderCyDetail(node){
         return `<div class="dprop"><span>${esc(p.nom)}</span><span>${esc(t)}${p.obligatoire?' *':''}</span></div>`;
       }).join('') : `<div class="dprop"><span style="color:var(--muted);font-style:italic">aucune propriété</span></div>`);
 }
+
+/* ---------- Vue Impact : graphe propriété↔objet ---------- */
+async function renderImpact(){
+  const n=exec("SELECT COUNT(*) n FROM propriete")[0].n;
+  if(!n){ el('cyImpact').innerHTML='<p class="noprops" style="padding:14px">Ajoute des propriétés pour voir le graphe.</p>'; if(cyImpact){cyImpact.destroy();cyImpact=null;} return; }
+  try{ await ensureCytoscape(); }
+  catch(e){ el('cyImpact').innerHTML='<p class="noprops" style="padding:14px">Rendu impossible : '+esc(friendly(e))+'</p>'; return; }
+
+  const elements = buildCyImpactElements();
+  if(cyImpact) cyImpact.destroy();
+  cyImpact = cytoscape({
+    container: el('cyImpact'),
+    elements: [...elements.nodes, ...elements.edges],
+    style: cyImpactStyle(),
+    layout: { name: v('cyImpactLayout')||'cose', animate:false, padding:36 }
+  });
+  cyImpact.on('tap', 'node', evt=>onImpactNodeSelected(evt.target));
+  cyImpact.on('tap', evt=>{ if(evt.target===cyImpact) clearImpactFocus(); });
+
+  fillImpactSearch();
+  updateImpactStats();
+}
+function updateImpactStats(){
+  if(!cyImpact) return;
+  const nobj=cyImpact.nodes('.obj').length, nprop=cyImpact.nodes('.prop').length;
+  el('cyImpactStats').textContent = nobj+' objet(s) · '+nprop+' propriété(s)';
+}
+function fillImpactSearch(){
+  const dl=el('dl_cyImpactSearch'); dl.innerHTML='';
+  cyImpact.nodes().forEach(n=>{ const o=document.createElement('option'); o.value=n.data('label'); dl.appendChild(o); });
+}
+function doImpactSearch(){
+  if(!cyImpact) return;
+  const name=v('cyImpactSearch').trim(); if(!name) return;
+  const node = cyImpact.nodes().filter(n=>n.data('label')===name)[0]
+            || cyImpact.nodes().filter(n=>n.data('label').toLowerCase().includes(name.toLowerCase()))[0];
+  if(!node) return toast("Aucun objet ou propriété trouvé pour « "+name+" »","err");
+  cyImpact.animate({ center:{eles:node}, zoom:1.4 }, {duration:300});
+  onImpactNodeSelected(node);
+}
+function onImpactNodeSelected(node){
+  impactSelectedNode = node;
+  renderImpactDetail(node);
+  if(!el('cyImpactFocus').checked) return;
+  const acc = node.closedNeighborhood();
+  cyImpact.batch(()=>{
+    cyImpact.elements().addClass('dim');
+    acc.removeClass('dim');
+  });
+}
+function clearImpactFocus(){
+  if(!cyImpact) return;
+  cyImpact.batch(()=>{ cyImpact.elements().removeClass('dim'); });
+}
+function renderImpactDetail(node){
+  const host=el('cyImpactDetail'); host.classList.remove('hidden');
+  const rawId = +node.id().slice(1);
+  if(node.hasClass('obj')){
+    host.innerHTML = `<span class="dname">${esc(node.data('label'))}</span>
+      <div class="dmeta">${esc(node.data('classe'))} · ${esc(node.data('domaine'))}</div>`
+      + renderObjPropsDetail(rawId);
+  }else{
+    host.innerHTML = `<span class="dname">${esc(node.data('label'))}</span>
+      <div class="dmeta">${esc(node.data('type'))} · utilisée par ${node.data('nobj')} objet(s)</div>`
+      + renderPropObjetsDetail(rawId);
+  }
+}
+
 function setView(mode){
   viewMode=mode;
   el('tabFiches').setAttribute('aria-selected', mode==='fiches');
   el('tabDiag').setAttribute('aria-selected', mode==='diagram');
+  el('tabImpact').setAttribute('aria-selected', mode==='impact');
   el('viewFiches').classList.toggle('hidden', mode!=='fiches');
   el('viewDiag').classList.toggle('hidden', mode!=='diagram');
+  el('viewImpact').classList.toggle('hidden', mode!=='impact');
   if(mode==='diagram') renderDiagram();
+  if(mode==='impact') renderImpact();
 }
 function downloadText(name,text,mime){
   const b=new Blob([text],{type:mime}); const a=document.createElement('a');
@@ -2227,6 +2477,7 @@ function wire(){
   // bascule Fiches / Diagramme
   el('tabFiches').onclick=()=>setView('fiches');
   el('tabDiag').onclick=()=>setView('diagram');
+  el('tabImpact').onclick=()=>setView('impact');
   // Fiches : sous-onglets Objets / Proprietes / Relations
   el('subObjets').onclick=()=>setFichesSubView('objets');
   el('subProps').onclick=()=>setFichesSubView('props');
@@ -2268,10 +2519,22 @@ function wire(){
     renderMgObjets();
   });
   el('mgPropBody').addEventListener('click', e=>{
-    const btn=e.target.closest('button[data-act]'); if(!btn) return;
-    const id=+btn.dataset.id;
-    if(btn.dataset.act==='edit') editPropRow(id);
-    else if(btn.dataset.act==='del') deleteProp(id);
+    if(e.target.closest('select.statut-select')){ e.stopPropagation(); return; }
+    const btn=e.target.closest('button[data-act]');
+    if(btn){
+      e.stopPropagation();
+      if(btn.dataset.act==='edit') editPropRow(+btn.dataset.id);
+      else if(btn.dataset.act==='del') deleteProp(+btn.dataset.id);
+      else if(btn.dataset.act==='unaffect'){
+        const propNom=exec("SELECT nom FROM propriete WHERE id=?",[mgExpandedPropId])[0].nom;
+        deleteApplicabilite(+btn.dataset.aid, btn.dataset.onom, propNom);
+      }
+      return;
+    }
+    const tr=e.target.closest('tr.mgrow'); if(!tr) return;
+    const id=+tr.dataset.id;
+    mgExpandedPropId = (mgExpandedPropId===id) ? null : id;
+    renderMgProps();
   });
   el('mgRelBody').addEventListener('click', e=>{
     const btn=e.target.closest('button[data-act]'); if(!btn) return;
@@ -2328,6 +2591,27 @@ function wire(){
     const isFs = document.fullscreenElement === el('viewDiag');
     el('cyFullscreen').textContent = isFs ? 'Quitter le plein écran' : 'Plein écran';
     if(cy){ cy.resize(); cy.fit(undefined,30); }
+  });
+  // Impact : graphe propriété↔objet
+  el('cyImpactSearchBtn').onclick=doImpactSearch;
+  el('cyImpactSearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doImpactSearch(); } });
+  el('cyImpactRelayout').onclick=()=>{ if(cyImpact) cyImpact.layout({name:v('cyImpactLayout'),animate:true,padding:36}).run(); };
+  el('cyImpactFit').onclick=()=>{ if(cyImpact) cyImpact.fit(undefined,30); };
+  el('cyImpactClearFocus').onclick=clearImpactFocus;
+  el('cyImpactPng').onclick=()=>{
+    if(!cyImpact) return toast("Aucun graphe à exporter","err");
+    const a=document.createElement('a'); a.href=cyImpact.png({full:true,scale:2,bg:'#ffffff'}); a.download=baseName()+'-impact.png'; a.click();
+  };
+  el('cyImpactSvgBtn').onclick=async()=>{
+    if(!cyImpact) return toast("Aucun graphe à exporter","err");
+    try{ await ensureCytoscapeSvg(); downloadText(baseName()+'-impact.svg', cyImpact.svg({full:true,scale:1.5}), 'image/svg+xml'); }
+    catch(e){ toast(friendly(e),"err"); }
+  };
+  el('cyImpactDetail').addEventListener('click', e=>{
+    const btn=e.target.closest('button[data-act="unaffect"]'); if(!btn || !impactSelectedNode) return;
+    const objetNom = btn.dataset.onom || impactSelectedNode.data('label');
+    const propNom = btn.dataset.pnom || impactSelectedNode.data('label');
+    deleteApplicabilite(+btn.dataset.aid, objetNom, propNom);
   });
 }
 function showLoadErr(m){const e=el('loadErr');e.textContent=m;e.classList.remove('hidden');}

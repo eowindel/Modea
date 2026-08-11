@@ -14,6 +14,11 @@
 
 PRAGMA foreign_keys = ON;   -- OFF par défaut sous SQLite : à réactiver à CHAQUE connexion
 
+-- Version de schéma : à incrémenter à chaque migration (nouvelle table/colonne),
+-- ici et dans SCHEMA_BASE (mdm-editeur.html) en parallèle. Sert à openBytes() côté
+-- éditeur pour détecter un fichier trop ancien plutôt que de planter en silence.
+PRAGMA user_version = 4;
+
 -- -----------------------------------------------------------------------------
 --  Domaine fonctionnel — regroupement métier des objets (facultatif mais utile)
 -- -----------------------------------------------------------------------------
