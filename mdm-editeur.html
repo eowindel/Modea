@@ -219,6 +219,12 @@
   #viewDiag:-webkit-full-screen{display:flex;flex-direction:column;width:100vw;height:100vh;
     background:var(--canvas);padding:14px;box-sizing:border-box}
   #viewDiag:-webkit-full-screen #cyWrap{flex:1;height:auto;min-height:0}
+  #viewImpact:fullscreen{display:flex;flex-direction:column;width:100vw;height:100vh;
+    background:var(--canvas);padding:14px;box-sizing:border-box}
+  #viewImpact:fullscreen #cyImpactWrap{flex:1;height:auto;min-height:0}
+  #viewImpact:-webkit-full-screen{display:flex;flex-direction:column;width:100vw;height:100vh;
+    background:var(--canvas);padding:14px;box-sizing:border-box}
+  #viewImpact:-webkit-full-screen #cyImpactWrap{flex:1;height:auto;min-height:0}
   #cy{position:absolute;inset:0}
   #cyDetail{position:absolute;left:10px;bottom:10px;max-width:260px;background:var(--surface);
     border:1px solid var(--line-strong);border-radius:8px;padding:10px;font-size:11.5px;box-shadow:0 4px 14px rgba(0,0,0,.1)}
@@ -414,6 +420,13 @@
       <button class="btn primary" id="btnOpen2">Ouvrir un modèle…</button>
       <button class="btn" id="btnNew2">Nouveau modèle vierge</button>
     </div>
+    <div id="autosaveBanner" class="hidden" style="margin-top:18px;padding:12px;border:1px solid var(--line-strong);border-radius:8px;background:#FFF7E6">
+      <p style="margin:0 0 8px">Une sauvegarde automatique a été trouvée : <b id="autosaveName"></b>. Elle provient d'une session précédente qui n'a pas été enregistrée.</p>
+      <div class="actions" style="margin:0">
+        <button class="btn primary" id="autosaveRestore">Restaurer</button>
+        <button class="btn ghost" id="autosaveDismiss">Ignorer et supprimer</button>
+      </div>
+    </div>
     <p id="loadErr" style="color:var(--danger);margin-top:18px" class="hidden"></p>
   </section>
 
@@ -422,6 +435,7 @@
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-pane="pObjet">Objet</button>
       <button class="tab" role="tab" aria-selected="false" data-pane="pProp">Propriété</button>
+      <button class="tab" role="tab" aria-selected="false" data-pane="pEnum">Listes de valeurs</button>
       <button class="tab" role="tab" aria-selected="false" data-pane="pAffect">Affectation</button>
       <button class="tab" role="tab" aria-selected="false" data-pane="pRel">Relation</button>
       <button class="tab" role="tab" aria-selected="false" data-pane="pExigence">Lien externe</button>
@@ -466,15 +480,7 @@
       <div class="checks">
         <label class="check"><input type="checkbox" id="p_mv"> multivaluée</label>
       </div>
-      <div class="subblock" id="p_valuesBlock">
-        <span class="lab">Valeurs de « <span id="p_enumName">—</span> »</span>
-        <div id="p_valuesList" class="cataloglist" style="margin-top:8px"></div>
-        <div class="row2">
-          <input type="text" id="v_valeur" placeholder="code, ex : A" autocomplete="off">
-          <input type="text" id="v_libelle" placeholder="libellé, ex : À l'étude" autocomplete="off">
-        </div>
-        <div class="actions"><button class="btn" id="addValeur">Ajouter la valeur</button></div>
-      </div>
+      <p class="hint" id="p_enumHint" style="display:none">Les valeurs de cette liste se gèrent dans l'onglet « Listes de valeurs » — une liste peut être partagée par plusieurs propriétés.</p>
       <div class="subblock" id="p_grandeurBlock">
         <div class="row2">
           <div class="field" style="margin-bottom:0"><label><span class="lab">Grandeur physique</span>
@@ -506,13 +512,37 @@
       <div class="actions"><button class="btn primary" id="addProp">Créer la propriété</button></div>
     </div>
 
+    <!-- Listes de valeurs (enum) — definition partagee, independante de toute propriete -->
+    <div class="tabpane" id="pEnum">
+      <div class="field"><label><span class="lab">Nom de la liste</span>
+        <input type="text" id="pv_nom" list="dl_enum" placeholder="ex : Statut cycle de vie" autocomplete="off"></label>
+        <p class="hint">Crée une nouvelle liste en tapant un nom inédit, ou choisis-en une existante pour gérer ses valeurs. Une liste peut être partagée par plusieurs propriétés.</p>
+      </div>
+      <div class="subblock" id="pv_valuesBlock">
+        <span class="lab">Valeurs de « <span id="pv_nomLabel">—</span> » <span id="pv_usage" class="hint" style="display:inline;margin:0"></span></span>
+        <div class="mgtablewrap" style="margin-top:8px"><table class="mgtable">
+          <thead><tr><th>Code</th><th>Libellé</th><th>Ordre</th><th></th></tr></thead>
+          <tbody id="pv_valuesBody"></tbody>
+        </table></div>
+        <div class="row2">
+          <input type="text" id="pv_valeur" placeholder="code, ex : A" autocomplete="off">
+          <input type="text" id="pv_libelle" placeholder="libellé, ex : À l'étude" autocomplete="off">
+        </div>
+        <div class="actions">
+          <button class="btn" id="addPvValeur">Ajouter la valeur</button>
+          <button class="btn danger" id="delPvListe">Supprimer cette liste</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Affectation (applicabilité) -->
     <div class="tabpane" id="pAffect">
       <div class="row2">
         <div class="field"><label><span class="lab">Objet</span>
           <input type="text" id="a_objet" list="dl_objet_all" placeholder="nom exact d'un objet existant" autocomplete="off"></label></div>
         <div class="field"><label><span class="lab">Propriété</span>
-          <input type="text" id="a_propriete" list="dl_propriete" placeholder="nom exact d'une propriété existante" autocomplete="off"></label></div>
+          <input type="text" id="a_propriete" list="dl_propriete_dispo" placeholder="nom exact d'une propriété existante" autocomplete="off"></label>
+          <datalist id="dl_propriete_dispo"></datalist></div>
       </div>
       <div class="checks">
         <label class="check"><input type="checkbox" id="a_req"> obligatoire (contextuel à cet objet)</label>
@@ -591,6 +621,7 @@
           <button class="segbtn" id="subProps" aria-selected="false">Propriétés</button>
           <button class="segbtn" id="subRels" aria-selected="false">Relations</button>
           <button class="segbtn" id="subLiens" aria-selected="false">Liens externes</button>
+          <button class="segbtn" id="subRef" aria-selected="false">Référentiels</button>
         </div>
 
         <div id="subViewObjets">
@@ -648,6 +679,48 @@
           </table></div>
           <p class="mgmsg" id="mgExMsg"></p>
         </div>
+
+        <div id="subViewRef" class="hidden">
+          <p class="hint">Suppression bloquée tant qu'un élément est encore utilisé ailleurs dans le modèle.</p>
+          <div class="seg" style="margin-bottom:12px">
+            <button class="segbtn" id="refTabDomaine" aria-selected="true">Domaines</button>
+            <button class="segbtn" id="refTabClasse" aria-selected="false">Natures</button>
+            <button class="segbtn" id="refTabDisc" aria-selected="false">Disciplines</button>
+            <button class="segbtn" id="refTabGrandeur" aria-selected="false">Grandeurs</button>
+            <button class="segbtn" id="refTabVerbe" aria-selected="false">Verbes de relation</button>
+          </div>
+          <div id="refViewDomaine">
+            <div class="mgtablewrap"><table class="mgtable">
+              <thead><tr><th>Nom</th><th>Description</th><th>Objets</th><th></th></tr></thead>
+              <tbody id="ref_domaine_body"></tbody>
+            </table></div>
+          </div>
+          <div id="refViewClasse" class="hidden">
+            <div class="mgtablewrap"><table class="mgtable">
+              <thead><tr><th>Nom</th><th>Description</th><th>Objets</th><th></th></tr></thead>
+              <tbody id="ref_classe_body"></tbody>
+            </table></div>
+          </div>
+          <div id="refViewDisc" class="hidden">
+            <div class="mgtablewrap"><table class="mgtable">
+              <thead><tr><th>Code</th><th>Nom</th><th>Usages</th><th></th></tr></thead>
+              <tbody id="ref_disc_body"></tbody>
+            </table></div>
+          </div>
+          <div id="refViewGrandeur" class="hidden">
+            <p class="hint">La suppression d'une grandeur retire aussi ses unités. La gestion unité par unité n'est pas encore disponible ici.</p>
+            <div class="mgtablewrap"><table class="mgtable">
+              <thead><tr><th>Grandeur</th><th>Unités</th><th>Propriétés</th><th></th></tr></thead>
+              <tbody id="ref_grandeur_body"></tbody>
+            </table></div>
+          </div>
+          <div id="refViewVerbe" class="hidden">
+            <div class="mgtablewrap"><table class="mgtable">
+              <thead><tr><th>Nom</th><th>Description</th><th>Relations</th><th></th></tr></thead>
+              <tbody id="ref_verbe_body"></tbody>
+            </table></div>
+          </div>
+        </div>
       </div>
       <div id="viewDiag" class="hidden">
         <div class="cybar">
@@ -703,6 +776,7 @@
           <button class="btn ghost sm" id="cyImpactClearFocus">Réinitialiser</button>
           <button class="btn ghost sm" id="cyImpactPng">PNG</button>
           <button class="btn ghost sm" id="cyImpactSvgBtn">SVG</button>
+          <button class="btn ghost sm" id="cyImpactFullscreen" style="margin-left:auto">Plein écran</button>
         </div>
         <div class="legend" style="margin:0 0 8px">● propriété (pointillé = orpheline) · ▢ objet · trait plein = obligatoire · trait pointillé = optionnelle</div>
         <div id="cyImpactWrap">
@@ -1004,6 +1078,7 @@ LEFT JOIN discipline disc ON disc.id = app.discipline_id;
 `;
 
 let SQL=null, db=null, fileHandle=null, dbName="modele.db", viewMode='fiches';
+let dirty=false, backupTimer=null;
 let cy=null, cySvgReady=false, natureColor={}, cyNatures=[], cyDomaines=[], cyPropsByObj={};
 let cyImpact=null, impactSelectedNode=null;
 
@@ -1027,7 +1102,7 @@ function exec(sql,params){ // renvoie tableau d'objets
   const st=db.prepare(sql); if(params) st.bind(params);
   const out=[]; while(st.step()) out.push(st.getAsObject()); st.free(); return out;
 }
-function run(sql,params){ db.run(sql,params||[]); }
+function run(sql,params){ db.run(sql,params||[]); dirty=true; }
 
 /* ---------- ouverture / création ---------- */
 async function openBytes(bytes,name){
@@ -1049,7 +1124,7 @@ async function openBytes(bytes,name){
     }
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
-  dbName=name||"modele.db"; enterEditor(); refreshAll();
+  dbName=name||"modele.db"; dirty=false; clearAutosave(); enterEditor(); refreshAll();
   toast("Modèle chargé","ok");
 }
 async function newModel(){
@@ -1057,7 +1132,7 @@ async function newModel(){
   try{ db && db.close(); }catch(e){}
   db=new SQL.Database();
   db.run(SCHEMA_BASE);
-  dbName="nouveau-modele.db"; fileHandle=null;
+  dbName="nouveau-modele.db"; fileHandle=null; dirty=false; clearAutosave();
   enterEditor(); refreshAll(); toast("Nouveau modèle prêt","ok");
 }
 
@@ -1175,6 +1250,14 @@ function deleteApplicabilite(id, objetNom, propNom){
   run("DELETE FROM applicabilite WHERE id=?",[id]);
   toast("Propriété retirée de l'objet","ok"); refreshAll();
 }
+function editAffectRow(objetNom, proprieteNom, obligatoire, discCode){
+  el('a_objet').value=objetNom; el('a_propriete').value=proprieteNom;
+  el('a_req').checked=!!(+obligatoire);
+  el('a_disc_code').value=discCode||""; el('a_disc_nom').value="";
+  updateAffectPropList();
+  switchToTab('pAffect'); focus('a_req');
+  toast("Modifie puis reclique « Affecter la propriété » pour mettre à jour","ok");
+}
 function findIdByName(table, nom){
   nom=(nom||"").trim(); if(!nom) return null;
   const r=exec(`SELECT id FROM ${table} WHERE nom=?`,[nom])[0];
@@ -1189,11 +1272,10 @@ const CONTRAINTE_REGEX_TYPES = ['texte','identifiant'];
 const CONTRAINTE_MINMAX_TYPES = ['entier','decimal','grandeur'];
 function updatePropTypeUI(){
   const t = v('p_type');
-  el('p_valuesBlock').classList.toggle('hidden', t!=='enum');
+  el('p_enumHint').style.display = t==='enum' ? '' : 'none';
   el('p_grandeurBlock').classList.toggle('hidden', t!=='grandeur');
   el('p_regexBlock').classList.toggle('hidden', !CONTRAINTE_REGEX_TYPES.includes(t));
   el('p_minmaxBlock').classList.toggle('hidden', !CONTRAINTE_MINMAX_TYPES.includes(t));
-  if(t==='enum') renderValuesFor(v('p_enum'));
   if(t==='grandeur') renderUnitesFor(v('p_grandeur'));
 }
 function checkPropEdit(){
@@ -1264,15 +1346,22 @@ function saveContraintes(propId){
   if(max!=='') run("INSERT INTO contrainte(propriete_id,type,valeur) VALUES (?,?,?)",[propId,'max',max]);
 }
 function renderValuesFor(name){
-  el('p_enumName').textContent = name||'—';
-  const host=el('p_valuesList'); host.innerHTML="";
-  name=(name||"").trim(); if(!name) return;
-  const rows=exec(`SELECT v.valeur,v.libelle FROM valeur_enumeree v JOIN type_enumere t ON t.id=v.type_enumere_id WHERE t.nom=? ORDER BY v.ordre,v.valeur`,[name]);
-  if(!rows.length){ host.innerHTML='<span class="hint" style="margin:0">Aucune valeur pour l\'instant.</span>'; return; }
+  el('pv_nomLabel').textContent = name||'—';
+  const body=el('pv_valuesBody'); body.innerHTML="";
+  const usage=el('pv_usage');
+  name=(name||"").trim();
+  if(!name){ usage.textContent=""; body.innerHTML='<tr><td colspan="4" class="noprops">Tape ou choisis un nom de liste.</td></tr>'; return; }
+  const te=exec("SELECT id FROM type_enumere WHERE nom=?",[name])[0];
+  if(!te){ usage.textContent=""; body.innerHTML='<tr><td colspan="4" class="noprops">Cette liste n\'existe pas encore — ajoute une première valeur pour la créer.</td></tr>'; return; }
+  const nprop=exec("SELECT COUNT(*) n FROM propriete WHERE type_enumere_id=?",[te.id])[0].n;
+  usage.textContent = '· utilisée par '+nprop+' propriété'+(nprop>1?'s':'');
+  const rows=exec(`SELECT id,valeur,libelle,ordre FROM valeur_enumeree WHERE type_enumere_id=? ORDER BY (ordre IS NULL),ordre,valeur`,[te.id]);
+  if(!rows.length){ body.innerHTML='<tr><td colspan="4" class="noprops">Aucune valeur pour l\'instant.</td></tr>'; return; }
   rows.forEach(r=>{
-    const c=document.createElement('span'); c.className='chip acc';
-    c.textContent = r.libelle ? (r.valeur+" — "+r.libelle) : r.valeur;
-    host.appendChild(c);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${esc(r.valeur)}</td><td>${r.libelle?esc(r.libelle):''}</td><td>${r.ordre??''}</td>
+      <td class="mgactions"><button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button></td>`;
+    body.appendChild(tr);
   });
 }
 function renderUnitesFor(name){
@@ -1288,18 +1377,35 @@ function renderUnitesFor(name){
   });
 }
 function addValeur(){
-  const enumName=v('p_enum').trim();
-  const val=v('v_valeur').trim();
+  const enumName=v('pv_nom').trim();
+  const val=v('pv_valeur').trim();
   if(!enumName) return toast("Indique d'abord le nom de la liste de valeurs","err");
   if(!val) return toast("Donne un code de valeur","err");
   try{
     const teid=ensureTypeEnumere(enumName);
     const ordre = exec("SELECT COUNT(*) n FROM valeur_enumeree WHERE type_enumere_id=?",[teid])[0].n + 1;
     run("INSERT INTO valeur_enumeree(type_enumere_id,valeur,libelle,ordre) VALUES (?,?,?,?)",
-        [teid,val,v('v_libelle').trim()||null,ordre]);
-    clear(['v_valeur','v_libelle']); renderValuesFor(enumName); refreshAll(); focus('v_valeur');
+        [teid,val,v('pv_libelle').trim()||null,ordre]);
+    clear(['pv_valeur','pv_libelle']); renderValuesFor(enumName); refreshAll(); focus('pv_valeur');
     toast("Valeur ajoutée à « "+enumName+" »","ok");
   }catch(e){ toast(friendly(e),"err"); }
+}
+function deleteValeurEnum(id, enumName){
+  if(!confirm("Supprimer cette valeur ?")) return;
+  run("DELETE FROM valeur_enumeree WHERE id=?",[id]);
+  toast("Valeur supprimée","ok"); renderValuesFor(enumName); refreshAll();
+}
+function deleteListeEnum(){
+  const name=v('pv_nom').trim();
+  if(!name) return;
+  const te=exec("SELECT id FROM type_enumere WHERE nom=?",[name])[0];
+  if(!te) return toast("Cette liste n'existe pas","err");
+  const nprop=exec("SELECT COUNT(*) n FROM propriete WHERE type_enumere_id=?",[te.id])[0].n;
+  if(nprop) return toast("Impossible : cette liste est utilisée par "+nprop+" propriété(s)","err");
+  if(!confirm("Supprimer la liste « "+name+" » et toutes ses valeurs ?")) return;
+  run("DELETE FROM type_enumere WHERE id=?",[te.id]);
+  clear(['pv_nom']); renderValuesFor(''); refreshAll();
+  toast("Liste supprimée","ok");
 }
 
 function addOrUpdateAffect(){
@@ -1318,9 +1424,16 @@ function addOrUpdateAffect(){
       run("INSERT INTO applicabilite(objet_id,propriete_id,obligatoire,discipline_id) VALUES (?,?,?,?)",[+oid,+pid,oblig,discId]);
       toast("Propriété affectée à l'objet","ok");
     }
-    clear(['a_disc_code','a_disc_nom']); el('a_req').checked=false;
-    refreshAll();
+    clear(['a_propriete','a_disc_code','a_disc_nom']); el('a_req').checked=false;
+    refreshAll(); focus('a_propriete');
   }catch(e){ toast(friendly(e),"err"); }
+}
+function updateAffectPropList(){
+  const oid=findIdByName('objet', v('a_objet'));
+  const rows = oid
+    ? exec("SELECT nom FROM propriete WHERE id NOT IN (SELECT propriete_id FROM applicabilite WHERE objet_id=?) ORDER BY nom",[oid])
+    : exec("SELECT nom FROM propriete ORDER BY nom");
+  fillDatalist('dl_propriete_dispo', rows.map(r=>r.nom));
 }
 
 function addRel(){
@@ -1331,7 +1444,9 @@ function addRel(){
     const vid=ensureVerbeRelation(v('r_nom'));
     run("INSERT INTO relation(verbe_id,type,source_id,cible_id,card_source,card_cible) VALUES (?,?,?,?,?,?)",
         [vid,v('r_type'),sid,tid,v('r_cs'),v('r_cc')]);
-    clear(['r_nom']); refreshAll(); toast("Relation ajoutée","ok");
+    clear(['r_src','r_tgt','r_nom']);
+    el('r_type').value='association'; el('r_cs').value='1'; el('r_cc').value='0..*';
+    refreshAll(); focus('r_src'); toast("Relation ajoutée","ok");
   }catch(e){ toast(friendly(e),"err"); }
 }
 function updateExigenceTypeUI(){
@@ -1373,6 +1488,7 @@ function friendly(e){
   if(/motif \(regex\)/.test(m)) return "Un motif (regex) ne s'applique qu'aux propriétés de type texte ou identifiant.";
   if(/borne min\/max/.test(m)) return "Une borne min/max ne s'applique qu'aux propriétés de type entier, decimal ou grandeur.";
   if(/UNIQUE/.test(m)) return "Ce nom existe déjà.";
+  if(/FOREIGN KEY/.test(m)) return "Impossible : cet élément est encore utilisé ailleurs dans le modèle.";
   if(/generalisation/.test(m)) return "Une généralisation ne peut pas relier un objet à lui-même.";
   if(/CHECK/.test(m)) return "Valeur non autorisée par le modèle.";
   if(/NOT NULL/.test(m)) return "Une information obligatoire manque.";
@@ -1397,6 +1513,7 @@ function refreshAll(){
   fillDatalist('dl_domaine',exec("SELECT nom FROM domaine ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_classe',exec("SELECT nom FROM classe_objet ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_propriete',exec("SELECT nom FROM propriete ORDER BY nom").map(r=>r.nom));
+  updateAffectPropList();
   fillDatalist('dl_relNom',exec("SELECT nom FROM verbe_relation ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_enum',exec("SELECT nom FROM type_enumere ORDER BY nom").map(r=>r.nom));
   fillDatalist('dl_disc_code',exec("SELECT code FROM discipline ORDER BY code").map(r=>r.code));
@@ -1413,8 +1530,8 @@ function refreshAll(){
   fillFilterSelect('mgPropType', TYPES, 'Tous types');
   fillFilterSelect('mgRelType', REL_TYPES, 'Tous types');
 
-  renderMgObjets(); renderMgProps(); renderMgRels(); renderMgLiens(); updateRelPreview();
-  if(v('p_type')==='enum') renderValuesFor(v('p_enum'));
+  renderMgObjets(); renderMgProps(); renderMgRels(); renderMgLiens(); renderRefTables(); updateRelPreview();
+  renderValuesFor(v('pv_nom'));
   if(v('p_type')==='grandeur') renderUnitesFor(v('p_grandeur'));
   if(viewMode==='diagram') renderDiagram();
   if(viewMode==='impact') renderImpact();
@@ -1474,13 +1591,13 @@ function renderMgObjets(){
     body.appendChild(tr);
     if(mgExpandedObjId===o.id){
       const dtr=document.createElement('tr'); dtr.className='mgdetail';
-      dtr.innerHTML=`<td colspan="7">${renderObjPropsDetail(o.id)}</td>`;
+      dtr.innerHTML=`<td colspan="7">${renderObjPropsDetail(o.id, o.nom)}</td>`;
       body.appendChild(dtr);
     }
   });
   el('mgObjMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichés sur '+total+' — affine la recherche pour voir le reste.' : '';
 }
-function renderObjPropsDetail(objetId){
+function renderObjPropsDetail(objetId, objetNom){
   const props=exec(`SELECT a.id,p.nom,p.type,gp.nom AS grandeur,u.symbole AS unite,a.obligatoire,d.code AS disc
                     FROM applicabilite a JOIN propriete p ON p.id=a.propriete_id
                     LEFT JOIN unite u ON u.id=p.unite_id
@@ -1490,7 +1607,10 @@ function renderObjPropsDetail(objetId){
   if(!props.length) return '<span class="noprops">Aucune propriété affectée.</span>';
   return '<table>'+props.map(p=>
     `<tr><td>${esc(p.nom)}</td><td>${typeLabel(p)}</td><td>${p.obligatoire?'requis':''}</td><td>${p.disc?esc(p.disc):''}</td>
-     <td style="text-align:right"><button class="btn xs danger" data-act="unaffect" data-aid="${p.id}" data-pnom="${esc(p.nom)}">Retirer</button></td></tr>`
+     <td style="text-align:right">
+       <button class="btn xs ghost" data-act="editAffect" data-onom="${esc(objetNom)}" data-pnom="${esc(p.nom)}" data-req="${p.obligatoire?1:0}" data-disc="${esc(p.disc||'')}">Éditer</button>
+       <button class="btn xs danger" data-act="unaffect" data-aid="${p.id}" data-pnom="${esc(p.nom)}">Retirer</button>
+     </td></tr>`
   ).join('')+'</table>';
 }
 
@@ -1522,13 +1642,13 @@ function renderMgProps(){
     body.appendChild(tr);
     if(mgExpandedPropId===p.id){
       const dtr=document.createElement('tr'); dtr.className='mgdetail';
-      dtr.innerHTML=`<td colspan="6">${renderPropObjetsDetail(p.id)}</td>`;
+      dtr.innerHTML=`<td colspan="6">${renderPropObjetsDetail(p.id, p.nom)}</td>`;
       body.appendChild(dtr);
     }
   });
   el('mgPropMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichées sur '+total+' — affine la recherche pour voir le reste.' : '';
 }
-function renderPropObjetsDetail(proprieteId){
+function renderPropObjetsDetail(proprieteId, proprieteNom){
   const objs=exec(`SELECT a.id,o.nom,a.obligatoire,d.code AS disc
                    FROM applicabilite a JOIN objet o ON o.id=a.objet_id
                    LEFT JOIN discipline d ON d.id=a.discipline_id
@@ -1536,7 +1656,10 @@ function renderPropObjetsDetail(proprieteId){
   if(!objs.length) return '<span class="noprops">Cette propriété n\'est affectée à aucun objet.</span>';
   return '<table>'+objs.map(o=>
     `<tr><td>${esc(o.nom)}</td><td>${o.obligatoire?'requis':''}</td><td>${o.disc?esc(o.disc):''}</td>
-     <td style="text-align:right"><button class="btn xs danger" data-act="unaffect" data-aid="${o.id}" data-onom="${esc(o.nom)}">Retirer</button></td></tr>`
+     <td style="text-align:right">
+       <button class="btn xs ghost" data-act="editAffect" data-onom="${esc(o.nom)}" data-pnom="${esc(proprieteNom)}" data-req="${o.obligatoire?1:0}" data-disc="${esc(o.disc||'')}">Éditer</button>
+       <button class="btn xs danger" data-act="unaffect" data-aid="${o.id}" data-onom="${esc(o.nom)}">Retirer</button>
+     </td></tr>`
   ).join('')+'</table>';
 }
 
@@ -1587,8 +1710,93 @@ function renderMgLiens(){
   });
   el('mgExMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichés sur '+total+' — affine la recherche pour voir le reste.' : '';
 }
+
+/* ---- Référentiels : administration (suppression d'un domaine créé par erreur, etc.) ---- */
+const REF_CONFIGS = {
+  domaine: { table:'domaine', label:'Domaine', body:'ref_domaine_body',
+    listSql:"SELECT id,nom,description FROM domaine ORDER BY nom",
+    usageSql:"SELECT COUNT(*) n FROM objet WHERE domaine_id=?", usageLabel:'objet(s)' },
+  classe: { table:'classe_objet', label:'Nature', body:'ref_classe_body',
+    listSql:"SELECT id,nom,description FROM classe_objet ORDER BY nom",
+    usageSql:"SELECT COUNT(*) n FROM objet WHERE classe_id=?", usageLabel:'objet(s)' },
+  verbe: { table:'verbe_relation', label:'Verbe de relation', body:'ref_verbe_body',
+    listSql:"SELECT id,nom,description FROM verbe_relation ORDER BY nom",
+    usageSql:"SELECT COUNT(*) n FROM relation WHERE verbe_id=?", usageLabel:'relation(s)' }
+};
+function renderRefSimple(key){
+  const cfg=REF_CONFIGS[key];
+  const rows=exec(cfg.listSql);
+  const body=el(cfg.body);
+  if(!rows.length){ body.innerHTML='<tr><td colspan="4" class="noprops">Aucun élément.</td></tr>'; return; }
+  body.innerHTML=rows.map(r=>{
+    const n=exec(cfg.usageSql,[r.id])[0].n;
+    return `<tr><td>${esc(r.nom)}</td><td>${r.description?esc(r.description):''}</td><td>${n}</td>
+      <td class="mgactions"><button class="btn xs danger" data-ref="${key}" data-id="${r.id}" ${n?'disabled':''}>Supprimer</button></td></tr>`;
+  }).join('');
+}
+function renderRefDisc(){
+  const rows=exec("SELECT id,code,nom FROM discipline ORDER BY code");
+  const body=el('ref_disc_body');
+  if(!rows.length){ body.innerHTML='<tr><td colspan="4" class="noprops">Aucune discipline.</td></tr>'; return; }
+  body.innerHTML=rows.map(r=>{
+    const n=exec("SELECT COUNT(*) n FROM objet WHERE discipline_id=?",[r.id])[0].n
+           +exec("SELECT COUNT(*) n FROM applicabilite WHERE discipline_id=?",[r.id])[0].n;
+    return `<tr><td>${esc(r.code)}</td><td>${esc(r.nom)}</td><td>${n}</td>
+      <td class="mgactions"><button class="btn xs danger" data-ref="disc" data-id="${r.id}" ${n?'disabled':''}>Supprimer</button></td></tr>`;
+  }).join('');
+}
+function renderRefGrandeur(){
+  const rows=exec("SELECT id,nom FROM grandeur_physique ORDER BY nom");
+  const body=el('ref_grandeur_body');
+  if(!rows.length){ body.innerHTML='<tr><td colspan="4" class="noprops">Aucune grandeur.</td></tr>'; return; }
+  body.innerHTML=rows.map(g=>{
+    const nu=exec("SELECT COUNT(*) n FROM unite WHERE grandeur_id=?",[g.id])[0].n;
+    const np=exec("SELECT COUNT(*) n FROM propriete p JOIN unite u ON u.id=p.unite_id WHERE u.grandeur_id=?",[g.id])[0].n;
+    return `<tr><td>${esc(g.nom)}</td><td>${nu}</td><td>${np}</td>
+      <td class="mgactions"><button class="btn xs danger" data-ref="grandeur" data-id="${g.id}" ${np?'disabled':''}>Supprimer</button></td></tr>`;
+  }).join('');
+}
+function renderRefTables(){
+  renderRefSimple('domaine'); renderRefSimple('classe'); renderRefSimple('verbe');
+  renderRefDisc(); renderRefGrandeur();
+}
+function setRefSubView(name){
+  const map={domaine:['refTabDomaine','refViewDomaine'], classe:['refTabClasse','refViewClasse'],
+             disc:['refTabDisc','refViewDisc'], grandeur:['refTabGrandeur','refViewGrandeur'], verbe:['refTabVerbe','refViewVerbe']};
+  Object.keys(map).forEach(k=>{
+    el(map[k][0]).setAttribute('aria-selected', String(k===name));
+    el(map[k][1]).classList.toggle('hidden', k!==name);
+  });
+}
+function deleteRefRow(key, id){
+  if(key==='disc'){
+    const row=exec("SELECT code,nom FROM discipline WHERE id=?",[id])[0]; if(!row) return;
+    const n=exec("SELECT COUNT(*) n FROM objet WHERE discipline_id=?",[id])[0].n
+           +exec("SELECT COUNT(*) n FROM applicabilite WHERE discipline_id=?",[id])[0].n;
+    if(n) return toast("Impossible : encore utilisée à "+n+" endroit(s)","err");
+    if(!confirm("Supprimer la discipline « "+row.code+" — "+row.nom+" » ?")) return;
+    run("DELETE FROM discipline WHERE id=?",[id]);
+    toast("Discipline supprimée","ok"); refreshAll(); return;
+  }
+  if(key==='grandeur'){
+    const row=exec("SELECT nom FROM grandeur_physique WHERE id=?",[id])[0]; if(!row) return;
+    const np=exec("SELECT COUNT(*) n FROM propriete p JOIN unite u ON u.id=p.unite_id WHERE u.grandeur_id=?",[id])[0].n;
+    if(np) return toast("Impossible : encore utilisée par "+np+" propriété(s)","err");
+    if(!confirm("Supprimer la grandeur « "+row.nom+" » et ses unités ?")) return;
+    run("DELETE FROM grandeur_physique WHERE id=?",[id]);
+    toast("Grandeur supprimée","ok"); refreshAll(); return;
+  }
+  const cfg=REF_CONFIGS[key]; if(!cfg) return;
+  const row=exec("SELECT nom FROM "+cfg.table+" WHERE id=?",[id])[0]; if(!row) return;
+  const n=exec(cfg.usageSql,[id])[0].n;
+  if(n) return toast("Impossible : encore utilisé(e) par "+n+" "+cfg.usageLabel,"err");
+  if(!confirm("Supprimer « "+row.nom+" » ?")) return;
+  run("DELETE FROM "+cfg.table+" WHERE id=?",[id]);
+  toast(cfg.label+" supprimé(e)","ok"); refreshAll();
+}
+
 function setFichesSubView(name){
-  const map={objets:['subObjets','subViewObjets'], props:['subProps','subViewProps'], rels:['subRels','subViewRels'], liens:['subLiens','subViewLiens']};
+  const map={objets:['subObjets','subViewObjets'], props:['subProps','subViewProps'], rels:['subRels','subViewRels'], liens:['subLiens','subViewLiens'], ref:['subRef','subViewRef']};
   Object.keys(map).forEach(k=>{
     el(map[k][0]).setAttribute('aria-selected', String(k===name));
     el(map[k][1]).classList.toggle('hidden', k!==name);
@@ -1912,11 +2120,11 @@ function renderImpactDetail(node){
   if(node.hasClass('obj')){
     host.innerHTML = `<span class="dname">${esc(node.data('label'))}</span>
       <div class="dmeta">${esc(node.data('classe'))} · ${esc(node.data('domaine'))}</div>`
-      + renderObjPropsDetail(rawId);
+      + renderObjPropsDetail(rawId, node.data('label'));
   }else{
     host.innerHTML = `<span class="dname">${esc(node.data('label'))}</span>
       <div class="dmeta">${esc(node.data('type'))} · utilisée par ${node.data('nobj')} objet(s)</div>`
-      + renderPropObjetsDetail(rawId);
+      + renderPropObjetsDetail(rawId, node.data('label'));
   }
 }
 
@@ -2384,6 +2592,7 @@ function exportLiens(){
 function currentBytes(){ return db.export(); }
 async function saveToHandle(){
   const w=await fileHandle.createWritable(); await w.write(currentBytes()); await w.close();
+  dirty=false; clearAutosave();
   toast("Enregistré dans "+dbName,"ok");
 }
 function download(){
@@ -2401,6 +2610,7 @@ async function save(){
     }catch(e){ if(e.name==='AbortError') return; }
   }
   download();
+  dirty=false; clearAutosave();
 }
 
 /* ---------- ouverture fichier ---------- */
@@ -2428,10 +2638,76 @@ function toast(msg,kind){
 }
 
 /* ---------- init UI ---------- */
+/* ---------- sauvegarde automatique (filet de sécurité, IndexedDB) -----------
+   Ne remplace jamais un enregistrement explicite : sert uniquement à limiter
+   la perte de données en cas de fermeture/actualisation accidentelle avant
+   d'avoir cliqué "Enregistrer". Ne doit jamais interrompre l'utilisateur :
+   toute erreur y est silencieuse.
+   --------------------------------------------------------------------------- */
+const AUTOSAVE_DB='mdm-editeur-autosave', AUTOSAVE_STORE='snapshots', AUTOSAVE_KEY='latest';
+function openAutosaveDB(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(AUTOSAVE_DB,1);
+    req.onupgradeneeded=()=>{ req.result.createObjectStore(AUTOSAVE_STORE); };
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function saveAutosave(){
+  if(!db) return;
+  try{
+    const idb=await openAutosaveDB();
+    await new Promise((res,rej)=>{
+      const tx=idb.transaction(AUTOSAVE_STORE,'readwrite');
+      tx.objectStore(AUTOSAVE_STORE).put({name:dbName, bytes:db.export(), savedAt:Date.now()}, AUTOSAVE_KEY);
+      tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
+    });
+  }catch(e){ /* silencieux */ }
+}
+async function loadAutosave(){
+  try{
+    const idb=await openAutosaveDB();
+    return await new Promise((res,rej)=>{
+      const tx=idb.transaction(AUTOSAVE_STORE,'readonly');
+      const req=tx.objectStore(AUTOSAVE_STORE).get(AUTOSAVE_KEY);
+      req.onsuccess=()=>res(req.result||null);
+      req.onerror=()=>rej(req.error);
+    });
+  }catch(e){ return null; }
+}
+async function clearAutosave(){
+  try{
+    const idb=await openAutosaveDB();
+    idb.transaction(AUTOSAVE_STORE,'readwrite').objectStore(AUTOSAVE_STORE).delete(AUTOSAVE_KEY);
+  }catch(e){ /* silencieux */ }
+}
+function startAutosaveTimer(){
+  if(backupTimer) clearInterval(backupTimer);
+  backupTimer=setInterval(()=>{ if(dirty) saveAutosave(); }, 5*60*1000);
+}
+async function checkAutosaveOnStartup(){
+  const snap=await loadAutosave();
+  if(!snap) return;
+  el('autosaveName').textContent=snap.name+' — '+new Date(snap.savedAt).toLocaleString('fr-FR');
+  el('autosaveBanner').classList.remove('hidden');
+}
+async function restoreAutosave(){
+  const snap=await loadAutosave();
+  if(!snap) return;
+  el('autosaveBanner').classList.add('hidden');
+  try{ await openBytes(snap.bytes, snap.name); toast("Sauvegarde automatique restaurée","ok"); }
+  catch(e){ showLoadErr(friendly(e)); }
+}
+function dismissAutosave(){
+  el('autosaveBanner').classList.add('hidden');
+  clearAutosave();
+}
+
 function enterEditor(){
   el('empty').classList.add('hidden');
   el('editor').classList.remove('hidden'); el('readout').classList.remove('hidden');
   el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false; el('btnExportLiens').disabled=false;
+  startAutosaveTimer();
 }
 function fillStaticSelects(){
   const set=(id,vals,def)=>{const s=el(id);s.innerHTML="";vals.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;if(x===def)o.selected=true;s.appendChild(o);});};
@@ -2441,6 +2717,8 @@ function fillStaticSelects(){
 function wire(){
   el('btnOpen').onclick=openViaPicker; el('btnOpen2').onclick=openViaPicker;
   el('btnNew').onclick=()=>newModel();
+  el('autosaveRestore').onclick=restoreAutosave;
+  el('autosaveDismiss').onclick=dismissAutosave;
   el('btnNew2').onclick=()=>newModel();
   el('btnSave').onclick=save; el('btnDownload').onclick=download;
   el('btnExportTtl').onclick=()=>exportTurtle();
@@ -2451,7 +2729,13 @@ function wire(){
     catch(err){ showLoadErr(friendly(err)); } e.target.value="";};
   el('addObjet').onclick=addOrUpdateObjet;
   el('addProp').onclick=addOrUpdateProp;
-  el('addValeur').onclick=addValeur;
+  el('addPvValeur').onclick=addValeur;
+  el('delPvListe').onclick=deleteListeEnum;
+  el('pv_nom').addEventListener('input',()=>renderValuesFor(v('pv_nom')));
+  el('pv_valuesBody').addEventListener('click', e=>{
+    const btn=e.target.closest('button[data-act="del"]'); if(!btn) return;
+    deleteValeurEnum(+btn.dataset.id, v('pv_nom').trim());
+  });
   el('addAffect').onclick=addOrUpdateAffect;
   el('addRel').onclick=addRel;
   el('addExigence').onclick=addLienExigence;
@@ -2465,15 +2749,15 @@ function wire(){
   el('p_nom').addEventListener('change',checkPropEdit);
   el('p_nom').addEventListener('blur',checkPropEdit);
   el('p_type').addEventListener('change',updatePropTypeUI);
-  el('p_enum').addEventListener('input',()=>{ if(v('p_type')==='enum') renderValuesFor(v('p_enum')); });
   el('p_grandeur').addEventListener('input',()=>{ if(v('p_type')==='grandeur') renderUnitesFor(v('p_grandeur')); });
   // aperçu relation en direct
   ['r_src','r_tgt','r_cs','r_cc','r_nom'].forEach(id=>{const e=el(id); if(e){e.addEventListener('input',updateRelPreview);e.addEventListener('change',updateRelPreview);}});
   // Entrée = ajouter dans l'onglet courant
   ['o_nom','o_domaine','o_disc_code','o_disc_nom','o_def'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&id!=='o_def'){e.preventDefault();addOrUpdateObjet();}}));
   ['p_nom','p_desc','p_grandeur','p_unite','p_unite_libelle'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addOrUpdateProp();}}));
-  ['v_valeur','v_libelle'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addValeur();}}));
+  ['pv_valeur','pv_libelle'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addValeur();}}));
   ['a_disc_code','a_disc_nom'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addOrUpdateAffect();}}));
+  el('a_objet').addEventListener('input', updateAffectPropList);
   // bascule Fiches / Diagramme
   el('tabFiches').onclick=()=>setView('fiches');
   el('tabDiag').onclick=()=>setView('diagram');
@@ -2483,6 +2767,18 @@ function wire(){
   el('subProps').onclick=()=>setFichesSubView('props');
   el('subRels').onclick=()=>setFichesSubView('rels');
   el('subLiens').onclick=()=>setFichesSubView('liens');
+  el('subRef').onclick=()=>setFichesSubView('ref');
+  el('refTabDomaine').onclick=()=>setRefSubView('domaine');
+  el('refTabClasse').onclick=()=>setRefSubView('classe');
+  el('refTabDisc').onclick=()=>setRefSubView('disc');
+  el('refTabGrandeur').onclick=()=>setRefSubView('grandeur');
+  el('refTabVerbe').onclick=()=>setRefSubView('verbe');
+  ['ref_domaine_body','ref_classe_body','ref_disc_body','ref_grandeur_body','ref_verbe_body'].forEach(id=>{
+    el(id).addEventListener('click', e=>{
+      const btn=e.target.closest('button[data-ref]'); if(!btn || btn.disabled) return;
+      deleteRefRow(btn.dataset.ref, +btn.dataset.id);
+    });
+  });
   // Fiches : recherche / filtres (debounce leger sur le texte libre)
   const debounce=(fn,ms)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; };
   el('mgObjSearch').addEventListener('input', debounce(renderMgObjets,150));
@@ -2511,6 +2807,9 @@ function wire(){
         const objetNom=exec("SELECT nom FROM objet WHERE id=?",[mgExpandedObjId])[0].nom;
         deleteApplicabilite(+btn.dataset.aid, objetNom, btn.dataset.pnom);
       }
+      else if(btn.dataset.act==='editAffect'){
+        editAffectRow(btn.dataset.onom, btn.dataset.pnom, btn.dataset.req, btn.dataset.disc);
+      }
       return;
     }
     const tr=e.target.closest('tr.mgrow'); if(!tr) return;
@@ -2528,6 +2827,9 @@ function wire(){
       else if(btn.dataset.act==='unaffect'){
         const propNom=exec("SELECT nom FROM propriete WHERE id=?",[mgExpandedPropId])[0].nom;
         deleteApplicabilite(+btn.dataset.aid, btn.dataset.onom, propNom);
+      }
+      else if(btn.dataset.act==='editAffect'){
+        editAffectRow(btn.dataset.onom, btn.dataset.pnom, btn.dataset.req, btn.dataset.disc);
       }
       return;
     }
@@ -2587,10 +2889,20 @@ function wire(){
       document.exitFullscreen();
     }
   };
+  el('cyImpactFullscreen').onclick=()=>{
+    if(!document.fullscreenElement){
+      el('viewImpact').requestFullscreen().catch(e=>toast("Plein écran indisponible : "+e.message,"err"));
+    }else{
+      document.exitFullscreen();
+    }
+  };
   document.addEventListener('fullscreenchange', ()=>{
-    const isFs = document.fullscreenElement === el('viewDiag');
-    el('cyFullscreen').textContent = isFs ? 'Quitter le plein écran' : 'Plein écran';
+    const isFsDiag = document.fullscreenElement === el('viewDiag');
+    const isFsImpact = document.fullscreenElement === el('viewImpact');
+    el('cyFullscreen').textContent = isFsDiag ? 'Quitter le plein écran' : 'Plein écran';
+    el('cyImpactFullscreen').textContent = isFsImpact ? 'Quitter le plein écran' : 'Plein écran';
     if(cy){ cy.resize(); cy.fit(undefined,30); }
+    if(cyImpact){ cyImpact.resize(); cyImpact.fit(undefined,30); }
   });
   // Impact : graphe propriété↔objet
   el('cyImpactSearchBtn').onclick=doImpactSearch;
@@ -2608,17 +2920,25 @@ function wire(){
     catch(e){ toast(friendly(e),"err"); }
   };
   el('cyImpactDetail').addEventListener('click', e=>{
-    const btn=e.target.closest('button[data-act="unaffect"]'); if(!btn || !impactSelectedNode) return;
-    const objetNom = btn.dataset.onom || impactSelectedNode.data('label');
-    const propNom = btn.dataset.pnom || impactSelectedNode.data('label');
-    deleteApplicabilite(+btn.dataset.aid, objetNom, propNom);
+    const btn=e.target.closest('button[data-act]'); if(!btn || !impactSelectedNode) return;
+    if(btn.dataset.act==='unaffect'){
+      const objetNom = btn.dataset.onom || impactSelectedNode.data('label');
+      const propNom = btn.dataset.pnom || impactSelectedNode.data('label');
+      deleteApplicabilite(+btn.dataset.aid, objetNom, propNom);
+    }else if(btn.dataset.act==='editAffect'){
+      editAffectRow(btn.dataset.onom, btn.dataset.pnom, btn.dataset.req, btn.dataset.disc);
+    }
   });
 }
 function showLoadErr(m){const e=el('loadErr');e.textContent=m;e.classList.remove('hidden');}
 function openHelp(){ el('helpOverlay').classList.remove('hidden'); }
 function closeHelp(){ el('helpOverlay').classList.add('hidden'); }
 
-fillStaticSelects(); wire(); updatePropTypeUI(); updateExigenceTypeUI();
+window.addEventListener('beforeunload', e=>{
+  if(!dirty) return;
+  e.preventDefault(); e.returnValue='';
+});
+fillStaticSelects(); wire(); updatePropTypeUI(); updateExigenceTypeUI(); checkAutosaveOnStartup();
 </script>
 </body>
 </html>
