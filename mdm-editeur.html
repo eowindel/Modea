@@ -226,8 +226,12 @@
   .legend{font-size:11px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
   .cyfilters{margin-bottom:8px;font-size:12px}
   .cyfilters summary{cursor:pointer;color:var(--accent-deep);font-weight:600;font-size:11.5px}
-  .cyfiltercols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;padding:10px;border:1px dashed var(--line-strong);border-radius:8px;background:#F9FBFC}
-  .cyfiltercols .lab{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.03em;display:block;margin-bottom:4px}
+  .cyfiltercols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:8px;padding:10px;border:1px dashed var(--line-strong);border-radius:8px;background:#F9FBFC}
+  .cyfiltercols .lab{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.03em;margin-bottom:0}
+  .cyfiltercolhead{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:4px}
+  .cyfiltercolhead .cyfilterall{display:flex;gap:6px}
+  .cyfiltercolhead .cyfilterall button{background:none;border:0;padding:0;font-size:10.5px;color:var(--accent-deep);cursor:pointer;text-decoration:underline}
+  .cyfiltercolhead .cyfilterall button:hover{color:var(--ink)}
   .cyfiltersaved{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-strong)}
   .cyfiltersaved-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px}
   .cyfiltersaved-name{flex:1;cursor:pointer;color:var(--accent-deep)}
@@ -779,10 +783,26 @@
           <button class="btn ghost sm" id="cyFullscreen" style="margin-left:auto">Plein écran</button>
         </div>
         <details class="cyfilters">
-          <summary>Filtrer par nature / domaine</summary>
+          <summary>Filtrer par nature / domaine / statut</summary>
           <div class="cyfiltercols">
-            <div><span class="lab">Nature</span><div id="cyFilterNature"></div></div>
-            <div><span class="lab">Domaine</span><div id="cyFilterDomaine"></div></div>
+            <div>
+              <div class="cyfiltercolhead"><span class="lab">Nature</span>
+                <span class="cyfilterall"><button type="button" data-target="cyFilterNature" data-check="1">Tout</button><button type="button" data-target="cyFilterNature" data-check="0">Aucun</button></span>
+              </div>
+              <div id="cyFilterNature"></div>
+            </div>
+            <div>
+              <div class="cyfiltercolhead"><span class="lab">Domaine</span>
+                <span class="cyfilterall"><button type="button" data-target="cyFilterDomaine" data-check="1">Tout</button><button type="button" data-target="cyFilterDomaine" data-check="0">Aucun</button></span>
+              </div>
+              <div id="cyFilterDomaine"></div>
+            </div>
+            <div>
+              <div class="cyfiltercolhead"><span class="lab">Statut</span>
+                <span class="cyfilterall"><button type="button" data-target="cyFilterStatut" data-check="1">Tout</button><button type="button" data-target="cyFilterStatut" data-check="0">Aucun</button></span>
+              </div>
+              <div id="cyFilterStatut"></div>
+            </div>
           </div>
           <div class="cyfiltersaved">
             <span class="lab" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.03em;display:block;margin-bottom:4px">Configurations enregistrées</span>
@@ -856,17 +876,37 @@ const CYTOSCAPE_SVG_URL = "https://cdn.jsdelivr.net/npm/cytoscape-svg@0.4.0/cyto
 const CYTOSCAPE_SVG_FALLBACK = "https://unpkg.com/cytoscape-svg@0.4.0/cytoscape-svg.js";
 /* Palette catégorielle (ordre fixe, jamais cyclé) pour colorer les nœuds par nature */
 const CAT_PALETTE = ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300','#4a3aa7','#e34948'];
-const CAT_OTHER = '#898781';
+// Au-dela de la palette fixe (beaucoup de natures distinctes) : genere une teinte
+// supplementaire par increment d'angle dore (137.5deg), qui repartit les teintes
+// uniformement sur le cercle chromatique quel que soit le nombre de natures --
+// remplace l'ancien gris unique (CAT_OTHER) qui rendait toutes les natures en
+// trop indiscernables entre elles des la 9e.
+function hslToHex(h, s, l){
+  s/=100; l/=100;
+  const k = n => (n + h/30) % 12;
+  const a = s * Math.min(l, 1-l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1)));
+  const toHex = x => Math.round(255*x).toString(16).padStart(2,'0');
+  return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
+}
+function extraCatColor(i){
+  const hue = (i * 137.508) % 360;
+  return hslToHex(hue, 62, 45);
+}
 
 const TYPES = ['texte','entier','decimal','booleen','date','datetime','enum','identifiant','grandeur'];
 const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
-const SCHEMA_VERSION = 5; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.4'; // à incrémenter à chaque commit taggé
+const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
+const APP_VERSION = 'v0.5'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.5', date:'2026-08-28', items:[
+    "Diagramme : un troisième filtre par statut (brouillon/validé/obsolète) s'ajoute aux filtres nature/domaine, avec des liens « Tout »/« Aucun » pour cocher ou décocher une colonne entière en un clic.",
+    "Nature des objets : les couleurs restent bien distinctes même sur un modèle comportant beaucoup de natures différentes (au-delà de 8, une nouvelle teinte est générée à chaque fois, au lieu d'un gris unique)."
+  ]},
   { version:'v0.4', date:'2026-08-28', items:[
     "Vue Impact : la profondeur d'analyse (1 à 5 niveaux de propagation autour de l'objet ou de la propriété cliquée) est désormais réglable.",
     "Nature et domaine des objets affichés en texte sous leur nom, dans le Diagramme, la vue Impact et l'export HTML — plus seulement par couleur, pour rester lisible en cas de daltonisme.",
@@ -1056,6 +1096,7 @@ CREATE TABLE filtre_diagramme (
     favori      INTEGER NOT NULL DEFAULT 0 CHECK (favori IN (0,1)),
     natures     TEXT,
     domaines    TEXT,
+    statuts     TEXT,
     cree_le     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -1199,6 +1240,10 @@ async function openBytes(bytes,name){
     if(recentTables.length < 4){
       throw new Error("Ce fichier utilise un schéma plus ancien (v"+uv+", attendu v"+SCHEMA_VERSION+") — il lui manque au moins une table récente (verbe_relation, contrainte, lien_exigence ou filtre_diagramme). Régénère-le depuis metamodele.sql à jour, ou repars d'un nouveau modèle.");
     }
+    // v5 -> v6 : ajoute la colonne statuts à filtre_diagramme si elle manque encore (fichiers
+    // passés par ce garde-fou avant l'introduction du filtre par statut dans le diagramme)
+    const filtreCols = exec("PRAGMA table_info(filtre_diagramme)").map(c=>c.name);
+    if(!filtreCols.includes('statuts')){ run("ALTER TABLE filtre_diagramme ADD COLUMN statuts TEXT"); }
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
   dbName=name||"modele.db"; dirty=false; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
@@ -1904,7 +1949,7 @@ async function ensureCytoscapeSvg(){
 function assignNatureColors(natures){
   const sorted=[...new Set(natures)].sort((a,b)=>a.localeCompare(b));
   natureColor={};
-  sorted.forEach((n,i)=>{ natureColor[n]= i<CAT_PALETTE.length ? CAT_PALETTE[i] : CAT_OTHER; });
+  sorted.forEach((n,i)=>{ natureColor[n]= i<CAT_PALETTE.length ? CAT_PALETTE[i] : extraCatColor(i); });
   cyNatures=sorted;
 }
 
@@ -1918,7 +1963,7 @@ function decorateNodeLabel(nom, classe, domaine){
   return bits.length ? nom+'\n'+bits.join(' ') : nom;
 }
 function buildCyElements(){
-  const objs = exec(`SELECT o.id,o.nom,o.definition,
+  const objs = exec(`SELECT o.id,o.nom,o.definition,o.statut,
       COALESCE(d.nom,'— sans domaine') AS domaine, COALESCE(c.nom,'— sans nature') AS classe,
       disc.code AS disc_code, disc.nom AS disc_nom
       FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id
@@ -1941,7 +1986,7 @@ function buildCyElements(){
     const nomAffiche = decorateNodeLabel(o.nom, o.classe, o.domaine);
     const labelFull = buildCyNodeLabel(nomAffiche, byObj[o.id]||[]);
     return { data:{ id:'n'+o.id, nom:o.nom, label:nomAffiche, labelCompact:nomAffiche, labelFull,
-             classe:o.classe, domaine:o.domaine, discCode:o.disc_code||'', discNom:o.disc_nom||'',
+             classe:o.classe, domaine:o.domaine, statut:o.statut, discCode:o.disc_code||'', discNom:o.disc_nom||'',
              definition:o.definition||'', color:natureColor[o.classe] },
       classes:'obj' };
   });
@@ -2128,16 +2173,30 @@ function renderCyLegendFilters(){
     row.querySelector('input').addEventListener('change', applyCyFilters);
     hostD.appendChild(row);
   });
+  const hostS=el('cyFilterStatut'); hostS.innerHTML='';
+  Object.keys(STATUT_LABELS).forEach(s=>{
+    const row=document.createElement('label'); row.className='check'; row.style.display='flex';
+    row.innerHTML=`<input type="checkbox" checked data-statut="${esc(s)}">${esc(STATUT_LABELS[s])}`;
+    row.querySelector('input').addEventListener('change', applyCyFilters);
+    hostS.appendChild(row);
+  });
 }
 function applyCyFilters(){
   if(!cy) return;
   const okN=new Set([...document.querySelectorAll('#cyFilterNature input:checked')].map(i=>i.dataset.nature));
   const okD=new Set([...document.querySelectorAll('#cyFilterDomaine input:checked')].map(i=>i.dataset.domaine));
+  const okS=new Set([...document.querySelectorAll('#cyFilterStatut input:checked')].map(i=>i.dataset.statut));
   cy.batch(()=>{
-    cy.nodes('.obj').forEach(n=>n.toggleClass('flt-hidden', !okN.has(n.data('classe')) || !okD.has(n.data('domaine'))));
+    cy.nodes('.obj').forEach(n=>n.toggleClass('flt-hidden', !okN.has(n.data('classe')) || !okD.has(n.data('domaine')) || !okS.has(n.data('statut'))));
     cy.edges().forEach(e=>e.toggleClass('flt-hidden', e.source().hasClass('flt-hidden')||e.target().hasClass('flt-hidden')));
   });
   updateCyStats();
+}
+// Issue #14 : "Tout"/"Aucun" par colonne de filtre (nature/domaine/statut), plutot que de
+// devoir decocher les cases une a une quand il y en a beaucoup.
+function setAllCyFilterColumn(targetId, checked){
+  document.querySelectorAll('#'+targetId+' input').forEach(i=>{ i.checked=checked; });
+  applyCyFilters();
 }
 
 /* ---- Configurations de filtre enregistrées (favoris) ---- */
@@ -2158,23 +2217,29 @@ function saveCurrentFilterConfig(){
   if(!nom) return toast("Donne un nom à cette configuration","err");
   const natures=[...document.querySelectorAll('#cyFilterNature input:checked')].map(i=>i.dataset.nature);
   const domaines=[...document.querySelectorAll('#cyFilterDomaine input:checked')].map(i=>i.dataset.domaine);
+  const statuts=[...document.querySelectorAll('#cyFilterStatut input:checked')].map(i=>i.dataset.statut);
   try{
     const existing=exec("SELECT id FROM filtre_diagramme WHERE nom=?",[nom])[0];
     if(existing){
-      run("UPDATE filtre_diagramme SET natures=?,domaines=? WHERE id=?",[JSON.stringify(natures),JSON.stringify(domaines),existing.id]);
+      run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=? WHERE id=?",[JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),existing.id]);
       toast("Configuration « "+nom+" » mise à jour","ok");
     }else{
-      run("INSERT INTO filtre_diagramme(nom,natures,domaines) VALUES (?,?,?)",[nom,JSON.stringify(natures),JSON.stringify(domaines)]);
+      run("INSERT INTO filtre_diagramme(nom,natures,domaines,statuts) VALUES (?,?,?,?)",[nom,JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts)]);
       toast("Configuration « "+nom+" » enregistrée","ok");
     }
     clear(['cyFilterConfigName']); renderCyFilterConfigs();
   }catch(e){ toast(friendly(e),"err"); }
 }
 function applyFilterConfig(id){
-  const row=exec("SELECT nom,natures,domaines FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
+  const row=exec("SELECT nom,natures,domaines,statuts FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
   const natures=JSON.parse(row.natures||'[]'), domaines=JSON.parse(row.domaines||'[]');
+  // statuts : absent (JSON null) sur une config enregistree avant l'ajout de ce filtre —
+  // on considere alors tous les statuts coches, pour ne pas masquer silencieusement des
+  // objets a l'application d'une config plus ancienne
+  const statuts = row.statuts!=null ? JSON.parse(row.statuts) : Object.keys(STATUT_LABELS);
   document.querySelectorAll('#cyFilterNature input').forEach(i=>{ i.checked=natures.includes(i.dataset.nature); });
   document.querySelectorAll('#cyFilterDomaine input').forEach(i=>{ i.checked=domaines.includes(i.dataset.domaine); });
+  document.querySelectorAll('#cyFilterStatut input').forEach(i=>{ i.checked=statuts.includes(i.dataset.statut); });
   applyCyFilters();
   toast("Configuration « "+row.nom+" » appliquée","ok");
 }
@@ -3277,6 +3342,12 @@ function wire(){
     if(btn.dataset.act==='apply') applyFilterConfig(id);
     else if(btn.dataset.act==='fav') toggleFavoriFilterConfig(id);
     else if(btn.dataset.act==='del') deleteFilterConfig(id);
+  });
+  document.querySelectorAll('.cyfiltercolhead .cyfilterall').forEach(host=>{
+    host.addEventListener('click', e=>{
+      const btn=e.target.closest('button[data-target]'); if(!btn) return;
+      setAllCyFilterColumn(btn.dataset.target, btn.dataset.check==='1');
+    });
   });
   el('cySearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doCySearch(); } });
   el('cyLayout').addEventListener('change', ()=>{ cyLayoutAuto=false; });
