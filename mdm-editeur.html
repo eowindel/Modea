@@ -228,6 +228,11 @@
   .cyfilters summary{cursor:pointer;color:var(--accent-deep);font-weight:600;font-size:11.5px}
   .cyfiltercols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;padding:10px;border:1px dashed var(--line-strong);border-radius:8px;background:#F9FBFC}
   .cyfiltercols .lab{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.03em;display:block;margin-bottom:4px}
+  .cyfiltersaved{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-strong)}
+  .cyfiltersaved-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px}
+  .cyfiltersaved-name{flex:1;cursor:pointer;color:var(--accent-deep)}
+  .cyfiltersaved-name:hover{text-decoration:underline}
+  .cyfiltersaved-fav{background:none;border:0;cursor:pointer;font-size:14px;color:#C9A227;padding:0 2px;line-height:1}
   .cyswatch{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:middle}
   #cyWrap{position:relative;height:62vh;min-height:360px;border:1px solid var(--line);border-radius:8px;background:
     radial-gradient(var(--line) 1px, transparent 1px) 0 0/20px 20px, #FCFDFE}
@@ -770,6 +775,7 @@
           <button class="btn ghost sm" id="cyClearFocus">Réinitialiser</button>
           <button class="btn ghost sm" id="cyPng">PNG</button>
           <button class="btn ghost sm" id="cySvgBtn">SVG</button>
+          <button class="btn ghost sm" id="cyHtmlBtn" title="Fichier HTML autonome, navigable, sans édition possible">Exporter HTML</button>
           <button class="btn ghost sm" id="cyFullscreen" style="margin-left:auto">Plein écran</button>
         </div>
         <details class="cyfilters">
@@ -777,6 +783,14 @@
           <div class="cyfiltercols">
             <div><span class="lab">Nature</span><div id="cyFilterNature"></div></div>
             <div><span class="lab">Domaine</span><div id="cyFilterDomaine"></div></div>
+          </div>
+          <div class="cyfiltersaved">
+            <span class="lab" style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.03em;display:block;margin-bottom:4px">Configurations enregistrées</span>
+            <div class="row2">
+              <input type="text" id="cyFilterConfigName" placeholder="Nom de la configuration…" autocomplete="off">
+              <button class="btn ghost sm" id="cyFilterConfigSave">Enregistrer la config actuelle</button>
+            </div>
+            <div id="cyFilterConfigList" style="margin-top:8px"></div>
           </div>
         </details>
         <div class="legend" style="margin:0 0 8px">▷ héritage · ◆ composition · ◇ agrégation · → association · ✱ obligatoire</div>
@@ -801,6 +815,14 @@
           <button class="btn ghost sm" id="cyImpactRelayout">Réorganiser</button>
           <button class="btn ghost sm" id="cyImpactFit">Ajuster</button>
           <label class="check" style="margin:0"><input type="checkbox" id="cyImpactFocus" checked> focus au clic</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)">profondeur
+            <select id="cyImpactDepth">
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select></label>
           <button class="btn ghost sm" id="cyImpactClearFocus">Réinitialiser</button>
           <button class="btn ghost sm" id="cyImpactPng">PNG</button>
           <button class="btn ghost sm" id="cyImpactSvgBtn">SVG</button>
@@ -840,11 +862,17 @@ const TYPES = ['texte','entier','decimal','booleen','date','datetime','enum','id
 const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
-const SCHEMA_VERSION = 4; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.3'; // à incrémenter à chaque commit taggé
+const SCHEMA_VERSION = 5; // à incrémenter ici ET dans metamodele.sql à chaque migration
+const APP_VERSION = 'v0.4'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.4', date:'2026-08-28', items:[
+    "Vue Impact : la profondeur d'analyse (1 à 5 niveaux de propagation autour de l'objet ou de la propriété cliquée) est désormais réglable.",
+    "Nature et domaine des objets affichés en texte sous leur nom, dans le Diagramme, la vue Impact et l'export HTML — plus seulement par couleur, pour rester lisible en cas de daltonisme.",
+    "Diagramme : les filtres nature/domaine peuvent être enregistrés comme configurations favorites, réutilisables en un clic.",
+    "Nouveau : export du diagramme en page HTML autonome et navigable (recherche, filtres nature/domaine, panneau de détail), à partager sans donner accès à l'outil de modélisation."
+  ]},
   { version:'v0.3', date:'2026-08-26', items:[
     "Diagramme et vue Impact : performances nettement améliorées sur les modèles comportant beaucoup d'objets (mise en page et navigation).",
     "Fiches Propriétés : la description s'affiche désormais sous le nom, comme pour les objets.",
@@ -1022,6 +1050,15 @@ CREATE TABLE lien_exigence (
     CHECK ( (objet_id IS NOT NULL) + (propriete_id IS NOT NULL) + (relation_id IS NOT NULL) = 1 )
 );
 
+CREATE TABLE filtre_diagramme (
+    id          INTEGER PRIMARY KEY,
+    nom         TEXT NOT NULL UNIQUE,
+    favori      INTEGER NOT NULL DEFAULT 0 CHECK (favori IN (0,1)),
+    natures     TEXT,
+    domaines    TEXT,
+    cree_le     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX idx_objet_domaine           ON objet(domaine_id);
 CREATE INDEX idx_objet_classe            ON objet(classe_id);
 CREATE INDEX idx_objet_discipline        ON objet(discipline_id);
@@ -1158,9 +1195,9 @@ async function openBytes(bytes,name){
   // pour les fichiers créés avant l'introduction de ce suivi (jamais versionnés mais déjà à jour)
   const uv = exec("PRAGMA user_version")[0].user_version;
   if(uv < SCHEMA_VERSION){
-    const recentTables = exec("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('verbe_relation','contrainte','lien_exigence')");
-    if(recentTables.length < 3){
-      throw new Error("Ce fichier utilise un schéma plus ancien (v"+uv+", attendu v"+SCHEMA_VERSION+") — il lui manque au moins une table récente (verbe_relation, contrainte ou lien_exigence). Régénère-le depuis metamodele.sql à jour, ou repars d'un nouveau modèle.");
+    const recentTables = exec("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('verbe_relation','contrainte','lien_exigence','filtre_diagramme')");
+    if(recentTables.length < 4){
+      throw new Error("Ce fichier utilise un schéma plus ancien (v"+uv+", attendu v"+SCHEMA_VERSION+") — il lui manque au moins une table récente (verbe_relation, contrainte, lien_exigence ou filtre_diagramme). Régénère-le depuis metamodele.sql à jour, ou repars d'un nouveau modèle.");
     }
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
@@ -1871,6 +1908,15 @@ function assignNatureColors(natures){
   cyNatures=sorted;
 }
 
+// Affiche la nature et le domaine en texte sous le nom (pas seulement par couleur, pour
+// rester lisible en cas de daltonisme — la nature est sinon uniquement portée par la couleur
+// de bordure du nœud) — utilisé dans le diagramme objet et la vue Impact.
+function decorateNodeLabel(nom, classe, domaine){
+  const bits = [];
+  if(classe && classe!=='— sans nature') bits.push('['+classe+']');
+  if(domaine && domaine!=='— sans domaine') bits.push('('+domaine+')');
+  return bits.length ? nom+'\n'+bits.join(' ') : nom;
+}
 function buildCyElements(){
   const objs = exec(`SELECT o.id,o.nom,o.definition,
       COALESCE(d.nom,'— sans domaine') AS domaine, COALESCE(c.nom,'— sans nature') AS classe,
@@ -1892,8 +1938,9 @@ function buildCyElements(){
                      FROM relation r LEFT JOIN verbe_relation vb ON vb.id=r.verbe_id`);
 
   const nodes = objs.map(o=>{
-    const labelFull = buildCyNodeLabel(o.nom, byObj[o.id]||[]);
-    return { data:{ id:'n'+o.id, label:o.nom, labelCompact:o.nom, labelFull,
+    const nomAffiche = decorateNodeLabel(o.nom, o.classe, o.domaine);
+    const labelFull = buildCyNodeLabel(nomAffiche, byObj[o.id]||[]);
+    return { data:{ id:'n'+o.id, nom:o.nom, label:nomAffiche, labelCompact:nomAffiche, labelFull,
              classe:o.classe, domaine:o.domaine, discCode:o.disc_code||'', discNom:o.disc_nom||'',
              definition:o.definition||'', color:natureColor[o.classe] },
       classes:'obj' };
@@ -1921,7 +1968,7 @@ function buildCyImpactElements(){
   // pouvant partager une meme valeur numerique (contrairement au diagramme objet, qui n'a
   // qu'une seule table et peut se permettre un prefixe 'n' unique)
   const nodes = objs.map(o=>({
-    data:{ id:'o'+o.id, label:o.nom, classe:o.classe, domaine:o.domaine, color:natureColor[o.classe] },
+    data:{ id:'o'+o.id, nom:o.nom, label:decorateNodeLabel(o.nom, o.classe, o.domaine), classe:o.classe, domaine:o.domaine, color:natureColor[o.classe] },
     classes:'obj'
   })).concat(props.map(p=>({
     data:{ id:'p'+p.id, label:p.nom, type:typeLabel(p), nobj:p.nobj },
@@ -2056,6 +2103,7 @@ async function renderDiagram(){
   applyCyRelLabelMode();
 
   renderCyLegendFilters();
+  renderCyFilterConfigs();
   fillCySearch();
   updateCyStats();
 }
@@ -2091,15 +2139,66 @@ function applyCyFilters(){
   });
   updateCyStats();
 }
+
+/* ---- Configurations de filtre enregistrées (favoris) ---- */
+function renderCyFilterConfigs(){
+  const rows=exec("SELECT id,nom,favori FROM filtre_diagramme ORDER BY favori DESC, nom");
+  const host=el('cyFilterConfigList'); host.innerHTML='';
+  if(!rows.length){ host.innerHTML='<span class="hint" style="margin:0">Aucune configuration enregistrée.</span>'; return; }
+  rows.forEach(r=>{
+    const row=document.createElement('div'); row.className='cyfiltersaved-row';
+    row.innerHTML=`<button class="cyfiltersaved-fav" data-act="fav" data-id="${r.id}" title="${r.favori?'Retirer des favoris':'Ajouter aux favoris'}">${r.favori?'★':'☆'}</button>
+      <span class="cyfiltersaved-name" data-act="apply" data-id="${r.id}">${esc(r.nom)}</span>
+      <button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button>`;
+    host.appendChild(row);
+  });
+}
+function saveCurrentFilterConfig(){
+  const nom=v('cyFilterConfigName').trim();
+  if(!nom) return toast("Donne un nom à cette configuration","err");
+  const natures=[...document.querySelectorAll('#cyFilterNature input:checked')].map(i=>i.dataset.nature);
+  const domaines=[...document.querySelectorAll('#cyFilterDomaine input:checked')].map(i=>i.dataset.domaine);
+  try{
+    const existing=exec("SELECT id FROM filtre_diagramme WHERE nom=?",[nom])[0];
+    if(existing){
+      run("UPDATE filtre_diagramme SET natures=?,domaines=? WHERE id=?",[JSON.stringify(natures),JSON.stringify(domaines),existing.id]);
+      toast("Configuration « "+nom+" » mise à jour","ok");
+    }else{
+      run("INSERT INTO filtre_diagramme(nom,natures,domaines) VALUES (?,?,?)",[nom,JSON.stringify(natures),JSON.stringify(domaines)]);
+      toast("Configuration « "+nom+" » enregistrée","ok");
+    }
+    clear(['cyFilterConfigName']); renderCyFilterConfigs();
+  }catch(e){ toast(friendly(e),"err"); }
+}
+function applyFilterConfig(id){
+  const row=exec("SELECT nom,natures,domaines FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
+  const natures=JSON.parse(row.natures||'[]'), domaines=JSON.parse(row.domaines||'[]');
+  document.querySelectorAll('#cyFilterNature input').forEach(i=>{ i.checked=natures.includes(i.dataset.nature); });
+  document.querySelectorAll('#cyFilterDomaine input').forEach(i=>{ i.checked=domaines.includes(i.dataset.domaine); });
+  applyCyFilters();
+  toast("Configuration « "+row.nom+" » appliquée","ok");
+}
+function toggleFavoriFilterConfig(id){
+  const row=exec("SELECT favori FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
+  run("UPDATE filtre_diagramme SET favori=? WHERE id=?",[row.favori?0:1,id]);
+  renderCyFilterConfigs();
+}
+function deleteFilterConfig(id){
+  const row=exec("SELECT nom FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
+  if(!confirm("Supprimer la configuration « "+row.nom+" » ?")) return;
+  run("DELETE FROM filtre_diagramme WHERE id=?",[id]);
+  toast("Configuration supprimée","ok"); renderCyFilterConfigs();
+}
+
 function fillCySearch(){
   const dl=el('dl_cySearch'); dl.innerHTML='';
-  cy.nodes('.obj').forEach(n=>{ const o=document.createElement('option'); o.value=n.data('label'); dl.appendChild(o); });
+  cy.nodes('.obj').forEach(n=>{ const o=document.createElement('option'); o.value=n.data('nom'); dl.appendChild(o); });
 }
 function doCySearch(){
   if(!cy) return;
   const name=v('cySearch').trim(); if(!name) return;
-  const node = cy.nodes('.obj').filter(n=>n.data('label')===name)[0]
-            || cy.nodes('.obj').filter(n=>n.data('label').toLowerCase().includes(name.toLowerCase()))[0];
+  const node = cy.nodes('.obj').filter(n=>n.data('nom')===name)[0]
+            || cy.nodes('.obj').filter(n=>n.data('nom').toLowerCase().includes(name.toLowerCase()))[0];
   if(!node) return toast("Aucun objet trouvé pour « "+name+" »","err");
   cy.animate({ center:{eles:node}, zoom:1.4 }, {duration:300});
   onCyNodeSelected(node);
@@ -2119,16 +2218,237 @@ function clearCyFocus(){
   if(!cy) return;
   cy.batch(()=>{ cy.elements().removeClass('dim'); cy.edges().removeClass('show-label'); });
 }
-function renderCyDetail(node){
+function buildNodeDetailHtml(node){
   const props = (cyPropsByObj[+node.id().slice(1)]||[]);
-  const host=el('cyDetail'); host.classList.remove('hidden');
   const disc = node.data('discCode') ? node.data('discCode')+' — '+node.data('discNom') : null;
-  host.innerHTML = `<span class="dname">${esc(node.data('labelCompact'))}</span>
+  return `<span class="dname">${esc(node.data('nom'))}</span>
     <div class="dmeta">${esc(node.data('classe'))} · ${esc(node.data('domaine'))}${disc?' · '+esc(disc):''}</div>`
     + (props.length ? props.map(p=>{
         const t = p.type==='grandeur' ? (p.grandeur+' ('+p.unite+')') : p.type;
         return `<div class="dprop"><span>${esc(p.nom)}</span><span>${esc(t)}${p.obligatoire?' *':''}</span></div>`;
       }).join('') : `<div class="dprop"><span style="color:var(--muted);font-style:italic">aucune propriété</span></div>`);
+}
+function renderCyDetail(node){
+  const host=el('cyDetail'); host.classList.remove('hidden');
+  host.innerHTML = buildNodeDetailHtml(node);
+}
+
+/* ---------- Export HTML autonome, navigable, en lecture seule --------------
+   Contrairement au PNG/SVG (image figée), ce fichier embarque les données du
+   graphe (positions actuelles, panneau de détail pré-calculé) et Cytoscape
+   (via CDN, comme l'appli elle-même) pour rester pannable/zoomable/cliquable
+   chez le destinataire — sans sql.js, sans formulaire, donc sans aucun moyen
+   de modifier le modèle. Seuls les éléments actuellement visibles (non
+   masqués par les filtres nature/domaine) sont exportés. */
+function jsonForScript(obj){
+  // echappe tous les '<' : empeche qu'une valeur du modele contenant la sequence de fermeture
+  // d'une balise script ne termine prematurement le bloc inline genere
+  return JSON.stringify(obj).replace(/</g, '\\u003c');
+}
+function renderStaticDiagramHtml(o){
+  return `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(o.title)} — diagramme (lecture seule)</title>
+<style>
+  :root{--canvas:#E9EDEE;--surface:#FFFFFF;--ink:#132428;--muted:#5B6A78;--line:#D2DAE1;--line-strong:#B9C4CE;--accent-deep:#0A4B5D;--mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--canvas);color:var(--ink)}
+  body{display:flex;flex-direction:column}
+  #bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line-strong);box-sizing:border-box}
+  #bar b{font-family:var(--mono);color:var(--accent-deep)}
+  #bar .badge{font-size:10.5px;font-weight:600;color:var(--muted);background:var(--canvas);border:1px solid var(--line-strong);border-radius:5px;padding:1px 6px}
+  #bar input[type=text]{padding:6px 9px;border:1px solid var(--line-strong);border-radius:7px;font-size:12.5px;width:200px;font-family:inherit}
+  #bar input[type=checkbox]{margin:0;width:14px;height:14px;flex:none}
+  #bar button{padding:6px 12px;border:1px solid var(--line-strong);border-radius:7px;background:var(--surface);cursor:pointer;font-size:12.5px}
+  #bar button:hover{background:var(--canvas)}
+  #bar label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);white-space:nowrap}
+  #bar .stats{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  #filters{padding:6px 14px;background:var(--surface);border-bottom:1px solid var(--line);box-sizing:border-box}
+  #filters summary{cursor:pointer;color:var(--accent-deep);font-weight:600;font-size:11.5px}
+  #filters .fcols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;padding:10px;border:1px dashed var(--line-strong);border-radius:8px;background:var(--canvas);max-width:560px}
+  #filters .flab{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.03em;display:block;margin-bottom:4px}
+  #filters label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:2px 0}
+  #filters .swatch{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none}
+  #legend{padding:5px 14px;background:var(--surface);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  #wrap{position:relative;flex:1;min-height:0}
+  #cy{position:absolute;inset:0}
+  #detail{position:absolute;left:14px;bottom:14px;max-width:280px;background:var(--surface);border:1px solid var(--line-strong);border-radius:8px;padding:10px;font-size:11.5px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+  #detail.hidden{display:none}
+  #detail .dname{font-family:var(--mono);font-weight:700;font-size:12.5px;display:block;margin-bottom:2px}
+  #detail .dmeta{color:var(--muted);font-size:10px;margin-bottom:5px}
+  #detail .dprop{display:flex;justify-content:space-between;gap:8px;padding:2px 0;border-top:1px dashed var(--line);font-family:var(--mono);font-size:10.5px}
+</style>
+</head>
+<body>
+  <div id="bar">
+    <b>${esc(o.title)}</b>
+    <span class="badge">lecture seule</span>
+    <input type="text" id="search" list="dl_search" placeholder="Rechercher un objet…" autocomplete="off">
+    <datalist id="dl_search"></datalist>
+    <button id="searchBtn">Centrer</button>
+    <button id="resetBtn">Réinitialiser</button>
+    <label><input type="checkbox" id="showProps"${o.propsOn?' checked':''}> propriétés</label>
+    <label><input type="checkbox" id="showRels"${o.relsOn?' checked':''}> relations</label>
+    <span class="stats" id="stats">${o.visibleCount} / ${o.totalCount} objets · généré le ${esc(o.generatedAt)}</span>
+  </div>
+  <details id="filters">
+    <summary>Filtrer par nature / domaine</summary>
+    <div class="fcols">
+      <div><span class="flab">Nature</span><div id="filterNature"></div></div>
+      <div><span class="flab">Domaine</span><div id="filterDomaine"></div></div>
+    </div>
+  </details>
+  <div id="legend">▷ héritage · ◆ composition · ◇ agrégation · → association · ✱ obligatoire</div>
+  <div id="wrap">
+    <div id="cy"></div>
+    <div id="detail" class="hidden"></div>
+  </div>
+  <script src="${CYTOSCAPE_URL}"><\/script>
+  <script>
+    var ELEMENTS = ${jsonForScript(o.elements)};
+    var DETAILS = ${jsonForScript(o.details)};
+    var STYLE = ${jsonForScript(o.style)};
+    var NATURES = ${jsonForScript(o.natures)};
+    var DOMAINES = ${jsonForScript(o.domaines)};
+    var TOTAL = ${o.totalCount}, GENERATED_AT = ${jsonForScript(o.generatedAt)};
+    var IS_LARGE = ${o.isLarge ? 'true' : 'false'};
+    var cy;
+    function onSelect(node){
+      var host=document.getElementById('detail'); host.classList.remove('hidden');
+      host.innerHTML = DETAILS[node.id()] || '';
+      cy.batch(function(){
+        cy.elements().addClass('dim');
+        node.closedNeighborhood().removeClass('dim');
+        cy.edges().removeClass('show-label');
+        node.connectedEdges().addClass('show-label');
+      });
+    }
+    function clearFocus(){
+      if(!cy) return;
+      cy.batch(function(){
+        cy.elements().removeClass('dim');
+        cy.edges().toggleClass('show-label', document.getElementById('showRels').checked);
+      });
+      document.getElementById('detail').classList.add('hidden');
+    }
+    function applyLabelMode(){
+      var full = document.getElementById('showProps').checked;
+      cy.batch(function(){ cy.nodes().forEach(function(n){ n.data('label', full ? n.data('labelFull') : n.data('labelCompact')); }); });
+    }
+    function applyRelLabelMode(){
+      var on = document.getElementById('showRels').checked;
+      cy.batch(function(){ cy.edges().toggleClass('rel-label', on); });
+    }
+    function escHtml(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+    function renderFilters(){
+      var hostN=document.getElementById('filterNature'); hostN.innerHTML='';
+      NATURES.forEach(function(nt){
+        var row=document.createElement('label');
+        row.innerHTML='<input type="checkbox" checked data-nature="'+escHtml(nt.nom)+'"><span class="swatch" style="background:'+escHtml(nt.color)+'"></span>'+escHtml(nt.nom);
+        row.querySelector('input').addEventListener('change', applyFilters);
+        hostN.appendChild(row);
+      });
+      var hostD=document.getElementById('filterDomaine'); hostD.innerHTML='';
+      DOMAINES.forEach(function(d){
+        var row=document.createElement('label');
+        row.innerHTML='<input type="checkbox" checked data-domaine="'+escHtml(d)+'">'+escHtml(d);
+        row.querySelector('input').addEventListener('change', applyFilters);
+        hostD.appendChild(row);
+      });
+    }
+    function applyFilters(){
+      var okN={}, okD={};
+      document.querySelectorAll('#filterNature input:checked').forEach(function(i){ okN[i.dataset.nature]=true; });
+      document.querySelectorAll('#filterDomaine input:checked').forEach(function(i){ okD[i.dataset.domaine]=true; });
+      cy.batch(function(){
+        cy.nodes().forEach(function(n){ n.toggleClass('flt-hidden', !okN[n.data('classe')] || !okD[n.data('domaine')]); });
+        cy.edges().forEach(function(e){ e.toggleClass('flt-hidden', e.source().hasClass('flt-hidden')||e.target().hasClass('flt-hidden')); });
+      });
+      updateStats();
+    }
+    function updateStats(){
+      var visible=cy.nodes().filter(function(n){ return !n.hasClass('flt-hidden'); }).length;
+      document.getElementById('stats').textContent = visible+' / '+TOTAL+' objets · généré le '+GENERATED_AT;
+    }
+    function nodeName(n){ return n.data('nom')||n.data('label'); }
+    function fillSearch(){
+      var dl=document.getElementById('dl_search');
+      cy.nodes().forEach(function(n){ var opt=document.createElement('option'); opt.value=nodeName(n); dl.appendChild(opt); });
+    }
+    function doSearch(){
+      var name=document.getElementById('search').value.trim(); if(!name) return;
+      var node = cy.nodes().filter(function(n){ return nodeName(n)===name; })[0]
+              || cy.nodes().filter(function(n){ return nodeName(n).toLowerCase().indexOf(name.toLowerCase())>=0; })[0];
+      if(!node) return;
+      cy.animate({center:{eles:node},zoom:1.4},{duration:300});
+      onSelect(node);
+    }
+    if(window.cytoscape){
+      cy = cytoscape({
+        container: document.getElementById('cy'), elements: ELEMENTS, style: STYLE, layout:{name:'preset'},
+        hideEdgesOnViewport: IS_LARGE, hideLabelsOnViewport: IS_LARGE, textureOnViewport: IS_LARGE, pixelRatio: IS_LARGE?1:'auto'
+      });
+      cy.on('tap', 'node', function(evt){ onSelect(evt.target); });
+      cy.on('tap', function(evt){ if(evt.target===cy) clearFocus(); });
+      fillSearch();
+      applyLabelMode();
+      applyRelLabelMode();
+      renderFilters();
+      document.getElementById('searchBtn').onclick=doSearch;
+      document.getElementById('search').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); doSearch(); } });
+      document.getElementById('resetBtn').onclick=clearFocus;
+      document.getElementById('showProps').addEventListener('change', applyLabelMode);
+      document.getElementById('showRels').addEventListener('change', applyRelLabelMode);
+    }else{
+      document.getElementById('cy').innerHTML='<p style="padding:20px">Impossible de charger la librairie de rendu (connexion internet requise).</p>';
+    }
+  <\/script>
+</body>
+</html>`;
+}
+function buildDiagramHtmlExport(){
+  if(!cy) return null;
+  const visibleNodes = cy.nodes('.obj').filter(n=>!n.hasClass('flt-hidden'));
+  const visibleEdges = cy.edges().filter(e=>!e.hasClass('flt-hidden'));
+  const isLarge = visibleNodes.length>CY_LARGE_GRAPH_THRESHOLD;
+  const cleanClasses = ele => ele.classes().filter(c=>c!=='dim'&&c!=='flt-hidden').join(' '); // pas l'etat transitoire d'un focus en cours
+
+  const elements = [
+    ...visibleNodes.map(n=>({ data:{...n.data()}, position:n.position(), classes:cleanClasses(n) })),
+    ...visibleEdges.map(e=>({ data:{...e.data()}, classes:cleanClasses(e) }))
+  ];
+  const details = {};
+  visibleNodes.forEach(n=>{ details[n.id()] = buildNodeDetailHtml(n); });
+  // listes de filtre : construites depuis les noeuds exportes eux-memes (classe/domaine/color
+  // deja presents dans buildCyElements()) pour rester coherentes avec ce qui a ete exporte,
+  // meme si le graphe source a ete filtre avant l'export
+  const natures = [...new Map(visibleNodes.map(n=>[n.data('classe'), n.data('color')]))]
+    .map(([nom,color])=>({nom,color})).sort((a,b)=>a.nom.localeCompare(b.nom));
+  const domaines = [...new Set(visibleNodes.map(n=>n.data('domaine')))].sort((a,b)=>a.localeCompare(b));
+
+  return renderStaticDiagramHtml({
+    title: baseName(),
+    generatedAt: new Date().toLocaleString('fr-FR'),
+    totalCount: cy.nodes('.obj').length,
+    visibleCount: visibleNodes.length,
+    elements, details, natures, domaines,
+    // toujours des aretes en ligne droite dans l'export : un bug de Cytoscape 3.34
+    // (curve-style bezier + layout preset + fit automatique) rend invisible le nœud
+    // SOURCE de chaque arête sinon — reproduit et isolé précisément via des tests
+    // en navigateur réel (bascule sur straight/haystack : correct : sur bezier : casse).
+    style: cyStyle(true),
+    isLarge,
+    propsOn: el('cyShowProps').checked,
+    relsOn: el('cyShowRel').checked
+  });
+}
+function exportDiagramHtml(){
+  if(!cy) return toast("Aucun graphe à exporter","err");
+  const html = buildDiagramHtmlExport();
+  downloadText(baseName()+'-diagramme.html', html, 'text/html');
+  toast("Export HTML généré","ok");
 }
 
 /* ---------- Vue Impact : graphe propriété↔objet ---------- */
@@ -2164,24 +2484,38 @@ function updateImpactStats(){
   const nobj=cyImpact.nodes('.obj').length, nprop=cyImpact.nodes('.prop').length;
   el('cyImpactStats').textContent = nobj+' objet(s) · '+nprop+' propriété(s)';
 }
+function impactNodeName(n){ return n.data('nom')||n.data('label'); } // 'nom' = nom brut (objet) ; les proprietes n'ont que 'label'
 function fillImpactSearch(){
   const dl=el('dl_cyImpactSearch'); dl.innerHTML='';
-  cyImpact.nodes().forEach(n=>{ const o=document.createElement('option'); o.value=n.data('label'); dl.appendChild(o); });
+  cyImpact.nodes().forEach(n=>{ const o=document.createElement('option'); o.value=impactNodeName(n); dl.appendChild(o); });
 }
 function doImpactSearch(){
   if(!cyImpact) return;
   const name=v('cyImpactSearch').trim(); if(!name) return;
-  const node = cyImpact.nodes().filter(n=>n.data('label')===name)[0]
-            || cyImpact.nodes().filter(n=>n.data('label').toLowerCase().includes(name.toLowerCase()))[0];
+  const node = cyImpact.nodes().filter(n=>impactNodeName(n)===name)[0]
+            || cyImpact.nodes().filter(n=>impactNodeName(n).toLowerCase().includes(name.toLowerCase()))[0];
   if(!node) return toast("Aucun objet ou propriété trouvé pour « "+name+" »","err");
   cyImpact.animate({ center:{eles:node}, zoom:1.4 }, {duration:300});
   onImpactNodeSelected(node);
+}
+// Etend le voisinage direct de closedNeighborhood() sur plusieurs sauts : a chaque
+// iteration on reprend le voisinage fermé de la frange courante et on l'ajoute a
+// l'accumulateur — au bout de N iterations, acc contient tout ce qui est a N sauts ou moins.
+function closedNeighborhoodAtDepth(node, depth){
+  let frontier = node.closedNeighborhood();
+  let acc = frontier;
+  for(let i=1; i<depth; i++){
+    frontier = frontier.closedNeighborhood();
+    acc = acc.union(frontier);
+  }
+  return acc;
 }
 function onImpactNodeSelected(node){
   impactSelectedNode = node;
   renderImpactDetail(node);
   if(!el('cyImpactFocus').checked) return;
-  const acc = node.closedNeighborhood();
+  const depth = Math.max(1, +v('cyImpactDepth')||1);
+  const acc = closedNeighborhoodAtDepth(node, depth);
   cyImpact.batch(()=>{
     cyImpact.elements().addClass('dim');
     acc.removeClass('dim');
@@ -2195,9 +2529,9 @@ function renderImpactDetail(node){
   const host=el('cyImpactDetail'); host.classList.remove('hidden');
   const rawId = +node.id().slice(1);
   if(node.hasClass('obj')){
-    host.innerHTML = `<span class="dname">${esc(node.data('label'))}</span>
+    host.innerHTML = `<span class="dname">${esc(node.data('nom'))}</span>
       <div class="dmeta">${esc(node.data('classe'))} · ${esc(node.data('domaine'))}</div>`
-      + renderObjPropsDetail(rawId, node.data('label'));
+      + renderObjPropsDetail(rawId, node.data('nom'));
   }else{
     host.innerHTML = `<span class="dname">${esc(node.data('label'))}</span>
       <div class="dmeta">${esc(node.data('type'))} · utilisée par ${node.data('nobj')} objet(s)</div>`
@@ -2935,6 +3269,15 @@ function wire(){
   });
   // Diagramme : graphe Cytoscape
   el('cySearchBtn').onclick=doCySearch;
+  el('cyFilterConfigSave').onclick=saveCurrentFilterConfig;
+  el('cyFilterConfigName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); saveCurrentFilterConfig(); } });
+  el('cyFilterConfigList').addEventListener('click', e=>{
+    const btn=e.target.closest('[data-act]'); if(!btn) return;
+    const id=+btn.dataset.id;
+    if(btn.dataset.act==='apply') applyFilterConfig(id);
+    else if(btn.dataset.act==='fav') toggleFavoriFilterConfig(id);
+    else if(btn.dataset.act==='del') deleteFilterConfig(id);
+  });
   el('cySearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doCySearch(); } });
   el('cyLayout').addEventListener('change', ()=>{ cyLayoutAuto=false; });
   el('cyRelayout').onclick=()=>{ if(cy) cy.layout({name:v('cyLayout'),animate:true,padding:36}).run(); };
@@ -2965,6 +3308,7 @@ function wire(){
     try{ await ensureCytoscapeSvg(); downloadText(baseName()+'.svg', cy.svg({full:true,scale:1.5}), 'image/svg+xml'); }
     catch(e){ toast(friendly(e),"err"); }
   };
+  el('cyHtmlBtn').onclick=exportDiagramHtml;
   el('cyFullscreen').onclick=()=>{
     if(!document.fullscreenElement){
       el('viewDiag').requestFullscreen().catch(e=>toast("Plein écran indisponible : "+e.message,"err"));
@@ -2994,6 +3338,7 @@ function wire(){
   el('cyImpactRelayout').onclick=()=>{ if(cyImpact) cyImpact.layout({name:v('cyImpactLayout'),animate:true,padding:36}).run(); };
   el('cyImpactFit').onclick=()=>{ if(cyImpact) cyImpact.fit(undefined,30); };
   el('cyImpactClearFocus').onclick=clearImpactFocus;
+  el('cyImpactDepth').addEventListener('change', ()=>{ if(impactSelectedNode) onImpactNodeSelected(impactSelectedNode); });
   el('cyImpactPng').onclick=()=>{
     if(!cyImpact) return toast("Aucun graphe à exporter","err");
     const a=document.createElement('a'); a.href=cyImpact.png({full:true,scale:2,bg:'#ffffff'}); a.download=baseName()+'-impact.png'; a.click();
@@ -3006,8 +3351,8 @@ function wire(){
   el('cyImpactDetail').addEventListener('click', e=>{
     const btn=e.target.closest('button[data-act]'); if(!btn || !impactSelectedNode) return;
     if(btn.dataset.act==='unaffect'){
-      const objetNom = btn.dataset.onom || impactSelectedNode.data('label');
-      const propNom = btn.dataset.pnom || impactSelectedNode.data('label');
+      const objetNom = btn.dataset.onom || impactNodeName(impactSelectedNode);
+      const propNom = btn.dataset.pnom || impactNodeName(impactSelectedNode);
       deleteApplicabilite(+btn.dataset.aid, objetNom, propNom);
     }else if(btn.dataset.act==='editAffect'){
       editAffectRow(btn.dataset.onom, btn.dataset.pnom, btn.dataset.req, btn.dataset.disc);

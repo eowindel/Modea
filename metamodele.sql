@@ -17,7 +17,7 @@ PRAGMA foreign_keys = ON;   -- OFF par défaut sous SQLite : à réactiver à CH
 -- Version de schéma : à incrémenter à chaque migration (nouvelle table/colonne),
 -- ici et dans SCHEMA_BASE (mdm-editeur.html) en parallèle. Sert à openBytes() côté
 -- éditeur pour détecter un fichier trop ancien plutôt que de planter en silence.
-PRAGMA user_version = 4;
+PRAGMA user_version = 5;
 
 -- -----------------------------------------------------------------------------
 --  Domaine fonctionnel — regroupement métier des objets (facultatif mais utile)
@@ -253,6 +253,21 @@ CREATE TABLE lien_exigence (
     commentaire     TEXT,
     cree_le         TEXT NOT NULL DEFAULT (datetime('now')),
     CHECK ( (objet_id IS NOT NULL) + (propriete_id IS NOT NULL) + (relation_id IS NOT NULL) = 1 )
+);
+
+-- -----------------------------------------------------------------------------
+--  Configuration de filtre (diagramme) — préférence d'affichage, pas une donnée
+--  métier : quelles natures/domaines sont cochés dans le panneau de filtres du
+--  diagramme objet. Stockée dans le fichier (pas dans le navigateur) pour
+--  voyager avec le modèle et être partagée telle quelle avec une équipe.
+-- -----------------------------------------------------------------------------
+CREATE TABLE filtre_diagramme (
+    id          INTEGER PRIMARY KEY,
+    nom         TEXT NOT NULL UNIQUE,
+    favori      INTEGER NOT NULL DEFAULT 0 CHECK (favori IN (0,1)),
+    natures     TEXT,                            -- JSON : liste des natures cochées
+    domaines    TEXT,                            -- JSON : liste des domaines cochés
+    cree_le     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- -----------------------------------------------------------------------------
