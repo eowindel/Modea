@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.4">
+<meta name="version" content="0.6.5">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -331,9 +331,9 @@
         <section id="h-concepts">
           <h2>Notions de base</h2>
           <h3>Concepts clés</h3>
-          <p>Modea est un <b>métamodèle</b> : les tables décrivent des objets métier, elles ne <i>sont</i> pas les objets. Cinq notions à connaître :</p>
+          <p>Modea est un <b>métamodèle</b> : les tables décrivent des objets du domaine, elles ne <i>sont</i> pas les objets. Cinq notions à connaître :</p>
           <ul>
-            <li><b>Objet</b> — une entité métier (ex : « Produit », « Fiche »). Porte un nom, une nature, un domaine, éventuellement une discipline, et un statut.</li>
+            <li><b>Objet</b> — une entité du domaine (ex : « Produit », « Fiche »). Porte un nom, une nature, un domaine, éventuellement une discipline, et un statut.</li>
             <li><b>Propriété</b> — une <b>définition d'attribut partagée</b>, indépendante de tout objet. Elle se crée <i>une fois</i> puis s'affecte à autant d'objets que nécessaire. La modifier répercute le changement partout où elle est utilisée.</li>
             <li><b>Affectation</b> — le lien entre un objet et une propriété. C'est là que vivent les informations qui dépendent du <i>couple</i> objet+propriété plutôt que de la propriété seule : obligatoire ou non, discipline dans ce contexte précis.</li>
             <li><b>Relation</b> — un lien orienté entre deux objets : association, composition, agrégation ou généralisation.</li>
@@ -506,7 +506,7 @@
           <input type="text" id="o_disc_nom" placeholder="ex : Electricité" autocomplete="off"></label></div>
       </div>
       <div class="field"><label><span class="lab">Définition métier</span>
-        <textarea id="o_def" placeholder="Le sens de l'objet, en langage métier"></textarea></label></div>
+        <textarea id="o_def" placeholder="Le sens de l'objet, en langage courant"></textarea></label></div>
       <div class="actions"><button class="btn primary" id="addObjet">Ajouter l'objet</button></div>
     </div>
 
@@ -908,10 +908,13 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.4'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.6.5'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.6.5', date:'2026-11-08', items:[
+    "Vocabulaire harmonisé autour de la notion de domaine : le manuel et le formulaire de saisie parlent d'« objets du domaine » et de « langage courant » plutôt que d'objets ou de langage « métier »."
+  ]},
   { version:'v0.6.4', date:'2026-11-08', items:[
     "Export SHACL corrigé : quand un même verbe relie un objet à plusieurs types d'objets (par exemple « contient » un moteur, une boîte de vitesses, un embrayage…), les règles générées n'écartent plus à tort des données correctes. Les cardinalités sont désormais comptées séparément pour chaque type d'objet visé."
   ]},

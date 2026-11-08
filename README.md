@@ -16,7 +16,7 @@ Modea est un éditeur de modélisation de domaine : on décrit les objets d'un d
 
 ## Le problème
 
-Mettre à plat les données d'un métier (ses objets, ce qui les décrit, comment ils se relient) se fait souvent dans un tableur, où personne ne voit la structure d'ensemble. Les outils de modélisation dédiés (Modelio, ArchiMate…) sont puissants mais lourds à mettre en place quand il faut simplement *initialiser* un modèle et le faire relire par des métiers.
+Décrire un domaine (ses objets, ce qui les caractérise, comment ils se relient) se fait souvent dans un tableur, où personne ne voit la structure d'ensemble. Les outils de modélisation dédiés (Modelio, ArchiMate…) sont puissants mais lourds à mettre en place quand il faut simplement *initialiser* un modèle et le faire relire par les experts du domaine.
 
 Modea est né d'un besoin précis : adapter son propre modèle de domaine tout en gardant sous les yeux les normes de référence.
 
@@ -64,13 +64,13 @@ Pour travailler sur une copie, `copie-db.bat` (Windows) copie `nouveau-modele.db
 
 ## Comment ça marche
 
-Le socle est un **métamodèle neutre** dans **SQLite** : les tables *décrivent* les objets métier, elles ne *sont* pas les objets. Cette neutralité permet de projeter le modèle vers UML ou ArchiMate sans se fermer de porte.
+Le socle est un **métamodèle neutre** dans **SQLite** : les tables *décrivent* les objets du domaine, elles ne *sont* pas les objets. Cette neutralité permet de projeter le modèle vers UML ou ArchiMate sans se fermer de porte.
 
 | Table | Rôle |
 |---|---|
 | `domaine` | regroupement fonctionnel |
 | `classe_objet` | nature des objets (classification, pas héritage) |
-| `objet` | entité métier : nom, définition, domaine, nature, statut |
+| `objet` | entité du domaine : nom, définition, domaine, nature, statut |
 | `propriete` | attribut d'un objet : type, obligatoire, multivalué, contraintes |
 | `relation` | lien orienté : association, composition, agrégation, généralisation, cardinalités, rôles |
 
