@@ -31,6 +31,29 @@ Modea est né d'un besoin précis : adapter son propre modèle de domaine tout e
 - **Exports** : modèle en **RDF/OWL** et **SHACL** (Turtle) ; diagramme en **PNG**, **SVG** ou **page HTML autonome** navigable, à partager sans donner accès à l'outil.
 - **Hors-ligne et sans lock-in** : le moteur SQLite et la bibliothèque de graphe sont embarqués dans la page ; le modèle est un simple fichier `.db`.
 
+## Interopérabilité : exports RDF/OWL et SHACL
+
+Le modèle sort en **Turtle**, trois fichiers nommés d'après la base (`<modele>.ttl`, `<modele>.shapes.ttl`, `<modele>.liens.ttl`). L'éditeur demande une **IRI de base** : celle par défaut est `http://example.org/modea/<modele>#`, à remplacer par une IRI réelle avant de partager les fichiers. Utiliser la **même IRI** pour l'export RDF/OWL et l'export SHACL, et les régénérer ensemble si le modèle change.
+
+| Modèle Modea | Export RDF/OWL |
+|---|---|
+| objet | `owl:Class` |
+| propriété | `owl:DatatypeProperty` partagée, restreinte par objet (affectation) via `owl:Restriction` |
+| relation de généralisation | `rdfs:subClassOf` |
+| association, composition, agrégation | `owl:ObjectProperty` + restriction de cardinalité |
+| liste de valeurs (enum) | `rdfs:Datatype` avec `owl:oneOf` |
+| domaine, nature, discipline | schémas **SKOS** (`ConceptScheme` / `Concept`) ; la nature reste une classification, jamais un `rdfs:subClassOf` |
+| informations propres à Modea (statut, origine, unité…) | propriétés d'annotation du vocabulaire `modea:` (`http://example.org/modea-vocab#`) |
+
+L'export **SHACL** cible les mêmes classes et propriétés : une forme par objet (`sh:targetClass`), les cardinalités des affectations et des relations, et les contraintes de valeur (`sh:pattern`, min/max, énumérations) portées par une forme réutilisable par propriété. Quand un même verbe relie un objet à plusieurs types d'objets (« contient » un moteur, une boîte…), les cardinalités sont comptées par type visé (`sh:qualifiedValueShape`).
+
+**Ce qui a été vérifié** (sur le modèle d'exemple « moto », avec `rdflib` et `pyshacl`) :
+- les trois fichiers Turtle se chargent sans erreur ; toutes les IRI utilisées sont déclarées ;
+- le fichier SHACL est valide au sens SHACL (méta-validation `pyshacl`) ;
+- sur des instances d'exemple, les données correctes sont acceptées et les données incomplètes (propriété obligatoire absente, composant manquant ou en trop) sont rejetées.
+
+**Ce qui n'a pas été vérifié** : l'ouverture des exports dans des outils d'ontologie comme Protégé ou TopBraid EDG, et la conformité OWL 2 DL par un raisonneur. Les retours sont les bienvenus.
+
 ## Démarrer
 
 1. Ouvrir `modea-editeur.html` dans Chrome ou Edge (double-clic).
