@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.5">
+<meta name="version" content="0.6.6">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -112,8 +112,15 @@
   .btn.danger:hover{background:rgba(192,57,43,.1)}
 
   /* ---- Layout ---- */
-  main{max-width:1200px;margin:0 auto;padding:22px 20px 60px;
+  main{max-width:1200px;margin:0 auto;padding:22px 20px 24px;
     display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:22px;align-items:start}
+  /* ---- Pied de page (footer casarou) ---- */
+  .app-footer{max-width:1200px;margin:0 auto;padding:12px 20px 28px;font-size:12px;line-height:1.5;
+    text-align:center;color:var(--muted)}
+  .app-footer a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+  .app-footer a:hover,.app-footer a:focus-visible{color:var(--accent-deep);text-decoration-thickness:2px}
+  .app-footer .sep{margin:0 .55em;opacity:.55}
+  @media print{.app-footer{display:none}}
   .panel{background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius);overflow:hidden}
   .panel > .head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
   .panel > .body{padding:16px}
@@ -868,6 +875,13 @@
   </section>
 </main>
 
+<footer class="app-footer">
+  <span>© 2026 casarou</span><span class="sep" aria-hidden="true">·</span>
+  <span>Licence MIT</span><span class="sep" aria-hidden="true">·</span>
+  <a href="https://casarou.com" target="_blank" rel="noopener noreferrer">casarou.com</a><span class="sep" aria-hidden="true">·</span>
+  <a href="mailto:contact@casarou.com">contact@casarou.com</a>
+</footer>
+
 <div id="toasts"></div>
 
 <script>
@@ -908,10 +922,13 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.5'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.6.6'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.6.6', date:'2026-11-08', items:[
+    "Pied de page : le copyright, la licence (MIT), le lien vers casarou.com et l'adresse de contact apparaissent désormais en bas de l'outil."
+  ]},
   { version:'v0.6.5', date:'2026-11-08', items:[
     "Vocabulaire harmonisé autour de la notion de domaine : le manuel et le formulaire de saisie parlent d'« objets du domaine » et de « langage courant » plutôt que d'objets ou de langage « métier »."
   ]},
