@@ -2,17 +2,23 @@
 
 # Modea
 
-**Décrire ses données métier avec des listes déroulantes, et voir le schéma se dessiner.**
+**Décrire son domaine avec des listes déroulantes, et voir le graphe se dessiner.**
 
-Modea est un éditeur de modèle de donnée métier : on décrit les objets d'un métier, leurs propriétés et leurs liens en choisissant dans des listes, et le diagramme se met à jour en direct. Il tient dans **un seul fichier HTML**, sans serveur, et fonctionne **hors-ligne** : un double-clic suffit.
+Modea est un éditeur de modélisation de domaine : on décrit les objets d'un domaine, leurs propriétés et leurs relations en choisissant dans des listes, et le diagramme se met à jour en direct. Il tient dans **un seul fichier HTML**, sans serveur, et fonctionne **hors-ligne** : un double-clic suffit.
 
 > Statut : prototype (version courante : **v0.6**, voir les notes de version dans l'outil, en cliquant sur le badge de version).
+
+<p align="center"><img src="docs/modea-moto.png" alt="Nomenclature d'une moto décrite dans Modea : ensembles, composants et relations" width="860"></p>
+
+<p align="center"><img src="docs/capture-editeur.png" alt="Capture de l'éditeur Modea : saisie guidée à gauche, diagramme du modèle à droite" width="860"></p>
+
+<p align="center"><sub>Le modèle d'exemple « moto » : 34 objets, 14 propriétés, 37 relations (<code>scripts/generate_sample_moto_db.py</code>).</sub></p>
 
 ## Le problème
 
 Mettre à plat les données d'un métier (ses objets, ce qui les décrit, comment ils se relient) se fait souvent dans un tableur, où personne ne voit la structure d'ensemble. Les outils de modélisation dédiés (Modelio, ArchiMate…) sont puissants mais lourds à mettre en place quand il faut simplement *initialiser* un modèle et le faire relire par des métiers.
 
-Modea est né d'un besoin précis : adapter son propre modèle métier tout en gardant sous les yeux les normes de référence.
+Modea est né d'un besoin précis : adapter son propre modèle de domaine tout en gardant sous les yeux les normes de référence.
 
 ## Ce que fait Modea
 
@@ -54,7 +60,7 @@ Fichiers utiles :
 | `modea-editeur.html` | l'application (page autonome) |
 | `metamodele.sql`, `saisie.sql` | schéma et vues de saisie, à garder synchronisés avec le schéma embarqué dans l'éditeur |
 | `demo-cytoscape.html` | démonstrateur de graphe, ouvre un `.db` en lecture |
-| `scripts/` | `generate_sample_db.py` (base d'exemple), `validate_schema.py`, `inline_vendor.py` |
+| `scripts/` | `generate_sample_moto_db.py` (modèle d'exemple « moto »), `generate_sample_db.py`, `validate_schema.py`, `inline_vendor.py` |
 | `vendor/` | sql.js, Cytoscape et cytoscape-svg, injectés dans les pages par `inline_vendor.py` |
 | `brief-mdm-claude-code.md` | contexte du projet et questions ouvertes |
 

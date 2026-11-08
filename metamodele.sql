@@ -1,5 +1,5 @@
 -- =============================================================================
---  Métamodèle "Modèle de Donnée Métier"
+--  Métamodèle Modea (modélisation de domaine)
 --  Structure neutre entité / attribut / relation, projetable vers UML (Modelio)
 --  ou ArchiMate. À charger dans une base SQLite vierge.
 --

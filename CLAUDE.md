@@ -1,6 +1,6 @@
 # Modea
 
-Éditeur de modèle de donnée métier (HTML autonome + sql.js, SQLite comme source de vérité). Fichier principal : `modea-editeur.html`. Contexte et questions ouvertes : `brief-mdm-claude-code.md`.
+Éditeur de modélisation de domaine (HTML autonome + sql.js, SQLite comme source de vérité). Fichier principal : `modea-editeur.html`. Contexte et questions ouvertes : `brief-mdm-claude-code.md`.
 
 ## Versions et notes de version (à faire systématiquement, sans attendre qu'on le demande)
 

@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Modea · éditeur de modèle métier</title>
+<title>Modea · modélisation de domaine</title>
 <meta name="application-name" content="Modea">
-<meta name="description" content="Éditeur de modèle de donnée métier : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
+<meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.2">
+<meta name="version" content="0.6.3">
 <meta name="portal:category" content="Ingénierie">
-<meta name="portal:tags" content="modèle de données, métamodèle, sqlite, rdf">
+<meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
 <meta name="portal:color" content="#0E767F">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJNb2RlYSI+PHRpdGxlPk1vZGVhPC90aXRsZT48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxMjkwOUEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwQTRCNUQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcng9IjU4IiBmaWxsPSJ1cmwoI2cpIi8+PHBvbHlsaW5lIHBvaW50cz0iNjgsMTg0IDY4LDcyIDEyOCwxNDAgMTg4LDcyIDE4OCwxODQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMTI4IiBjeT0iMTQwIiByPSIyMSIgZmlsbD0iI0UzQjI0RiIvPjxjaXJjbGUgY3g9IjEyOCIgY3k9IjE0MCIgcj0iMjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI2Ii8+PC9zdmc+Cg==">
 <style>
@@ -286,7 +286,7 @@
 <body>
 
 <header>
-  <div class="brand"><img class="logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJNb2RlYSI+PHRpdGxlPk1vZGVhPC90aXRsZT48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxMjkwOUEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwQTRCNUQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcng9IjU4IiBmaWxsPSJ1cmwoI2cpIi8+PHBvbHlsaW5lIHBvaW50cz0iNjgsMTg0IDY4LDcyIDEyOCwxNDAgMTg4LDcyIDE4OCwxODQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMTI4IiBjeT0iMTQwIiByPSIyMSIgZmlsbD0iI0UzQjI0RiIvPjxjaXJjbGUgY3g9IjEyOCIgY3k9IjE0MCIgcj0iMjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI2Ii8+PC9zdmc+Cg==" alt="Modea"><span class="name">Modea</span><small>modélisation de données métier</small><span class="ver" id="appVersion" title="Voir les nouveautés" role="button" tabindex="0"></span></div>
+  <div class="brand"><img class="logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJNb2RlYSI+PHRpdGxlPk1vZGVhPC90aXRsZT48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxMjkwOUEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwQTRCNUQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcng9IjU4IiBmaWxsPSJ1cmwoI2cpIi8+PHBvbHlsaW5lIHBvaW50cz0iNjgsMTg0IDY4LDcyIDEyOCwxNDAgMTg4LDcyIDE4OCwxODQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMTI4IiBjeT0iMTQwIiByPSIyMSIgZmlsbD0iI0UzQjI0RiIvPjxjaXJjbGUgY3g9IjEyOCIgY3k9IjE0MCIgcj0iMjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI2Ii8+PC9zdmc+Cg==" alt="Modea"><span class="name">Modea</span><small>modélisation de domaine</small><span class="ver" id="appVersion" title="Voir les nouveautés" role="button" tabindex="0"></span></div>
   <div class="filebar">
     <button class="btn" id="btnOpen">Ouvrir…</button>
     <button class="btn" id="btnNew">Nouveau modèle</button>
@@ -907,12 +907,17 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.2'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.6.3'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.6.3', date:'2026-11-08', items:[
+    "Modea se présente désormais comme un outil de « modélisation de domaine » (objets, propriétés et relations, en graphe) : en-tête, titre de la page, logo et documentation.",
+    "Nouveau jeu d'exemple : un modèle de nomenclature de moto (34 objets, 37 relations) pour découvrir l'outil.",
+    "README illustré d'une capture de l'éditeur et d'une illustration."
+  ]},
   { version:'v0.6.2', date:'2026-11-08', items:[
-    "Modea n'est plus rattaché à un domaine métier particulier : le manuel, les exemples de saisie et le jeu de démonstration utilisent des termes génériques (Produit, Fiche, Document…) au lieu du vocabulaire PLM."
+    "Modea n'est plus rattaché à un domaine métier particulier : le manuel, les exemples de saisie et le jeu de démonstration utilisent des termes génériques (Produit, Fiche, Document…)."
   ]},
   { version:'v0.6.1', date:'2026-11-08', items:[
     "Nouveau logo Modea : un « M » dessiné comme un graphe de nœuds reliés, en vectoriel (net à toutes les tailles). Il remplace le personnage de l'ancienne identité, dans l'en-tête, l'onglet du navigateur et le démonstrateur."
