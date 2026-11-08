@@ -1,3 +1,5 @@
+<p align="center"><img src="logo-modea-complet.svg" alt="Modea" height="110"></p>
+
 # Modea
 
 **Décrire ses données métier avec des listes déroulantes, et voir le schéma se dessiner.**
