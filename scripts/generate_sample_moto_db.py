@@ -2,10 +2,12 @@
 d'une moto (motorisation, partie-cycle, electricite, carrosserie...), pour la demo et les
 captures d'ecran. Construit via les vues saisie_*, comme generate_sample_db.py."""
 import sqlite3
+import sys
 import pathlib
 
 base = pathlib.Path(__file__).parent.parent
-out_path = base / "exemple-moto.db"
+# usage : python3 scripts/generate_sample_moto_db.py [chemin-de-sortie.db]
+out_path = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else base / "exemple-moto.db"
 if out_path.exists():
     out_path.unlink()
 

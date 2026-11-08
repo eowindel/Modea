@@ -11,6 +11,7 @@ Toute livraison qui change le comportement ou l'apparence met à jour, **dans le
 1. `CHANGELOG` (tableau JS) : un nouvel objet `{ version:'v0.x', date:'AAAA-MM-JJ', items:[…] }` en tête, des phrases écrites pour l'utilisateur métier (ce qui change pour lui, pas le détail technique). Texte brut : pas de markdown.
 2. `APP_VERSION` : le même numéro, et `<meta name="version">` du `<head>` (lu par Porta[b]l Apps, format `x.y.z` sans « v » : `v0.6` → `0.6.0`).
 3. Le tag git correspondant, au moment du commit.
+4. Une release GitHub publiée avec ce même tag (`vX.Y.Z`) : Porta[b]l Apps compare la dernière release du dépôt (`<meta name="portal:repo">`) à `<meta name="version">`, la pastille de mise à jour ne disparaît donc que si les deux numéros concordent.
 
 Numérotation (versions 0.x) :
 - nouvelle fonctionnalité ou changement visible → version mineure (0.6 → 0.7) ;
