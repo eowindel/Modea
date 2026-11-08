@@ -5,7 +5,7 @@
 
 Construire un **modèle de donnée métier** pour l'entreprise. À terme, un outil dédié (Modelio ou ArchiMate) est envisagé, mais le choix n'est pas tranché et prend du temps. En attendant, je veux **initialiser** ce modèle en convertissant un modèle de donnée **applicatif** existant, et disposer d'un support léger pour structurer objets, propriétés et relations.
 
-Domaine concerné : PLM / 3DEXPERIENCE–ENOVIA. Les objets typiques sont des « Engineering Item », « Vue », « Attribut », etc.
+Les objets typiques sont des « Produit », « Fiche », « Document », etc.
 
 ## 2. Approche retenue jusqu'ici
 

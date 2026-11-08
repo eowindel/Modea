@@ -109,7 +109,7 @@
         <input type="number" id="demoSize" value="50" min="5" max="400" style="width:70px;padding:6px 8px;border:1px solid var(--line-strong);border-radius:7px">
         <button class="btn" id="btnDemo" style="flex:1">Générer un jeu de démo</button>
       </div>
-      <p class="hint">Nombre d'Engineering Item de base — le reste (vues, nomenclatures, documents…) est dérivé automatiquement.</p>
+      <p class="hint">Nombre de produits de base — le reste (fiches, nomenclatures, documents…) est dérivé automatiquement.</p>
     </div>
 
     <div class="sec">
@@ -236,30 +236,30 @@ function generateDemoData(baseCount){
   let nid = 1;
   const mk = (nom, classe, domaine, definition) => { const o={id:nid++, nom, classe, domaine, definition}; objets.push(o); return o; };
 
-  const roots = ['A','B','C','D'].map(l => mk('Item générique '+l, 'Engineering Item', 'PLM', 'Racine de généralisation'));
+  const roots = ['A','B','C','D'].map(l => mk('Produit générique '+l, 'Produit', 'Produits', 'Racine de généralisation'));
 
   const concrets = [];
   const famNames = ['Pièce','Assemblage','Composant','Support','Boîtier','Carte','Capteur','Vérin'];
   for(let i=0;i<baseCount;i++){
     const nom = famNames[i%famNames.length]+' '+(i+1);
-    const o = mk(nom, 'Engineering Item', 'PLM', 'Objet technique '+nom);
+    const o = mk(nom, 'Produit', 'Produits', 'Objet technique '+nom);
     concrets.push(o);
     const root = roots[i % roots.length];
     relations.push({source:o.id, cible:root.id, type:'generalisation', nom:null});
   }
 
-  const vueKinds = ['Vue Design','Vue Fabrication','Vue Nomenclature'];
+  const vueKinds = ['Fiche Conception','Fiche Fabrication','Fiche Qualité'];
   concrets.forEach((o,i) => {
     const n = 1 + (i % 3);
     for(let k=0;k<n;k++){
-      const vue = mk(vueKinds[k]+' — '+o.nom, 'Vue', 'PLM', 'Vue de '+o.nom);
+      const vue = mk(vueKinds[k]+' — '+o.nom, 'Fiche', 'Produits', 'Fiche de '+o.nom);
       relations.push({source:o.id, cible:vue.id, type:'composition', nom:'porte'});
     }
   });
 
   const nbNomenclature = Math.max(1, Math.round(baseCount*0.08));
   for(let i=0;i<nbNomenclature;i++){
-    const nomencl = mk('Nomenclature '+(i+1), 'Nomenclature', 'PLM', 'Regroupement de composants');
+    const nomencl = mk('Nomenclature '+(i+1), 'Nomenclature', 'Produits', 'Regroupement de composants');
     const n = 3 + (i % 6);
     for(let k=0;k<n;k++){
       const target = concrets[(i*7+k*3) % concrets.length];

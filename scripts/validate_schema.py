@@ -11,15 +11,15 @@ con.executescript((base / "saisie.sql").read_text(encoding="utf-8"))
 cur = con.cursor()
 
 # --- classe / domaine / discipline (insert direct) ---
-cur.execute("INSERT INTO classe_objet(nom) VALUES ('Engineering Item')")
-cur.execute("INSERT INTO classe_objet(nom) VALUES ('Vue')")
+cur.execute("INSERT INTO classe_objet(nom) VALUES ('Produit')")
+cur.execute("INSERT INTO classe_objet(nom) VALUES ('Fiche')")
 cur.execute("INSERT INTO discipline(code, nom) VALUES ('99','Electricite')")
 cur.execute("INSERT INTO discipline(code, nom) VALUES ('10','Mecanique')")
 
 # --- objets ---
-cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Piece mecanique','Engineering Item','...')")
-cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Piece electrique','Engineering Item','...')")
-cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Vue design','Vue','...')")
+cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Piece mecanique','Produit','...')")
+cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Piece electrique','Produit','...')")
+cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Fiche conception','Fiche','...')")
 
 # --- propriete partagee (enum) ---
 cur.execute("INSERT INTO saisie_valeur_enumeree(type_enumere, valeur, libelle, ordre) VALUES ('Statut cycle de vie','A','A l etude',1)")
@@ -43,7 +43,7 @@ cur.execute("INSERT INTO saisie_propriete(nom, type, grandeur, unite, descriptio
 cur.execute("INSERT INTO saisie_applicabilite(objet, propriete, obligatoire) VALUES ('Piece mecanique','Pression amont',1)")
 
 # --- generalisation + heritage effectif ---
-cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Item generique','Engineering Item','...')")
+cur.execute("INSERT INTO saisie_objet(nom, classe, definition) VALUES ('Item generique','Produit','...')")
 cur.execute("INSERT INTO saisie_propriete(nom, type, description) VALUES ('Reference','texte','...')")
 cur.execute("INSERT INTO saisie_applicabilite(objet, propriete, obligatoire) VALUES ('Item generique','Reference',1)")
 cur.execute("INSERT INTO saisie_relation(source, relation, type, cible) VALUES ('Piece mecanique','herite de','generalisation','Item generique')")

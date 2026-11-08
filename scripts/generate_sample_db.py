@@ -1,4 +1,4 @@
-"""Genere sample-modele.db : un jeu de donnees d'exemple realiste (PLM),
+"""Genere sample-modele.db : un jeu de donnees d'exemple realiste (produits industriels),
 construit en passant par les vues saisie_* -- exactement le chemin que KNIME
 emprunte -- pour a la fois fournir une base de demo et exercer le schema."""
 import sqlite3
@@ -51,16 +51,16 @@ for grandeur, symb, lib, ordre in [
 
 # --- objets ---
 objets = [
-    ("Item générique", "Engineering Item", "PLM", "Racine de généralisation pour les pièces mécaniques"),
-    ("Vérin hydraulique VH-100", "Engineering Item", "PLM", "Actionneur linéaire hydraulique"),
-    ("Support moteur SM-42", "Engineering Item", "PLM", "Pièce de fixation du moteur au châssis"),
-    ("Carte électronique CE-7", "Engineering Item", "PLM", "Carte de commande basse tension"),
-    ("Boîtier de commande BC-3", "Engineering Item", "PLM", "Boîtier abritant la carte de commande"),
-    ("Châssis principal CH-1", "Engineering Item", "PLM", "Structure porteuse de l'ensemble"),
-    ("Vue Design — Vérin VH-100", "Vue", "PLM", "Vue de conception du vérin"),
-    ("Vue Fabrication — Vérin VH-100", "Vue", "PLM", "Vue destinée à l'atelier"),
-    ("Vue Design — Carte CE-7", "Vue", "PLM", "Vue de conception de la carte électronique"),
-    ("Nomenclature Ensemble hydraulique", "Nomenclature", "PLM", "BOM de l'ensemble hydraulique complet"),
+    ("Produit générique", "Produit", "Produits", "Racine de généralisation pour les pièces mécaniques"),
+    ("Vérin hydraulique VH-100", "Produit", "Produits", "Actionneur linéaire hydraulique"),
+    ("Support moteur SM-42", "Produit", "Produits", "Pièce de fixation du moteur au châssis"),
+    ("Carte électronique CE-7", "Produit", "Produits", "Carte de commande basse tension"),
+    ("Boîtier de commande BC-3", "Produit", "Produits", "Boîtier abritant la carte de commande"),
+    ("Châssis principal CH-1", "Produit", "Produits", "Structure porteuse de l'ensemble"),
+    ("Fiche Conception — Vérin VH-100", "Fiche", "Produits", "Fiche de conception du vérin"),
+    ("Fiche Fabrication — Vérin VH-100", "Fiche", "Produits", "Fiche destinée à l'atelier"),
+    ("Fiche Conception — Carte CE-7", "Fiche", "Produits", "Fiche de conception de la carte électronique"),
+    ("Nomenclature Ensemble hydraulique", "Nomenclature", "Produits", "BOM de l'ensemble hydraulique complet"),
     ("Spécification technique ST-12", "Document", "Qualité", "Cahier des charges du sous-ensemble"),
     ("Plan de contrôle PC-5", "Document", "Qualité", "Plan de contrôle qualité en réception"),
     ("Jean Dupont", "Acteur", "Ventes", "Ingénieur responsable du sous-ensemble hydraulique"),
@@ -141,12 +141,12 @@ for objet, propriete, obligatoire, discipline in applicabilites:
 
 # --- relations ---
 relations = [
-    ("Vérin hydraulique VH-100", "hérite de", "generalisation", "Item générique", None, None),
-    ("Support moteur SM-42", "hérite de", "generalisation", "Item générique", None, None),
-    ("Carte électronique CE-7", "hérite de", "generalisation", "Item générique", None, None),
-    ("Vérin hydraulique VH-100", "porte", "composition", "Vue Design — Vérin VH-100", "1", "0..*"),
-    ("Vérin hydraulique VH-100", "porte", "composition", "Vue Fabrication — Vérin VH-100", "1", "0..*"),
-    ("Carte électronique CE-7", "porte", "composition", "Vue Design — Carte CE-7", "1", "0..*"),
+    ("Vérin hydraulique VH-100", "hérite de", "generalisation", "Produit générique", None, None),
+    ("Support moteur SM-42", "hérite de", "generalisation", "Produit générique", None, None),
+    ("Carte électronique CE-7", "hérite de", "generalisation", "Produit générique", None, None),
+    ("Vérin hydraulique VH-100", "porte", "composition", "Fiche Conception — Vérin VH-100", "1", "0..*"),
+    ("Vérin hydraulique VH-100", "porte", "composition", "Fiche Fabrication — Vérin VH-100", "1", "0..*"),
+    ("Carte électronique CE-7", "porte", "composition", "Fiche Conception — Carte CE-7", "1", "0..*"),
     ("Boîtier de commande BC-3", "contient", "composition", "Carte électronique CE-7", "1", "1..*"),
     ("Châssis principal CH-1", "supporte", "composition", "Support moteur SM-42", "1", "1..*"),
     ("Nomenclature Ensemble hydraulique", "contient", "agregation", "Vérin hydraulique VH-100", "1", "0..*"),

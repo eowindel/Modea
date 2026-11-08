@@ -86,7 +86,7 @@ CREATE TABLE unite (
 );
 
 -- -----------------------------------------------------------------------------
---  Objet métier — l'entité (ex : Engineering Item, Vue)
+--  Objet métier — l'entité (ex : Produit, Fiche)
 -- -----------------------------------------------------------------------------
 CREATE TABLE objet (
     id          INTEGER PRIMARY KEY,

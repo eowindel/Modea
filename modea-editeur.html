@@ -8,9 +8,9 @@
 <meta name="description" content="Éditeur de modèle de donnée métier : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.1">
+<meta name="version" content="0.6.2">
 <meta name="portal:category" content="Ingénierie">
-<meta name="portal:tags" content="modèle de données, métamodèle, sqlite, rdf, plm">
+<meta name="portal:tags" content="modèle de données, métamodèle, sqlite, rdf">
 <meta name="portal:color" content="#0E767F">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2IiB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJNb2RlYSI+PHRpdGxlPk1vZGVhPC90aXRsZT48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxMjkwOUEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwQTRCNUQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgcng9IjU4IiBmaWxsPSJ1cmwoI2cpIi8+PHBvbHlsaW5lIHBvaW50cz0iNjgsMTg0IDY4LDcyIDEyOCwxNDAgMTg4LDcyIDE4OCwxODQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iNjgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSI3MiIgcj0iMTciIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIxODgiIGN5PSIxODQiIHI9IjE3IiBmaWxsPSIjZmZmIi8+PGNpcmNsZSBjeD0iMTI4IiBjeT0iMTQwIiByPSIyMSIgZmlsbD0iI0UzQjI0RiIvPjxjaXJjbGUgY3g9IjEyOCIgY3k9IjE0MCIgcj0iMjEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI2Ii8+PC9zdmc+Cg==">
 <style>
@@ -332,7 +332,7 @@
           <h3>Concepts clés</h3>
           <p>Modea est un <b>métamodèle</b> : les tables décrivent des objets métier, elles ne <i>sont</i> pas les objets. Cinq notions à connaître :</p>
           <ul>
-            <li><b>Objet</b> — une entité métier (ex : « Engineering Item », « Vue »). Porte un nom, une nature, un domaine, éventuellement une discipline, et un statut.</li>
+            <li><b>Objet</b> — une entité métier (ex : « Produit », « Fiche »). Porte un nom, une nature, un domaine, éventuellement une discipline, et un statut.</li>
             <li><b>Propriété</b> — une <b>définition d'attribut partagée</b>, indépendante de tout objet. Elle se crée <i>une fois</i> puis s'affecte à autant d'objets que nécessaire. La modifier répercute le changement partout où elle est utilisée.</li>
             <li><b>Affectation</b> — le lien entre un objet et une propriété. C'est là que vivent les informations qui dépendent du <i>couple</i> objet+propriété plutôt que de la propriété seule : obligatoire ou non, discipline dans ce contexte précis.</li>
             <li><b>Relation</b> — un lien orienté entre deux objets : association, composition, agrégation ou généralisation.</li>
@@ -340,8 +340,8 @@
           </ul>
           <p>Trois axes de classement d'un objet, indépendants et combinables :</p>
           <ul>
-            <li><b>Nature</b> — son stéréotype/sa forme (Engineering Item, Vue, Document…). Ne fait <i>pas</i> hériter de propriétés.</li>
-            <li><b>Domaine</b> — son regroupement fonctionnel dans l'organisation (PLM, Ventes, Qualité…).</li>
+            <li><b>Nature</b> — son stéréotype/sa forme (Produit, Fiche, Document…). Ne fait <i>pas</i> hériter de propriétés.</li>
+            <li><b>Domaine</b> — son regroupement fonctionnel dans l'organisation (Conception, Ventes, Qualité…).</li>
             <li><b>Discipline</b> — le métier technique concerné (ex : « 10 — Mécanique »), identifié par un code.</li>
           </ul>
         </section>
@@ -489,14 +489,14 @@
     <!-- Objet -->
     <div class="tabpane active" id="pObjet">
       <div class="field"><label><span class="lab">Nom de l'objet</span>
-        <input type="text" id="o_nom" list="dl_objet_all" placeholder="Engineering Item" autocomplete="off"></label>
+        <input type="text" id="o_nom" list="dl_objet_all" placeholder="Produit" autocomplete="off"></label>
         <p class="hint" id="o_editHint" style="display:none">Cet objet existe déjà — valider met à jour sa fiche.</p>
       </div>
       <div class="field"><label><span class="lab">Nature</span>
-        <input type="text" id="o_classe" list="dl_classe" placeholder="Engineering Item, Vue…" autocomplete="off"></label>
+        <input type="text" id="o_classe" list="dl_classe" placeholder="Produit, Fiche…" autocomplete="off"></label>
         <datalist id="dl_classe"></datalist></div>
       <div class="field"><label><span class="lab">Domaine</span>
-        <input type="text" id="o_domaine" list="dl_domaine" placeholder="PLM (créé s'il n'existe pas)" autocomplete="off"></label>
+        <input type="text" id="o_domaine" list="dl_domaine" placeholder="Conception (créé s'il n'existe pas)" autocomplete="off"></label>
         <datalist id="dl_domaine"></datalist></div>
       <div class="row2">
         <div class="field"><label><span class="lab">Discipline — code</span>
@@ -907,10 +907,13 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.1'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.6.2'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.6.2', date:'2026-11-08', items:[
+    "Modea n'est plus rattaché à un domaine métier particulier : le manuel, les exemples de saisie et le jeu de démonstration utilisent des termes génériques (Produit, Fiche, Document…) au lieu du vocabulaire PLM."
+  ]},
   { version:'v0.6.1', date:'2026-11-08', items:[
     "Nouveau logo Modea : un « M » dessiné comme un graphe de nœuds reliés, en vectoriel (net à toutes les tailles). Il remplace le personnage de l'ancienne identité, dans l'en-tête, l'onglet du navigateur et le démonstrateur."
   ]},

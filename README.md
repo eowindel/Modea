@@ -12,7 +12,7 @@ Modea est un éditeur de modèle de donnée métier : on décrit les objets d'un
 
 Mettre à plat les données d'un métier (ses objets, ce qui les décrit, comment ils se relient) se fait souvent dans un tableur, où personne ne voit la structure d'ensemble. Les outils de modélisation dédiés (Modelio, ArchiMate…) sont puissants mais lourds à mettre en place quand il faut simplement *initialiser* un modèle et le faire relire par des métiers.
 
-Modea est né d'un besoin précis : adapter son propre modèle métier (domaine PLM / 3DEXPERIENCE–ENOVIA à l'origine) tout en gardant sous les yeux les normes de référence.
+Modea est né d'un besoin précis : adapter son propre modèle métier tout en gardant sous les yeux les normes de référence.
 
 ## Ce que fait Modea
 
