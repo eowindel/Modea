@@ -8,10 +8,10 @@ if not exist "nouveau-modele.db" (
     exit /b 1
 )
 
-copy /Y "nouveau-modele.db" "mdm-donnees.db"
+copy /Y "nouveau-modele.db" "modea-donnees.db"
 
 if %errorlevel% equ 0 (
-    echo Copie reussie : nouveau-modele.db  -^>  mdm-donnees.db
+    echo Copie reussie : nouveau-modele.db  -^>  modea-donnees.db
 ) else (
     echo ECHEC de la copie.
 )

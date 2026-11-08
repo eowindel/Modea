@@ -3,7 +3,7 @@
 --  Structure neutre entité / attribut / relation, projetable vers UML (Modelio)
 --  ou ArchiMate. À charger dans une base SQLite vierge.
 --
---  Usage :  sqlite3 mdm.db < metamodele.sql
+--  Usage :  sqlite3 modea.db < metamodele.sql
 --
 --  Principe clé de cette version : une PROPRIETE est une définition partagée
 --  (pas une instance liée à un seul objet). Elle est rattachée à N objets via
@@ -15,7 +15,7 @@
 PRAGMA foreign_keys = ON;   -- OFF par défaut sous SQLite : à réactiver à CHAQUE connexion
 
 -- Version de schéma : à incrémenter à chaque migration (nouvelle table/colonne),
--- ici et dans SCHEMA_BASE (mdm-editeur.html) en parallèle. Sert à openBytes() côté
+-- ici et dans SCHEMA_BASE (modea-editeur.html) en parallèle. Sert à openBytes() côté
 -- éditeur pour détecter un fichier trop ancien plutôt que de planter en silence.
 PRAGMA user_version = 6;
 

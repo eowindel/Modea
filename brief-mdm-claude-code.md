@@ -33,7 +33,7 @@ Saisie assistée — fichier `saisie.sql` : vues `saisie_objet` / `saisie_propri
 - Deux stratégies existent et peuvent coexister : **généralisation** (is-a réel, via `relation type = generalisation`) et **classification** (natures orthogonales). Le projet est majoritairement en classification.
 - Socle commun (~10 % des propriétés) : ne pas créer de parent abstrait juste pour factoriser 2–3 propriétés. Les recopier ; ou passer à une table d'**applicabilité** si ce socle commun grossit ou doit être gouverné centralement.
 
-## 5. Outil déjà construit — fichier `mdm-editeur.html`
+## 5. Outil déjà construit — fichier `modea-editeur.html`
 
 Éditeur HTML autonome (moteur SQLite `sql.js` dans le navigateur) :
 - Saisie par **listes déroulantes** : on choisit l'objet, jamais un id ; les champs contraints (types, cardinalités, types de lien) sont limités aux valeurs autorisées par le schéma.
@@ -58,4 +58,4 @@ Définir la **stratégie applicative** et (re)penser le **modèle de donnée de 
 - **Portabilité / pas de lock-in** : le modèle doit rester exportable vers Modelio et ArchiMate ; SQLite comme socle neutre.
 - **Fonctionnement hors-ligne** souhaité (habitude d'applications autonomes et self-contained).
 - **Auto-hébergement** envisageable (homelab disponible) si un backend se justifie.
-- Fichiers de référence à joindre au projet : `metamodele.sql`, `saisie.sql`, `mdm-editeur.html`.
+- Fichiers de référence à joindre au projet : `metamodele.sql`, `saisie.sql`, `modea-editeur.html`.
