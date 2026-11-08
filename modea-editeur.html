@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.3">
+<meta name="version" content="0.6.4">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
 <meta name="portal:color" content="#0E767F">
@@ -907,10 +907,13 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.3'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.6.4'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.6.4', date:'2026-11-08', items:[
+    "Export SHACL corrigé : quand un même verbe relie un objet à plusieurs types d'objets (par exemple « contient » un moteur, une boîte de vitesses, un embrayage…), les règles générées n'écartent plus à tort des données correctes. Les cardinalités sont désormais comptées séparément pour chaque type d'objet visé."
+  ]},
   { version:'v0.6.3', date:'2026-11-08', items:[
     "Modea se présente désormais comme un outil de « modélisation de domaine » (objets, propriétés et relations, en graphe) : en-tête, titre de la page, logo et documentation.",
     "Nouveau jeu d'exemple : un modèle de nomenclature de moto (34 objets, 37 relations) pour découvrir l'outil.",
@@ -2979,6 +2982,15 @@ function shaclCardParts(card){
   if(card==='1..*') return ['sh:minCount 1'];
   return []; // 0..* : aucune borne
 }
+// Même verbe vers plusieurs classes cibles (ex : « contient » Moteur, Boîte…) : sh:class porterait sur
+// TOUTES les valeurs du lien et rejetterait des données correctes. On compte donc par classe cible
+// avec sh:qualifiedValueShape (sh:qualifiedMinCount / sh:qualifiedMaxCount).
+function shaclQualifiedParts(card){
+  if(card==='1') return ['sh:qualifiedMinCount 1','sh:qualifiedMaxCount 1'];
+  if(card==='0..1') return ['sh:qualifiedMaxCount 1'];
+  if(card==='1..*') return ['sh:qualifiedMinCount 1'];
+  return [];
+}
 function emitShaclNodeShapes(out, objIri, propIri, verbIri, relSlugById){
   exec('SELECT id FROM objet ORDER BY nom').forEach(o=>{
     const cls = objIri.get(o.id); if(!cls) return;
@@ -3000,10 +3012,19 @@ function emitShaclNodeShapes(out, objIri, propIri, verbIri, relSlugById){
   out.push('');
 
   const rels = exec(`SELECT id,source_id,cible_id,card_cible FROM relation WHERE type<>'generalisation'`);
+  const relTargets = new Map(); // "classe|verbe" -> cibles distinctes
+  const relKey = r => objIri.get(r.source_id)+'|'+relSlugById.get(r.id);
+  rels.forEach(r=>{
+    if(!objIri.get(r.source_id)||!objIri.get(r.cible_id)||!relSlugById.get(r.id)) return;
+    const k=relKey(r); if(!relTargets.has(k)) relTargets.set(k,new Set());
+    relTargets.get(k).add(objIri.get(r.cible_id));
+  });
   rels.forEach(r=>{
     const cls=objIri.get(r.source_id), tgt=objIri.get(r.cible_id), verbSlug=relSlugById.get(r.id);
     if(!cls||!tgt||!verbSlug) return;
-    const parts=['sh:path :'+verbSlug,'sh:class :'+tgt, ...shaclCardParts(r.card_cible)];
+    const parts = relTargets.get(relKey(r)).size>1
+      ? ['sh:path :'+verbSlug,'sh:qualifiedValueShape [ sh:class :'+tgt+' ]', ...shaclQualifiedParts(r.card_cible)]
+      : ['sh:path :'+verbSlug,'sh:class :'+tgt, ...shaclCardParts(r.card_cible)];
     out.push(':'+cls+'Shape sh:property [ '+parts.join(' ; ')+' ] .');
   });
   out.push('');
