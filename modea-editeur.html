@@ -113,6 +113,18 @@
   .glacts{display:flex;gap:4px;flex:0 0 auto}
   .gltag,.glcur{display:inline-block;font-family:var(--mono);font-size:10.5px;border-radius:999px;padding:0 7px;margin-left:6px}
   .gltag{background:#FBEFD3;color:#7A5410} .glcur{background:#E6F2F3;color:var(--accent-deep)}
+  #glMergeOverlay{position:fixed;inset:0;background:rgba(10,20,24,.5);z-index:110;
+    display:flex;align-items:center;justify-content:center;padding:24px}
+  #glMergeModal{background:var(--surface);border-radius:14px;max-width:720px;width:100%;max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  #glMergeTopbar{padding:12px 18px;border-bottom:1px solid var(--line-strong)}
+  #glMergeBody{overflow-y:auto;padding:14px 20px;font-size:13px}
+  #glMergeBody > p{margin:0 0 10px;line-height:1.5}
+  #glMergeFoot{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--line-strong)}
+  .glmc{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-top:10px}
+  .glmt{font-weight:600;margin-bottom:6px;overflow-wrap:anywhere}
+  .glmc label{display:flex;gap:7px;align-items:flex-start;padding:4px 0;font-size:12.5px;overflow-wrap:anywhere;cursor:pointer}
+  .glmc input{margin-top:3px;flex:0 0 auto}
   #changelogOverlay{position:fixed;inset:0;background:rgba(10,20,24,.45);z-index:100;
     display:flex;align-items:center;justify-content:center;padding:24px}
   #changelogModal{background:var(--surface);border-radius:14px;max-width:520px;width:100%;max-height:80vh;
@@ -470,7 +482,7 @@
           <ul>
             <li><b>GitLab…</b> ouvre la fenêtre de connexion : adresse de GitLab (coller l'adresse du projet suffit), branche, fichier du modèle dans le dépôt, et ton <b>jeton d'accès personnel</b> (portée « api »). Le jeton reste sur ton poste, il n'est jamais écrit dans le modèle.</li>
             <li><b>Ouvrir depuis GitLab</b> charge la dernière version du modèle. Tant qu'il est relié à GitLab, le bouton devient <b>Enregistrer dans GitLab</b> : chaque enregistrement crée une version datée, à ton nom, avec un résumé automatique (« 2 objets ajoutés, 1 relation modifiée »). C'est aussi la sauvegarde du modèle.</li>
-            <li>Si quelqu'un enregistre pendant que tu travailles, un bandeau te prévient. Ton enregistrement est alors <b>refusé plutôt que d'écraser son travail</b> : télécharge ta version (copie de sécurité), recharge la sienne, puis refais tes modifications.</li>
+            <li>Si quelqu'un enregistre pendant que tu travailles, un bandeau te prévient. À l'enregistrement, Modea <b>fusionne automatiquement</b> vos deux versions : tout ce qui ne se chevauche pas est repris, et une fenêtre ne te demande de choisir que pour les vrais conflits (même information modifiée différemment, élément modifié d'un côté et supprimé de l'autre, élément supprimé alors que l'autre s'en sert). « Annuler » n'enregistre rien et laisse ton travail ouvert. Le bouton <b>Intégrer ses modifications</b> du bandeau fait la même fusion sans enregistrer.</li>
             <li><b>Versions enregistrées</b> : consulter une ancienne version (sans toucher à GitLab) ou la <b>restaurer</b> (elle redevient la version courante, l'historique est conservé). Un <b>jalon</b> donne un nom à la version enregistrée, par exemple avant une revue.</li>
           </ul>
         </section>
@@ -549,6 +561,22 @@
         <div class="actions"><input type="text" id="gl_tag" class="gltaginput" placeholder="v1.0" autocomplete="off">
           <button class="btn" id="glTag">Poser le jalon</button></div>
       </section>
+    </div>
+  </div>
+</div>
+
+<div id="glMergeOverlay" class="hidden">
+  <div id="glMergeModal" role="dialog" aria-modal="true" aria-label="Fusion des versions">
+    <div id="glMergeTopbar"><span class="brand-mini">Fusion des versions</span></div>
+    <div id="glMergeBody">
+      <p id="glMergeIntro"></p>
+      <div class="actions"><button class="btn sm" id="glMergeAllMine">Tout : ma version</button>
+        <button class="btn sm" id="glMergeAllTheirs">Tout : l'autre version</button></div>
+      <div id="glMergeList"></div>
+    </div>
+    <div id="glMergeFoot">
+      <button class="btn ghost" id="glMergeCancel">Annuler (ne rien enregistrer)</button>
+      <button class="btn primary" id="glMergeOk">Fusionner</button>
     </div>
   </div>
 </div>
@@ -1020,9 +1048,11 @@ const APP_VERSION = 'v0.8'; // à incrémenter à chaque commit taggé
 const CHANGELOG = [
   { version:'v0.8', date:'2026-11-17', items:[
     "Travail à plusieurs avec GitLab : le bouton « GitLab… » relie le modèle à un dépôt GitLab avec votre jeton d'accès. « Ouvrir depuis GitLab » charge la dernière version, et « Enregistrer dans GitLab » crée une nouvelle version datée, à votre nom, avec un résumé automatique des modifications. Chaque enregistrement sert aussi de sauvegarde.",
-    "Rien n'est jamais écrasé : si un collègue a enregistré pendant que vous travailliez, votre enregistrement est refusé avec une explication, et un bandeau signale dès qu'une nouvelle version est disponible.",
+    "Travail en même temps : si un collègue a enregistré pendant que vous travailliez, Modea fusionne automatiquement vos deux versions au moment d'enregistrer. Seuls les vrais conflits vous sont demandés (une même information modifiée différemment, un élément modifié d'un côté et supprimé de l'autre…), et rien n'est jamais écrasé sans votre choix.",
+    "Un bandeau signale dès qu'une nouvelle version est disponible ; « Intégrer ses modifications » la fusionne avec votre travail en cours sans attendre d'enregistrer.",
     "Historique des versions : consulter une ancienne version, la restaurer (l'historique est conservé) ou poser un jalon nommé (par exemple « v1.0 » avant une revue).",
-    "Les modèles existants sont mis à jour automatiquement à l'ouverture, sans perte. Les messages d'erreur restent affichés plus longtemps pour pouvoir être lus."
+    "Les modèles existants sont mis à jour automatiquement à l'ouverture, sans perte. Les messages d'erreur restent affichés plus longtemps pour pouvoir être lus.",
+    "Correction : après un enregistrement, supprimer un objet supprime de nouveau ses affectations et ses relations (elles pouvaient rester orphelines dans le modèle)."
   ]},
   { version:'v0.6.6', date:'2026-11-08', items:[
     "Pied de page : le copyright, la licence (MIT), le lien vers casarou.com et l'adresse de contact apparaissent désormais en bas de l'outil."
@@ -1451,6 +1481,10 @@ function exec(sql,params){ // renvoie tableau d'objets
   const out=[]; while(st.step()) out.push(st.getAsObject()); st.free(); return out;
 }
 function run(sql,params){ db.run(sql,params||[]); dirty=true; }
+// sql.js ferme puis rouvre la base dans export() : les PRAGMA de connexion sont perdus, dont foreign_keys.
+// Sans ce rappel, après un enregistrement, supprimer un objet ne supprimait plus ses affectations et
+// relations (ON DELETE CASCADE inactif) : elles restaient orphelines dans le modèle.
+function exportDb(){ const b=db.export(); db.run("PRAGMA foreign_keys = ON"); return b; }
 
 /* ---------- ouverture / création ---------- */
 // Tables dont chaque ligne porte un identifiant stable (uid), dans l'ordre d'affichage des résumés
@@ -3502,7 +3536,7 @@ function glDetach(){ gl.link=null; gl.baseBytes=null; gl.remote=null; gl.restore
 async function glOpenVersion(bytes, cfg, link, name){
   await openBytes(bytes, name || glPathOf(cfg).split('/').pop());
   for(const k of GL_KEYS) glSetConfig(k, cfg[k]); // le modèle garde ses réglages GitLab
-  gl.link=link; gl.baseBytes=db.export(); dirty=false;
+  gl.link=link; gl.baseBytes=exportDb(); dirty=false;
   glStartPolling(); glUpdateUI();
 }
 async function glOpen(){
@@ -3520,8 +3554,7 @@ async function glOpen(){
 function glConflictError(head){
   gl.remote=head; glShowBanner();
   return new GitLabError("Enregistrement refusé : "+(head.author_name||"quelqu'un")+" a enregistré une nouvelle version ("+glDate(head.committed_date)
-    +") depuis que vous avez ouvert le modèle. Pour ne pas écraser son travail : téléchargez votre version (copie de sécurité), "
-    +"rechargez la sienne, puis refaites vos modifications.",409);
+    +") pendant la fusion, plusieurs fois de suite. Réessayez dans un instant : votre travail est toujours ouvert.",409);
 }
 async function glSave(){
   if(!db) throw new GitLabError("Aucun modèle ouvert.");
@@ -3531,9 +3564,15 @@ async function glSave(){
     const c=glClientOrError(cfg);
     // les réglages voyagent avec le modèle : qui l'ouvre ensuite (copie, autre poste) les retrouve
     for(const k of GL_KEYS) glSetConfig(k, k==='path' ? path : cfg[k]);
+    let merged=null, commit, message;
+    for(let essai=1;;essai++){ // si quelqu'un a enregistré entre-temps : fusion, puis nouvel essai
     const link=glSameTarget(gl.link,cfg) ? gl.link : null;
     const parts=link ? glChanges(gl.baseBytes) : null;
-    if(link && !parts.length && !gl.restoreLabel){ dirty=false; toast("Aucune modification à enregistrer","ok"); return; }
+    if(link && !parts.length && !gl.restoreLabel){
+      dirty=false; gl.mergedWith=null;
+      toast(merged ? "Fusion faite avec la version de "+(merged.who||'?')+" : vos modifications y figuraient déjà, rien de plus à enregistrer." : "Aucune modification à enregistrer","ok");
+      return;
+    }
     const project=await c.project();
     const branchExists=await c.branchExists(cfg.branch);
     // branche absente : elle part de la branche par défaut (sauf dépôt vide, où le commit la crée)
@@ -3544,26 +3583,37 @@ async function glSave(){
     const exists=dbFile.status!==404;
     if(exists && !link) throw new GitLabError("Un modèle existe déjà à « "+path+" » sur la branche « "+cfg.branch
       +" ». Pour ne pas l'écraser : ouvrez-le depuis GitLab, ou choisissez un autre fichier.");
-    if(exists && dbFile.last_commit_id!==link.lastCommitId) throw glConflictError((await c.commits(path,cfg.branch,1))[0]||{});
+    if(exists && dbFile.last_commit_id!==link.lastCommitId){
+      if(essai>3) throw glConflictError((await c.commits(path,cfg.branch,1))[0]||{});
+      const r=await glIntegrate(c,cfg,path); merged={who:gl.mergedWith, conflicts:r.conflicts.length}; continue;
+    }
     const resume = link ? parts.join(', ') : '';
-    const message = 'Modea : '+(gl.restoreLabel ? gl.restoreLabel+(resume?' ('+resume+')':'')
-      : link ? (resume||'enregistrement du modèle') : 'première publication de '+path.split('/').pop());
+    message = 'Modea : '+(gl.restoreLabel ? gl.restoreLabel+(resume?' ('+resume+')':'')
+      : link ? (resume||'enregistrement du modèle') : 'première publication de '+path.split('/').pop())
+      + (merged ? ' — fusionné avec la version de '+merged.who : '');
     const actions=[
-      { action:exists?'update':'create', file_path:path, encoding:'base64', content:bytesToBase64(db.export()),
+      { action:exists?'update':'create', file_path:path, encoding:'base64', content:bytesToBase64(exportDb()),
         ...(exists?{last_commit_id:link.lastCommitId}:{}) }, // GitLab refuse si le fichier a changé depuis
       { action:dumpFile.status!==404?'update':'create', file_path:dumpPath, content:dumpModel() }
     ];
-    let commit;
     try{
       commit=await c.commit({ branch:cfg.branch, ...(startBranch?{start_branch:startBranch}:{}), commit_message:message, actions });
     }catch(e){
-      // enregistrement concurrent entre notre vérification et le commit : GitLab l'a refusé
-      if(e.status===400 && link){ const h=(await c.commits(path,cfg.branch,1))[0]; if(h && h.id!==link.lastCommitId) throw glConflictError(h); }
+      // enregistrement concurrent entre notre vérification et le commit : GitLab l'a refusé -> fusion et nouvel essai
+      if(e.status===400 && link){
+        const h=(await c.commits(path,cfg.branch,1))[0];
+        if(h && h.id!==link.lastCommitId){
+          if(essai>3) throw glConflictError(h);
+          const r=await glIntegrate(c,cfg,path); merged={who:gl.mergedWith, conflicts:r.conflicts.length}; continue;
+        }
+      }
       throw e;
+    }
+    break;
     }
     gl.link={ baseUrl:cfg.base_url, project:cfg.project, branch:cfg.branch, path, lastCommitId:commit.id,
       at:commit.committed_date||commit.created_at, author:commit.author_name };
-    gl.baseBytes=db.export(); gl.restoreLabel=null; gl.remote=null; dirty=false; clearAutosave();
+    gl.baseBytes=exportDb(); gl.restoreLabel=null; gl.remote=null; gl.mergedWith=null; dirty=false; clearAutosave();
     glShowBanner(); glStartPolling();
     toast("Enregistré dans GitLab : "+message.replace(/^Modea : /,''),"ok");
     if(gl.history) glLoadHistory().catch(()=>{});
@@ -3586,7 +3636,8 @@ function glShowBanner(){
   const r=gl.remote;
   if(!r || !gl.link){ b.classList.add('hidden'); return; }
   el('glBannerText').textContent="Nouvelle version enregistrée dans GitLab par "+(r.author_name||'?')+" ("+glDate(r.committed_date)+") : « "
-    +(r.title||'')+" »."+(dirty?" Vous avez des modifications non enregistrées : téléchargez d'abord votre version, puis rechargez et refaites-les.":"");
+    +(r.title||'')+" »."+(dirty?" Vos modifications en cours seront fusionnées avec les siennes à l'enregistrement, ou dès maintenant :":"");
+  el('glBannerReload').textContent = dirty ? 'Intégrer ses modifications' : 'Recharger la dernière version';
   el('glBannerCopy').classList.toggle('hidden', !dirty);
   b.classList.remove('hidden');
 }
@@ -3649,6 +3700,272 @@ async function glTag(){
   catch(e){ if(e.status===400) throw new GitLabError("Jalon refusé : le nom « "+name+" » existe peut-être déjà ("+e.message+")."); throw e; }
   el('gl_tag').value=''; toast("Jalon « "+name+" » posé sur la version enregistrée","ok");
   glLoadHistory().catch(()=>{});
+}
+
+/* ---- fusion à trois versions --------------------------------------------
+   Quand quelqu'un a enregistré pendant que je travaillais, on compare, élément
+   par élément (uid) : la version de départ (base), la mienne et la sienne. On
+   part de SA version et on y rejoue MES changements :
+   - ce que seul l'un des deux a changé est repris tel quel (même sur un même
+     élément, si ce ne sont pas les mêmes champs) ;
+   - deux éléments créés des deux côtés avec la même clé (ex : le même domaine
+     tapé par les deux) sont unifiés, sans question s'ils sont identiques ;
+   - restent les vrais conflits, tranchés par l'utilisateur : même champ modifié
+     différemment, élément modifié d'un côté et supprimé de l'autre, élément
+     supprimé alors que l'autre l'utilise, doublon de valeurs différentes.
+   Les clés étrangères sont comparées par uid (les id entiers diffèrent d'un
+   poste à l'autre pour les éléments créés en parallèle).
+   --------------------------------------------------------------------------- */
+const MERGE_SKIP = new Set(['uid','cree_le','maj_le']); // jamais source de conflit
+const MERGE_COLS = { nom:'nom', definition:'définition', description:'description', statut:'statut', domaine_id:'domaine',
+  classe_id:'nature', discipline_id:'discipline', origine:'origine', type:'type', multivalue:'multivaluée',
+  type_enumere_id:'liste de valeurs', unite_id:'unité', obligatoire:'obligatoire', ordre:'ordre', verbe_id:'verbe',
+  source_id:'objet source', cible_id:'objet cible', card_source:'cardinalité source', card_cible:'cardinalité cible',
+  role_source:'rôle source', role_cible:'rôle cible', valeur:'valeur', libelle:'libellé', message:'message',
+  severite:'sévérité', code:'code', symbole:'symbole', iri_externe:'IRI externe', systeme_externe:'système externe',
+  objet_id:'objet', propriete_id:'propriété', relation_id:'relation', grandeur_id:'grandeur', commentaire:'commentaire',
+  favori:'favori', natures:'natures', domaines:'domaines', statuts:'statuts' };
+function mergeSchema(d){
+  const q=sql=>(d.exec(sql)[0]||{values:[]}).values;
+  const by={};
+  for(const t of UID_TABLES){
+    const cols=q('PRAGMA table_info('+t+')').map(v=>v[1]).filter(c=>c!=='id');
+    if(!cols.length) continue;
+    const fks={}; q('PRAGMA foreign_key_list('+t+')').forEach(v=>{ fks[v[3]]=v[2]; });
+    const uniques=[];
+    for(const v of q('PRAGMA index_list('+t+')')){
+      if(!v[2]) continue;
+      const ic=q('PRAGMA index_info("'+v[1]+'")').map(x=>x[2]);
+      if(!(ic.length===1 && ic[0]==='uid')) uniques.push(ic);
+    }
+    by[t]={t, cols, fks, uniques, cmp:cols.filter(c=>!MERGE_SKIP.has(c))};
+  }
+  const order=[], seen=new Set();
+  const visit=t=>{ if(seen.has(t)||!by[t]) return; seen.add(t); Object.values(by[t].fks).forEach(visit); order.push(by[t]); };
+  Object.keys(by).forEach(visit); // parents avant enfants
+  return order;
+}
+function mergeSnapshot(d, schema){
+  const ids={};
+  for(const s of schema){ const m=new Map(); (d.exec('SELECT id,uid FROM '+s.t)[0]||{values:[]}).values.forEach(([i,u])=>m.set(i,u)); ids[s.t]=m; }
+  const snap={};
+  for(const s of schema){
+    const m=new Map(); const st=d.prepare('SELECT '+s.cols.map(c=>'"'+c+'"').join(',')+' FROM '+s.t);
+    while(st.step()){ const o=st.getAsObject(); for(const [c,rt] of Object.entries(s.fks)) if(o[c]!=null) o[c]=ids[rt]?(ids[rt].get(o[c])??null):o[c]; m.set(o.uid,o); }
+    st.free(); snap[s.t]=m;
+  }
+  snap.$meta=new Map((d.exec('SELECT key,value FROM meta')[0]||{values:[]}).values);
+  return snap;
+}
+function mergeModels(baseBytes, mineDb, theirsBytes, choices, who){
+  who = who || "l'autre version";
+  const target=new SQL.Database(theirsBytes), base=new SQL.Database(baseBytes);
+  let keep=false;
+  try{
+    migrateV7(target); migrateV7(base); target.run('PRAGMA foreign_keys = ON');
+    const schema=mergeSchema(target), S=Object.fromEntries(schema.map(s=>[s.t,s]));
+    const B=mergeSnapshot(base,schema), M=mergeSnapshot(mineDb,schema), T=mergeSnapshot(target,schema);
+    const snaps=[M,T,B];
+    const find=(t,u)=>{ for(const X of snaps){ const r=X[t]&&X[t].get(u); if(r) return r; } return null; };
+    const label=(t,r)=>{ if(!r) return '?'; const n=(rt,u)=>label(rt,find(rt,u));
+      switch(t){
+        case 'applicabilite': return 'affectation de « '+n('propriete',r.propriete_id)+' » à « '+n('objet',r.objet_id)+' »';
+        case 'relation': return 'relation « '+n('objet',r.source_id)+' » '+(r.verbe_id?n('verbe_relation',r.verbe_id):r.type)+' « '+n('objet',r.cible_id)+' »';
+        case 'valeur_enumeree': return 'valeur « '+r.valeur+' » de la liste « '+n('type_enumere',r.type_enumere_id)+' »';
+        case 'contrainte': return 'contrainte '+r.type+' de « '+n('propriete',r.propriete_id)+' »';
+        case 'lien_exigence': return 'lien externe '+r.iri_externe;
+        case 'unite': return r.symbole;
+        case 'discipline': return r.code+(r.nom?' '+r.nom:'');
+        default: return r.nom!=null ? String(r.nom) : r.uid;
+      } };
+    const what=(t,r)=>{ const l=label(t,r); return ['applicabilite','relation','valeur_enumeree','contrainte','lien_exigence'].includes(t) ? l : GL_LABELS[t][0]+' « '+l+' »'; };
+    const val=(s,c,v)=> v==null||v==='' ? '(vide)' : s.fks[c] ? label(s.fks[c], find(s.fks[c],v)) : String(v);
+    const diffTxt=(s,a,b)=>s.cmp.filter(c=>a[c]!==b[c]).map(c=>(MERGE_COLS[c]||c)+' : '+val(s,c,b[c])).join(' ; ');
+    const changed=(s,a,b)=>s.cmp.filter(c=>a[c]!==b[c]);
+    const conflicts=[], warnings=[];
+    const pick=(id)=>choices ? (choices[id]||'theirs') : 'mine'; // en repérage, on suppose « la mienne » pour découvrir la suite
+
+    // ce que l'autre a ajouté ou modifié, et ce que ces lignes utilisent (pour mes suppressions)
+    const theirUses=new Map();
+    for(const s of schema) for(const [u,t] of T[s.t]){
+      const b=B[s.t].get(u); if(b && !changed(s,b,t).length) continue;
+      for(const [c,rt] of Object.entries(s.fks)) if(t[c]!=null){ const k=rt+':'+t[c]; if(!theirUses.has(k)) theirUses.set(k,[]); theirUses.get(k).push(what(s.t,t)); }
+    }
+    const remap=new Map(); const ru=u=>remap.get(u)??u;
+    const ins=new Map(), upd=new Map(), del=[]; // ins/upd : clé t:uid
+    const remapRow=(s,r)=>{ const o={...r}; for(const c of Object.keys(s.fks)) if(o[c]!=null) o[c]=ru(o[c]); return o; };
+    // élément rétabli : ses dépendants (affectations, relations…) supprimés en cascade chez l'autre reviennent avec lui
+    const restoreDependents=(rt,u)=>{
+      for(const s2 of schema) for(const [u2,m2] of M[s2.t]){
+        const k=s2.t+':'+u2;
+        if(T[s2.t].has(u2) || ins.has(k) || !B[s2.t].has(u2)) continue;
+        if(!Object.entries(s2.fks).some(([c,r])=>r===rt && m2[c]===u)) continue;
+        ins.set(k,{s:s2,row:remapRow(s2,m2)}); restoreDependents(s2.t,u2);
+      }
+    };
+
+    for(const s of schema){
+      const keyIdx=s.uniques.map(cols=>{ const m=new Map(); for(const [u,t] of T[s.t]){ const k=cols.map(c=>t[c]); if(!k.includes(null)) m.set(JSON.stringify(k),u); } return [cols,m]; });
+      const uids=new Set([...B[s.t].keys(), ...M[s.t].keys()]);
+      for(const u of uids){
+        const b=B[s.t].get(u), m0=M[s.t].get(u), t=T[s.t].get(u);
+        const m=m0 && remapRow(s,m0);
+        if(!b && m){ // ajouté chez moi
+          let twin=null;
+          for(const [cols,idx] of keyIdx){ const k=cols.map(c=>m[c]); if(k.includes(null)) continue; const u2=idx.get(JSON.stringify(k)); if(u2){ twin=u2; break; } }
+          if(!twin){ ins.set(s.t+':'+u,{s,row:m}); continue; }
+          if(B[s.t].has(twin)){ ins.set(s.t+':'+u,{s,row:m}); continue; } // élément ancien (renommage croisé…) : l'insertion tranchera
+          const tw=T[s.t].get(twin);
+          remap.set(u,twin);
+          if(!changed(s,tw,m).length) continue; // créé à l'identique des deux côtés
+          const id=s.t+':'+u+':doublon';
+          conflicts.push({ id, title:what(s.t,m)+' : création des deux côtés, avec des valeurs différentes',
+            mine:diffTxt(s,tw,m), theirs:diffTxt(s,m,tw) });
+          if(pick(id)==='mine') upd.set(s.t+':'+twin,{s,uid:twin,vals:Object.fromEntries(changed(s,tw,m).map(c=>[c,m[c]])),m,t:tw});
+        }else if(b && !m){ // supprimé chez moi
+          if(!t) continue; // supprimé des deux côtés
+          const mods=changed(s,b,t), uses=theirUses.get(s.t+':'+u)||[];
+          if(!mods.length && !uses.length){ del.push({s,uid:u}); continue; }
+          const id=s.t+':'+u+':suppr';
+          conflicts.push({ id, title:what(s.t,b)+' : suppression de votre côté, mais '+who+' '
+              +(mods.length&&uses.length?'y a apporté des modifications et s\u2019en sert':mods.length?'y a apporté des modifications':'s\u2019en sert')
+              +(uses.length?' ('+uses.slice(0,3).join(', ')+(uses.length>3?'…':'')+')':''),
+            mine:'supprimer'+(uses.length?' (ce que '+who+' y a rattaché disparaît aussi)':''), theirs:'garder'+(mods.length?', avec ses modifications ('+diffTxt(s,b,t)+')':'') });
+          if(pick(id)==='mine') del.push({s,uid:u});
+        }else if(b && m){
+          const mine=changed(s,b,m); if(!mine.length) continue;
+          if(!t){ // modifié chez moi, supprimé chez l'autre
+            const id=s.t+':'+u+':modsuppr';
+            conflicts.push({ id, title:what(s.t,m)+' : modification de votre côté, suppression du côté de '+who,
+              mine:'garder, avec vos modifications ('+diffTxt(s,b,m)+')', theirs:'accepter la suppression' });
+            if(pick(id)==='mine'){ ins.set(s.t+':'+u,{s,row:m}); restoreDependents(s.t,u); }
+            continue;
+          }
+          const vals={};
+          for(const c of mine){
+            if(t[c]===b[c] || t[c]===m[c]){ vals[c]=m[c]; continue; }
+            const id=s.t+':'+u+':'+c;
+            conflicts.push({ id, title:what(s.t,m)+', '+(MERGE_COLS[c]||c)+' : modifications différentes des deux côtés', mine:val(s,c,m[c]), theirs:val(s,c,t[c]) });
+            if(pick(id)==='mine') vals[c]=m[c];
+          }
+          if(Object.keys(vals).length) upd.set(s.t+':'+u,{s,uid:u,vals,m,t});
+        }
+      }
+    }
+    // élément que j'avais supprimé mais que l'on garde : ses dépendants supprimés en cascade chez moi restent aussi
+    const kept=new Set(conflicts.filter(c=>c.id.endsWith(':suppr') && pick(c.id)==='theirs').map(c=>c.id.split(':').slice(0,2).join(':')));
+    for(let again=true; again;){
+      again=false;
+      for(let i=del.length-1;i>=0;i--){
+        const d=del[i], b=B[d.s.t].get(d.uid);
+        if(b && Object.entries(d.s.fks).some(([c,r])=>b[c]!=null && kept.has(r+':'+b[c]))){ kept.add(d.s.t+':'+d.uid); del.splice(i,1); again=true; }
+      }
+    }
+    // références vers des éléments que l'autre a supprimés : les restaurer, ou abandonner ce qui les utilise
+    const deleted=new Set(del.map(d=>d.s.t+':'+d.uid));
+    const exists=(rt,u)=>(T[rt].has(u) && !deleted.has(rt+':'+u)) || ins.has(rt+':'+u);
+    const asked=new Set();
+    for(let guard=0; guard<1000; guard++){
+      let missing=null;
+      outer: for(const [k,x] of [...ins, ...upd]){
+        const vals = x.row || x.vals;
+        for(const [c,rt] of Object.entries(x.s.fks)) if(vals[c]!=null && !exists(rt,vals[c])){ missing={rt,u:vals[c],k}; break outer; }
+      }
+      if(!missing) break;
+      const {rt,u}=missing, mr=M[rt].get(u);
+      const users=[...ins, ...upd].filter(([,x])=>{ const v=x.row||x.vals; return Object.entries(x.s.fks).some(([c,r])=>r===rt && v[c]===u); });
+      const id=rt+':'+u+':restaure';
+      if(mr && !asked.has(id)){
+        asked.add(id);
+        conflicts.push({ id, title:what(rt,mr)+' : suppression du côté de '+who+', mais vos modifications s\u2019en servent ('+users.slice(0,3).map(([,x])=>what(x.s.t,x.row||x.m)).join(', ')+(users.length>3?'…':'')+')',
+          mine:'garder (rétablir)', theirs:'accepter la suppression et abandonner vos modifications qui s\u2019en servent' });
+      }
+      if(mr && pick(id)==='mine'){ ins.set(rt+':'+u,{s:S[rt],row:remapRow(S[rt],mr)}); deleted.delete(rt+':'+u); restoreDependents(rt,u); continue; }
+      for(const [k,x] of users){
+        if(x.row){ ins.delete(k); warnings.push(what(x.s.t,x.row)+' : non repris, car il utilise un élément supprimé par '+who+'.'); }
+        else for(const [c,r] of Object.entries(x.s.fks)) if(r===rt && x.vals[c]===u){ delete x.vals[c]; if(!Object.keys(x.vals).length) upd.delete(k); }
+      }
+    }
+    if(!choices && conflicts.length) return { conflicts, warnings, db:null };
+
+    // application, en partant de SA version
+    const idOf=(rt,u)=>{ const r=target.exec('SELECT id FROM '+rt+' WHERE uid=?',[u])[0]; return r?r.values[0][0]:null; };
+    const toIds=(s,v)=>{ const o={...v}; for(const [c,rt] of Object.entries(s.fks)) if(o[c]!=null && c in o){ const i=idOf(rt,o[c]); if(i==null) throw new Error('référence introuvable'); o[c]=i; } return o; };
+    const tryRun=(fn,txt)=>{ try{ fn(); return true; }catch(e){ warnings.push(txt+' : non repris ('+friendly(e)+').'); return false; } };
+    let nIns=0, nUpd=0, nDel=0;
+    for(const d of [...del].reverse()) if(tryRun(()=>target.run('DELETE FROM '+d.s.t+' WHERE uid=?',[d.uid]), what(d.s.t,find(d.s.t,d.uid)))) nDel++;
+    for(const s of schema) for(const [k,x] of ins) if(x.s===s){
+      if(tryRun(()=>{ const r=toIds(s,x.row); const cols=s.cols.filter(c=>c in r);
+        target.run('INSERT INTO '+s.t+' ('+cols.map(c=>'"'+c+'"').join(',')+') VALUES ('+cols.map(()=>'?').join(',')+')', cols.map(c=>r[c])); }, what(s.t,x.row))) nIns++;
+    }
+    for(const s of schema) for(const [k,x] of upd) if(x.s===s){
+      const v=toIds(s,x.vals); const cols=Object.keys(v);
+      if(s.cols.includes('maj_le')){ const a=x.m&&x.m.maj_le, b=x.t&&x.t.maj_le; v.maj_le=[a,b].filter(Boolean).sort().pop()||null; cols.push('maj_le'); }
+      if(tryRun(()=>target.run('UPDATE '+s.t+' SET '+cols.map(c=>'"'+c+'"=?').join(',')+' WHERE uid=?', [...cols.map(c=>v[c]), x.uid]), what(s.t,x.m||x.t))) nUpd++;
+    }
+    // réglages (meta) : mes changements l'emportent
+    for(const k of new Set([...B.$meta.keys(), ...M.$meta.keys()])){
+      const b=B.$meta.get(k), m=M.$meta.get(k); if(b===m) continue;
+      if(m==null) target.run('DELETE FROM meta WHERE key=?',[k]);
+      else target.run('INSERT INTO meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',[k,m]);
+    }
+    keep=true;
+    return { conflicts, warnings, db:target, applied:{ins:nIns, upd:nUpd, del:nDel} };
+  }finally{ base.close(); if(!keep) target.close(); }
+}
+
+/* fenêtre d'arbitrage : renvoie { id: 'mine'|'theirs' } ou null si annulé */
+function glAskConflicts(conflicts, head){
+  return new Promise(resolve=>{
+    const who=head.author_name||"l'autre personne", n=conflicts.length, box=el('glMergeList');
+    el('glMergeIntro').textContent=who+" a enregistré une nouvelle version ("+glDate(head.committed_date)+") pendant que vous travailliez. "
+      +"Tout ce qui ne se chevauche pas a été fusionné automatiquement ; "+(n>1?n+' points demandent':'un point demande')+" votre choix.";
+    box.innerHTML=conflicts.map((c,i)=>'<div class="glmc"><div class="glmt">'+esc(c.title)+'</div>'
+      +'<label><input type="radio" name="glm'+i+'" value="mine"> <b>Ma version</b> : '+esc(c.mine)+'</label>'
+      +'<label><input type="radio" name="glm'+i+'" value="theirs"> <b>Version de '+esc(who)+'</b> : '+esc(c.theirs)+'</label></div>').join('');
+    const read=()=>{ const ch={}; for(let i=0;i<n;i++){ const r=box.querySelector('input[name="glm'+i+'"]:checked'); if(!r) return null; ch[conflicts[i].id]=r.value; } return ch; };
+    const upd=()=>{ el('glMergeOk').disabled=!read(); };
+    const all=v=>{ box.querySelectorAll('input[value="'+v+'"]').forEach(x=>{ x.checked=true; }); upd(); };
+    box.onchange=upd; upd();
+    el('glMergeAllMine').onclick=()=>all('mine'); el('glMergeAllTheirs').onclick=()=>all('theirs');
+    el('glMergeAllTheirs').textContent='Tout : version de '+who;
+    const close=v=>{ el('glMergeOverlay').classList.add('hidden'); resolve(v); };
+    el('glMergeOk').onclick=()=>close(read()); el('glMergeCancel').onclick=()=>close(null);
+    el('glMergeOverlay').classList.remove('hidden');
+  });
+}
+/* récupère la dernière version GitLab et y fusionne mon travail ; le modèle ouvert devient le résultat */
+async function glIntegrate(c, cfg, path){
+  const [f,h]=await Promise.all([c.file(path,cfg.branch), c.commits(path,cfg.branch,1)]);
+  const head=(h&&h[0])||{};
+  if(f.status===404) throw new GitLabError("Le modèle « "+path+" » n'existe plus sur la branche « "+cfg.branch+" ».");
+  const theirs=base64ToBytes(f.content), who=head.author_name;
+  let r=mergeModels(gl.baseBytes, db, theirs, null, who);
+  if(r.conflicts.length){
+    const choices=await glAskConflicts(r.conflicts, head);
+    if(!choices) throw new GitLabError("Fusion annulée : rien n'a été enregistré, votre travail est toujours ouvert.");
+    r=mergeModels(gl.baseBytes, db, theirs, choices, who);
+  }
+  try{ db.close(); }catch(e){}
+  db=r.db; db.run('PRAGMA foreign_keys = ON');
+  const tb=new SQL.Database(theirs); migrateV7(tb); gl.baseBytes=tb.export(); tb.close();
+  gl.link={...gl.link, lastCommitId:f.last_commit_id, at:head.committed_date, author:who};
+  gl.mergedWith=who||'?'; gl.remote=null; dirty=true;
+  gl.lastMerge={ conflicts:r.conflicts.length, warnings:r.warnings, applied:r.applied };
+  refreshAll(); glShowBanner(); glUpdateUI();
+  if(r.warnings.length) toast(r.warnings.length+" point(s) non repris lors de la fusion : "+r.warnings.join(' '),"err");
+  return r;
+}
+/* bandeau « Intégrer ses modifications » : fusion sans enregistrer */
+async function glPull(){
+  if(!gl.link) return;
+  if(!dirty) return glOpen();
+  gl.busy=true; glUpdateUI();
+  try{
+    const cfg=glConfig(); const c=glClientOrError(cfg);
+    const r=await glIntegrate(c, cfg, gl.link.path);
+    toast("Modifications de "+gl.mergedWith+" intégrées à votre travail ("+(r.conflicts.length?r.conflicts.length+' conflit(s) arbitré(s)':'sans conflit')+"). Pensez à enregistrer.","ok");
+  }finally{ gl.busy=false; glUpdateUI(); }
 }
 
 /* ---- interface ---- */
@@ -3731,14 +4048,14 @@ function glWire(){
     const v=e.target.closest('[data-glview]'), r=e.target.closest('[data-glrestore]');
     if(v) glRun(glView, v.dataset.glview); else if(r) glRun(glRestore, r.dataset.glrestore);
   });
-  el('glBannerReload').onclick=()=>glRun(glOpen);
+  el('glBannerReload').onclick=()=>glRun(glPull);
   el('glBannerCopy').onclick=()=>download();
   el('glBannerClose').onclick=()=>el('glBanner').classList.add('hidden');
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) glPoll(); });
 }
 
 /* ---------- enregistrement ---------- */
-function currentBytes(){ return db.export(); }
+function currentBytes(){ return exportDb(); }
 async function saveToHandle(){
   const w=await fileHandle.createWritable(); await w.write(currentBytes()); await w.close();
   dirty=false; clearAutosave();
@@ -3810,7 +4127,7 @@ async function saveAutosave(){
     const idb=await openAutosaveDB();
     await new Promise((res,rej)=>{
       const tx=idb.transaction(AUTOSAVE_STORE,'readwrite');
-      tx.objectStore(AUTOSAVE_STORE).put({name:dbName, bytes:db.export(), savedAt:Date.now(),
+      tx.objectStore(AUTOSAVE_STORE).put({name:dbName, bytes:exportDb(), savedAt:Date.now(),
         gitlab: gl.link ? {link:gl.link, baseBytes:gl.baseBytes, restoreLabel:gl.restoreLabel} : null}, AUTOSAVE_KEY);
       tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
     });

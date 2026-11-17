@@ -75,10 +75,11 @@ function fakeGitlab() {
 }
 
 /* ---------- un poste = une instance de l'éditeur ---------- */
+let CUR = null; // dépôt GitLab courant (faux)
 const CFG = { base_url: 'https://gitlab.test', project: 'atelier/modeles', branch: 'main', path: 'modeles/moto.db' };
 async function poste(server, token) {
   const w = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', virtualConsole: quiet }).window;
-  w.fetch = server.fetch; w.confirm = () => true; w.HTMLAnchorElement.prototype.click = () => {};
+  w.fetch = (...a) => CUR.fetch(...a); w.confirm = () => true; w.HTMLAnchorElement.prototype.click = () => {};
   w.URL.createObjectURL = () => 'blob:x'; w.URL.revokeObjectURL = () => {};
   await new Promise(r => setTimeout(r, 500));
   w.localStorage.setItem('modea-gitlab-config', JSON.stringify(CFG));
@@ -92,7 +93,7 @@ async function poste(server, token) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'modea-gl-'));
   const moto = path.join(tmp, 'moto.db');
   cp.execFileSync('python3', [path.join(root, 'scripts', 'generate_sample_moto_db.py'), moto]);
-  const S = fakeGitlab();
+  const S = CUR = fakeGitlab();
   const alice = await poste(S, 'tokA'), bruno = await poste(S, 'tokB');
 
   // 1) Alice publie son modèle local
@@ -109,6 +110,8 @@ async function poste(server, token) {
   check('réglages GitLab écrits dans le modèle (sans jeton)',
     alice.n(`SELECT COUNT(*) n FROM meta WHERE key LIKE 'gitlab.%'`) === 4 && !alice.n(`SELECT COUNT(*) n FROM meta WHERE value LIKE 'tok%'`));
   check('sans modification : pas de commit', (await alice.ev('glSave()'), S.commits.length === 1));
+  check('après un enregistrement, supprimer un objet supprime encore ses relations (clés étrangères actives)',
+    alice.ev(`exec("PRAGMA foreign_keys")[0].foreign_keys`) === 1);
 
   // 2) Bruno ouvre depuis GitLab (aucun modèle ouvert)
   await bruno.ev('glOpen()');
@@ -120,38 +123,56 @@ async function poste(server, token) {
   await alice.ev('glSave()');
   check('résumé « 1 objet ajouté »', S.commits.at(-1).title === 'Modea : 1 objet ajouté', S.commits.at(-1).title);
 
-  // 4) Bruno est prévenu, puis son enregistrement est refusé (il ne peut pas écraser Alice)
+  // Bruno arbitre les conflits selon __policy : 'mine' | 'theirs' | null (annuler) | { type: choix }
+  bruno.ev(`glAskConflicts = async (c) => { __conf = c; const p = __policy; if (p === null) return null;
+    return Object.fromEntries(c.map(x => { const k = x.id.split(':').pop(); return [x.id, typeof p === 'string' ? p : (p[k] || 'theirs')]; })); }`);
+  bruno.w.__policy = 'theirs';
+
+  // 4) Bruno est prévenu ; à l'enregistrement, son travail est fusionné avec celui d'Alice (sans question)
+  bruno.ev(`run("UPDATE objet SET definition='modifié par Bruno' WHERE nom='Cadre'")`);
   await bruno.ev('glPoll()');
   check('Bruno voit la nouvelle version (bandeau)', !bruno.ev(`el('glBanner').classList.contains('hidden')`)
     && /Alice/.test(bruno.ev(`el('glBannerText').textContent`)));
-  bruno.ev(`run("UPDATE objet SET definition='modifié par Bruno' WHERE nom='Cadre'")`);
-  const nAvant = S.commits.length;
-  const e1 = await bruno.err('glSave()');
-  check('enregistrement de Bruno refusé (409)', e1 && e1.status === 409 && /Alice/.test(e1.message), e1 && e1.message);
-  check('le travail d’Alice n’est pas écrasé', S.commits.length === nAvant);
+  check('bandeau : « Intégrer ses modifications » quand on a du travail en cours', bruno.ev(`el('glBannerReload').textContent`) === 'Intégrer ses modifications');
+  bruno.w.__conf = null;
+  await bruno.ev('glSave()');
+  check('fusion automatique, aucune question', bruno.ev('__conf') === null);
+  check('message « fusionné avec la version de Alice »', S.commits.at(-1).title === 'Modea : 1 objet modifié — fusionné avec la version de Alice'
+    && S.commits.at(-1).author_name === 'Bruno', S.commits.at(-1).title);
+  check('le résultat contient le travail des deux', bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Rétroviseur'`) === 1
+    && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Cadre' AND definition='modifié par Bruno'`) === 1);
 
-  // 5) Course : Alice enregistre entre la vérification de Bruno et son commit -> GitLab refuse
-  await bruno.ev('glOpen()');
-  check('Bruno recharge la version d’Alice', bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Rétroviseur'`) === 1);
+  // 5) Course : Alice enregistre entre la vérification de Bruno et son commit -> GitLab refuse, Modea fusionne et réessaie
   bruno.ev(`run("UPDATE objet SET nom='Bloc moteur' WHERE nom='Moteur'")`);
   alice.ev(`run("DELETE FROM relation WHERE id=22")`);
   S.beforeCommit = () => alice.ev('glSave()');
-  const e2 = await bruno.err('glSave()');
-  check('commit concurrent refusé par GitLab (last_commit_id)', e2 && e2.status === 409, e2 && e2.message);
-  check('le commit concurrent d’Alice est bien passé', S.commits.at(-1).title === 'Modea : 1 relation supprimée', S.commits.at(-1).title);
-
-  // 6) Bruno recharge, refait sa modification : résumé « modifié »
-  await bruno.ev('glOpen()');
-  bruno.ev(`run("UPDATE objet SET nom='Bloc moteur' WHERE nom='Moteur'")`);
+  const nAvant = S.commits.length;
   await bruno.ev('glSave()');
-  check('résumé « 1 objet modifié », auteur Bruno', S.commits.at(-1).title === 'Modea : 1 objet modifié' && S.commits.at(-1).author_name === 'Bruno',
-    S.commits.at(-1).title);
+  check('commit concurrent : refusé puis fusionné et enregistré', S.commits.length === nAvant + 2
+    && S.commits.at(-2).author_name === 'Alice' && S.commits.at(-1).title === 'Modea : 1 objet modifié — fusionné avec la version de Alice',
+    S.commits.slice(nAvant).map(c => c.author_name + ' : ' + c.title).join(' | '));
+  check('rien n’est perdu (relation supprimée par Alice, renommage de Bruno)', bruno.n(`SELECT COUNT(*) n FROM relation WHERE id=22`) === 0
+    && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Bloc moteur'`) === 1);
 
-  // 7) Historique, jalon, consultation, restauration (côté Alice, qui doit d'abord recharger)
+  // 6) « Intégrer ses modifications » : fusion sans enregistrer
+  await alice.ev('glOpen()');
+  alice.ev(`run("UPDATE objet SET statut='obsolete' WHERE nom='Fourche'")`);
+  await alice.ev('glSave()');
+  bruno.ev(`run("UPDATE objet SET definition='Selle biplace' WHERE nom='Selle'")`);
+  const nPull = S.commits.length;
+  await bruno.ev('glPull()');
+  check('intégrer : pas de commit, travail en cours conservé', S.commits.length === nPull && bruno.ev('dirty') === true
+    && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Selle' AND definition='Selle biplace'`) === 1);
+  check('intégrer : les modifications d’Alice sont là', bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Fourche' AND statut='obsolete'`) === 1
+    && bruno.ev('gl.link.lastCommitId') === S.commits.at(-1).id);
+  await bruno.ev('glSave()');
+  check('puis enregistrer : commit simple', S.commits.at(-1).title === 'Modea : 1 objet modifié', S.commits.at(-1).title);
+
+  // 7) Historique, jalon, consultation, restauration
   await alice.ev('glOpen()');
   await alice.ev('glLoadHistory()');
-  check('historique : 4 versions, la plus récente en tête', alice.ev('gl.history.commits.length') === 4
-    && alice.ev('gl.history.commits[0].author_name') === 'Bruno');
+  check('historique : 7 versions, la plus récente en tête', alice.ev('gl.history.commits.length') === 7
+    && alice.ev('gl.history.commits[0].author_name') === 'Bruno', alice.ev('gl.history.commits.length'));
   alice.ev(`el('gl_tag').value='v1.0'`);
   await alice.ev('glTag()');
   check('jalon v1.0 posé sur la dernière version', S.tags[0]?.name === 'v1.0' && S.tags[0].commit.id === S.commits.at(-1).id);
@@ -162,9 +183,91 @@ async function poste(server, token) {
   check('consulter une version : ouverte sans lien GitLab', alice.n('SELECT COUNT(*) n FROM objet') === 34 && alice.ev('gl.link') === null);
   await alice.ev(`glRestore(${JSON.stringify(first)})`);
   const last = S.commits.at(-1);
-  check('restauration = nouveau commit', /^Modea : restauration de la version du .*\(1 objet modifié, 1 objet supprimé, 1 relation ajoutée\)$/.test(last.title), last.title);
+  check('restauration = nouveau commit', /^Modea : restauration de la version du .*\(4 objets modifiés, 1 objet supprimé, 1 relation ajoutée\)$/.test(last.title), last.title);
   check('le modèle restauré est celui de la première version', alice.n(`SELECT COUNT(*) n FROM objet WHERE nom IN ('Rétroviseur','Bloc moteur')`) === 0
     && alice.ev('gl.link.lastCommitId') === last.id);
+
+  // 7 bis) Scénarios de fusion : dépôt neuf, Alice et Bruno partent de la même version,
+  // Alice enregistre d'abord, puis Bruno (qui fusionne)
+  const q = (sql) => JSON.stringify(sql);
+  async function scenario({ a = [], b = [], policy = 'theirs' }) {
+    CUR = fakeGitlab();
+    alice.w.__b = new Uint8Array(fs.readFileSync(moto)); await alice.ev(`openBytes(__b,'moto.db')`); await alice.ev('glSave()');
+    await bruno.ev('glOpen()');
+    for (const x of a) alice.ev(`run(${q(x)})`);
+    await alice.ev('glSave()');
+    for (const x of b) bruno.ev(`run(${q(x)})`);
+    bruno.w.__policy = policy; bruno.w.__conf = null;
+    const e = await bruno.err('glSave()');
+    return { e, kinds: bruno.ev('__conf && __conf.map(c => c.id.split(":").pop())'), titles: bruno.ev('__conf && __conf.map(c => c.title)'),
+      head: CUR.commits.at(-1), n: CUR.commits.length };
+  }
+  const OBJ = nom => `(SELECT id FROM objet WHERE nom='${nom}')`;
+
+  // même champ modifié des deux côtés
+  for (const [pol, attendu] of [['theirs', 'déf Alice'], ['mine', 'déf Bruno']]) {
+    const r = await scenario({ a: [`UPDATE objet SET definition='déf Alice' WHERE nom='Moteur'`], b: [`UPDATE objet SET definition='déf Bruno' WHERE nom='Moteur'`], policy: pol });
+    check(`même champ des deux côtés : 1 question, choix « ${pol} » appliqué`, JSON.stringify(r.kinds) === '["definition"]'
+      && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Moteur' AND definition='${attendu}'`) === 1, JSON.stringify(r.kinds) + ' ' + (r.e && r.e.message));
+  }
+  // même objet, champs différents : pas de question
+  { const r = await scenario({ a: [`UPDATE objet SET definition='déf Alice' WHERE nom='Moteur'`], b: [`UPDATE objet SET statut='obsolete' WHERE nom='Moteur'`] });
+    check('même objet, champs différents : fusion sans question', r.kinds === null
+      && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Moteur' AND definition='déf Alice' AND statut='obsolete'`) === 1); }
+  // le même domaine créé des deux côtés : unifié sans question
+  { const r = await scenario({
+      a: [`INSERT INTO domaine(nom) VALUES ('Freinage')`, `INSERT INTO objet(nom,domaine_id) VALUES ('Plaquette',(SELECT id FROM domaine WHERE nom='Freinage'))`],
+      b: [`INSERT INTO domaine(nom) VALUES ('Freinage')`, `INSERT INTO objet(nom,domaine_id) VALUES ('Mâchoire',(SELECT id FROM domaine WHERE nom='Freinage'))`] });
+    check('domaine créé des deux côtés : unifié, sans question', r.kinds === null && bruno.n(`SELECT COUNT(*) n FROM domaine WHERE nom='Freinage'`) === 1
+      && bruno.n(`SELECT COUNT(*) n FROM objet o JOIN domaine d ON d.id=o.domaine_id WHERE d.nom='Freinage'`) === 2, r.e && r.e.message); }
+  // le même objet créé des deux côtés avec des valeurs différentes : question « doublon »
+  { const r = await scenario({ a: [`INSERT INTO objet(nom,definition) VALUES ('Rétroviseur','version Alice')`],
+      b: [`INSERT INTO objet(nom,definition) VALUES ('Rétroviseur','version Bruno')`], policy: 'mine' });
+    check('objet créé des deux côtés, différent : question « doublon », un seul objet gardé', JSON.stringify(r.kinds) === '["doublon"]'
+      && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Rétroviseur'`) === 1 && bruno.n(`SELECT COUNT(*) n FROM objet WHERE definition='version Bruno'`) === 1,
+      JSON.stringify(r.kinds)); }
+  // modifié chez Bruno, supprimé chez Alice
+  for (const [pol, garde] of [['theirs', 0], ['mine', 1]]) {
+    const r = await scenario({ a: [`DELETE FROM objet WHERE nom='Carénage'`], b: [`UPDATE objet SET definition='carénage sport' WHERE nom='Carénage'`], policy: pol });
+    check(`modifié / supprimé : question, choix « ${pol} »`, JSON.stringify(r.kinds) === '["modsuppr"]'
+      && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Carénage'`) === garde, JSON.stringify(r.kinds) + ' ' + (r.e && r.e.message));
+    if (garde) check('carénage rétabli avec sa relation « Carrosserie contient Carénage »',
+      bruno.n(`SELECT COUNT(*) n FROM relation WHERE cible_id=${OBJ('Carénage')}`) === 1,
+      bruno.n(`SELECT COUNT(*) n FROM relation WHERE cible_id=${OBJ('Carénage')}`) + ' / ' + bruno.ev('JSON.stringify(gl.lastMerge)'));
+  }
+  // supprimé chez Bruno, alors qu'Alice l'utilise (nouvelle relation)
+  for (const [pol, garde] of [['theirs', 1], ['mine', 0]]) {
+    const r = await scenario({
+      a: [`INSERT INTO relation(type,source_id,cible_id) VALUES ('association',${OBJ('Phare')},${OBJ('Batterie')})`],
+      b: [`DELETE FROM objet WHERE nom='Batterie'`], policy: pol });
+    check(`supprimé alors que l’autre l’utilise : question, choix « ${pol} »`, JSON.stringify(r.kinds) === '["suppr"]'
+      && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Batterie'`) === garde
+      && bruno.n(`SELECT COUNT(*) n FROM relation WHERE source_id=${OBJ('Phare')} AND cible_id=${OBJ('Batterie')}`) === garde, JSON.stringify(r.kinds));
+    if (garde) check('batterie gardée avec ses 2 affectations et ses relations (pas de cascade)',
+      bruno.n(`SELECT COUNT(*) n FROM applicabilite WHERE objet_id=${OBJ('Batterie')}`) === 2
+      && bruno.n(`SELECT COUNT(*) n FROM relation WHERE cible_id=${OBJ('Batterie')}`) === 3,
+      bruno.n(`SELECT COUNT(*) n FROM applicabilite WHERE objet_id=${OBJ('Batterie')}`) + ' affectations, ' + bruno.n(`SELECT COUNT(*) n FROM relation WHERE cible_id=${OBJ('Batterie')}`) + ' relations');
+  }
+  // Bruno utilise un objet qu'Alice a supprimé
+  for (const [pol, garde] of [['mine', 1], ['theirs', 0]]) {
+    const r = await scenario({ a: [`DELETE FROM objet WHERE nom='Selle'`],
+      b: [`INSERT INTO applicabilite(objet_id,propriete_id) SELECT ${OBJ('Selle')}, id FROM propriete WHERE id NOT IN (SELECT propriete_id FROM applicabilite WHERE objet_id=${OBJ('Selle')}) LIMIT 1`],
+      policy: pol });
+    check(`utilise un élément supprimé par l’autre : question, choix « ${pol} »`, JSON.stringify(r.kinds) === '["restaure"]'
+      && bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Selle'`) === garde && !r.e, JSON.stringify(r.kinds) + ' ' + (r.e && r.e.message));
+    if (garde) check('selle rétablie avec sa relation « Carrosserie contient Selle »', bruno.n(`SELECT COUNT(*) n FROM relation WHERE cible_id=${OBJ('Selle')}`) === 1);
+  }
+  // annuler l'arbitrage : rien n'est enregistré, le travail reste ouvert
+  { const r = await scenario({ a: [`UPDATE objet SET definition='déf Alice' WHERE nom='Moteur'`], b: [`UPDATE objet SET definition='déf Bruno' WHERE nom='Moteur'`], policy: null });
+    check('arbitrage annulé : rien enregistré, travail intact', r.e && /annulée/.test(r.e.message) && r.n === 2 && r.head.author_name === 'Alice'
+      && bruno.ev('dirty') === true && bruno.n(`SELECT COUNT(*) n FROM objet WHERE definition='déf Bruno'`) === 1, r.e && r.e.message); }
+  // libellés des questions lisibles
+  { const r = await scenario({ a: [`UPDATE objet SET statut='obsolete' WHERE nom='Moteur'`], b: [`UPDATE objet SET statut='brouillon' WHERE nom='Moteur'`], policy: 'mine' });
+    check('libellé de question lisible', r.titles && r.titles[0] === 'objet « Moteur », statut : modifications différentes des deux côtés', r.titles && r.titles[0]); }
+  // la version enregistrée après fusion se rouvre telle quelle chez Alice
+  { await alice.ev('glOpen()');
+    check('Alice rouvre la version fusionnée', alice.n(`SELECT COUNT(*) n FROM objet WHERE nom='Moteur' AND statut='brouillon'`) === 1
+      && alice.ev('gl.link.lastCommitId') === CUR.commits.at(-1).id); }
 
   // 8) Publier un modèle local par-dessus un modèle existant : refusé
   alice.w.__b = new Uint8Array(fs.readFileSync(moto));
