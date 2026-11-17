@@ -289,6 +289,37 @@ c.executemany("INSERT INTO objet(nom) VALUES (?)", [('Produit',),('Pièce',),('D
   alice.ev(`run("INSERT INTO objet(nom) VALUES ('Nouveau')")`);
   check('nouvel élément : uid aléatoire', /^[0-9a-f]{32}$/.test(alice.ev(`exec("SELECT uid FROM objet WHERE nom='Nouveau'")[0].uid`)));
 
+  // 9 bis) Modèle abîmé dans GitLab (enregistré avant la v0.6.7 : orphelins après suppression d'un objet)
+  {
+    CUR = fakeGitlab();
+    alice.w.__b = new Uint8Array(fs.readFileSync(moto));
+    await alice.ev(`openBytes(__b,'moto.db')`); await alice.ev('glSave()');
+    await alice.ev(`(async()=>{ // Batterie supprimée sans cascade : 2 affectations et 2 relations orphelines
+      const T=new SQL.Database(exportDb()); T.run("PRAGMA foreign_keys=OFF"); T.run("DELETE FROM objet WHERE nom='Batterie'");
+      await glClientOrError(glConfig()).commit({ branch:'main', commit_message:'ancienne version', actions:[
+        { action:'update', file_path:'modeles/moto.db', encoding:'base64', content:bytesToBase64(T.export()) }] }); })()`);
+    const orphans = p => p.n(`SELECT COUNT(*) n FROM pragma_foreign_key_check`);
+    await bruno.ev('glOpen()');
+    check('modèle abîmé ouvert depuis GitLab : réparé et à enregistrer', orphans(bruno) === 0 && bruno.ev('dirty') === true);
+    await bruno.ev('glSave()');
+    check('la réparation est publiée avec son résumé', CUR.commits.at(-1).title === 'Modea : 2 affectations supprimées, 2 relations supprimées', CUR.commits.at(-1).title);
+    // Alice travaillait encore sur la version abîmée : sa fusion avec la version réparée reste propre
+    await alice.ev(`(async()=>{ const T=new SQL.Database(base64ToBytes((await glClientOrError(glConfig()).file('modeles/moto.db','main')).content));
+      T.run("PRAGMA foreign_keys=OFF"); T.run("DELETE FROM objet WHERE nom='Batterie'"); db=T; db.run("PRAGMA foreign_keys=ON");
+      gl.link.lastCommitId=CUR_PREV; gl.baseBytes=exportDb(); })()`.replace('CUR_PREV', JSON.stringify(CUR.commits.at(-2).id)));
+    alice.ev(`run("UPDATE objet SET definition='Moteur révisé' WHERE nom='Moteur'")`);
+    const e5 = await alice.err('glSave()');
+    check('fusion avec une version abîmée : pas d’orphelin réintroduit', !e5 && orphans(alice) === 0
+      && CUR.commits.at(-1).title === 'Modea : 1 objet modifié — fusionné avec la version de Bruno', e5 ? e5.message : CUR.commits.at(-1).title);
+    // l'autre version contient des orphelins : le résultat de la fusion n'en contient pas
+    const r6 = alice.ev(`(()=>{ const base=exportDb(); const T=new SQL.Database(base); T.run("PRAGMA foreign_keys=OFF");
+      T.run("DELETE FROM objet WHERE nom='Phare'"); T.run("DELETE FROM objet WHERE nom='Selle'");
+      run("UPDATE objet SET statut='brouillon' WHERE nom='Moteur'");
+      const r=mergeModels(base, db, T.export(), null, 'Bruno');
+      return JSON.stringify({c:r.conflicts.length, o:r.db.exec("SELECT COUNT(*) FROM pragma_foreign_key_check")[0].values[0][0]}); })()`);
+    check('fusion : les orphelins de l’autre version sont nettoyés', r6 === '{"c":0,"o":0}', r6);
+  }
+
   // 10) Base neuve de l'éditeur = metamodele.sql (même structure)
   await alice.ev('newModel()');
   const struct = alice.ev(`JSON.stringify(exec("SELECT m.type,m.name,(SELECT group_concat(name) FROM pragma_table_info(m.name)) cols FROM sqlite_master m WHERE m.name NOT LIKE 'sqlite_%' ORDER BY m.type,m.name"))`);

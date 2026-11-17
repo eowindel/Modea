@@ -1051,8 +1051,12 @@ const CHANGELOG = [
     "Travail en même temps : si un collègue a enregistré pendant que vous travailliez, Modea fusionne automatiquement vos deux versions au moment d'enregistrer. Seuls les vrais conflits vous sont demandés (une même information modifiée différemment, un élément modifié d'un côté et supprimé de l'autre…), et rien n'est jamais écrasé sans votre choix.",
     "Un bandeau signale dès qu'une nouvelle version est disponible ; « Intégrer ses modifications » la fusionne avec votre travail en cours sans attendre d'enregistrer.",
     "Historique des versions : consulter une ancienne version, la restaurer (l'historique est conservé) ou poser un jalon nommé (par exemple « v1.0 » avant une revue).",
-    "Les modèles existants sont mis à jour automatiquement à l'ouverture, sans perte. Les messages d'erreur restent affichés plus longtemps pour pouvoir être lus.",
-    "Correction : après un enregistrement, supprimer un objet supprime de nouveau ses affectations et ses relations (elles pouvaient rester orphelines dans le modèle)."
+    "Les modèles existants sont mis à jour automatiquement à l'ouverture, sans perte."
+  ]},
+  { version:'v0.6.7', date:'2026-11-17', items:[
+    "Correction : après un enregistrement (ou un téléchargement, ou une sauvegarde automatique), supprimer un objet supprime de nouveau ses affectations et ses relations. Elles pouvaient rester dans le modèle, rattachées à un objet disparu.",
+    "Les modèles touchés par ce défaut sont réparés automatiquement à l'ouverture : les éléments orphelins sont nettoyés et un message indique combien. Enregistrez ensuite pour conserver la correction.",
+    "Les messages longs restent affichés le temps de pouvoir les lire."
   ]},
   { version:'v0.6.6', date:'2026-11-08', items:[
     "Pied de page : le copyright, la licence (MIT), le lien vers casarou.com et l'adresse de contact apparaissent désormais en bas de l'outil."
@@ -1485,6 +1489,27 @@ function run(sql,params){ db.run(sql,params||[]); dirty=true; }
 // Sans ce rappel, après un enregistrement, supprimer un objet ne supprimait plus ses affectations et
 // relations (ON DELETE CASCADE inactif) : elles restaient orphelines dans le modèle.
 function exportDb(){ const b=db.export(); db.run("PRAGMA foreign_keys = ON"); return b; }
+/* Réparation à l'ouverture des modèles enregistrés avec ce défaut : on applique après coup ce que la
+   base aurait dû faire à la suppression (règle ON DELETE de chaque lien) : CASCADE -> l'élément orphelin
+   est supprimé, SET NULL -> la référence est vidée. Les autres cas sont seulement comptés.
+   Sert aussi à la fusion GitLab, sur la version de l'autre personne (paramètre d). */
+function repairOrphans(d=db){
+  const q=(sql)=>{ const st=d.prepare(sql), out=[]; while(st.step()) out.push(st.getAsObject()); st.free(); return out; };
+  let fixed=0, left=0;
+  for(let pass=0; pass<10; pass++){
+    const rows=q("PRAGMA foreign_key_check"); if(!rows.length) break;
+    let progress=0; left=0;
+    for(const r of rows){
+      const fk=q("PRAGMA foreign_key_list("+r.table+")").find(f=>f.id===r.fkid);
+      if(fk && fk.on_delete==='CASCADE') d.run('DELETE FROM "'+r.table+'" WHERE rowid=?',[r.rowid]);
+      else if(fk && fk.on_delete==='SET NULL') d.run('UPDATE "'+r.table+'" SET "'+fk.from+'"=NULL WHERE rowid=?',[r.rowid]);
+      else { left++; continue; }
+      progress++;
+    }
+    fixed+=progress; if(!progress) break;
+  }
+  return {fixed, left};
+}
 
 /* ---------- ouverture / création ---------- */
 // Tables dont chaque ligne porte un identifiant stable (uid), dans l'ordre d'affichage des résumés
@@ -1531,9 +1556,13 @@ async function openBytes(bytes,name){
     migrateV7(db); // v6 -> v7 : table meta + identifiants stables (uid)
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
-  dbName=name||"modele.db"; dirty=false; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
+  const rep=repairOrphans();
+  dbName=name||"modele.db"; dirty=rep.fixed>0; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
   enterEditor(); refreshAll();
-  toast("Modèle chargé","ok");
+  if(rep.fixed) toast("Modèle réparé : "+rep.fixed+" élément(s) orphelin(s) nettoyé(s) (affectations, relations… d'éléments déjà supprimés). Enregistrez pour conserver la correction.","ok");
+  else toast("Modèle chargé","ok");
+  if(rep.left) toast(rep.left+" référence(s) vers des éléments supprimés n'ont pas pu être réparées automatiquement (propriété liée à une liste de valeurs ou une unité disparue).","err");
+  return rep;
 }
 async function newModel(){
   await ensureSql();
@@ -3534,9 +3563,11 @@ function glChanges(baseBytes, d=db){
 /* ---- ouvrir, enregistrer ---- */
 function glDetach(){ gl.link=null; gl.baseBytes=null; gl.remote=null; gl.restoreLabel=null; glShowBanner(); if(el('glChip')) glUpdateUI(); }
 async function glOpenVersion(bytes, cfg, link, name){
-  await openBytes(bytes, name || glPathOf(cfg).split('/').pop());
+  const rep=await openBytes(bytes, name || glPathOf(cfg).split('/').pop());
   for(const k of GL_KEYS) glSetConfig(k, cfg[k]); // le modèle garde ses réglages GitLab
-  gl.link=link; gl.baseBytes=exportDb(); dirty=false;
+  // modèle réparé à l'ouverture (orphelins nettoyés) : la référence reste la version telle qu'elle est
+  // dans GitLab, pour que le prochain enregistrement publie la réparation avec son résumé
+  gl.link=link; gl.baseBytes=rep.fixed ? bytes : exportDb(); dirty=rep.fixed>0;
   glStartPolling(); glUpdateUI();
 }
 async function glOpen(){
@@ -3763,6 +3794,7 @@ function mergeModels(baseBytes, mineDb, theirsBytes, choices, who){
   let keep=false;
   try{
     migrateV7(target); migrateV7(base); target.run('PRAGMA foreign_keys = ON');
+    repairOrphans(target); // une version enregistrée avant la v0.6.7 peut contenir des orphelins : on ne les réintroduit pas
     const schema=mergeSchema(target), S=Object.fromEntries(schema.map(s=>[s.t,s]));
     const B=mergeSnapshot(base,schema), M=mergeSnapshot(mineDb,schema), T=mergeSnapshot(target,schema);
     const snaps=[M,T,B];
@@ -4101,7 +4133,7 @@ function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;"
 function toast(msg,kind){
   const d=document.createElement('div'); d.className='toast'+(kind?(' '+kind):'');
   d.innerHTML=esc(msg); el('toasts').appendChild(d);
-  const ms = kind==='err' ? Math.max(5000, msg.length*45) : 2600; // une erreur longue reste lisible
+  const ms = Math.max(kind==='err' ? 5000 : 2600, msg.length*45); // un message long reste lisible
   setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},ms);
 }
 
