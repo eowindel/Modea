@@ -1,0 +1,204 @@
+// Teste l'enregistrement dans GitLab et le travail à deux, avec les vraies fonctions de
+// modea-editeur.html (jsdom) et un faux serveur GitLab en mémoire (API REST v4 simplifiée,
+// dont le refus d'un commit basé sur une version dépassée : last_commit_id).
+// Deux « postes » (Alice, Bruno) partagent le même dépôt.
+// Usage : node scripts/test_gitlab.cjs       Dépendance : jsdom (npm install --prefix scripts jsdom).
+const fs = require('fs'), path = require('path'), os = require('os'), cp = require('child_process');
+const { JSDOM, VirtualConsole } = require('jsdom');
+const quiet = new VirtualConsole(); // la navigation (téléchargements) n'existe pas dans jsdom : messages ignorés
+const root = path.resolve(__dirname, '..');
+const html = fs.readFileSync(path.join(root, 'modea-editeur.html'), 'utf8');
+
+let failures = 0;
+const check = (label, ok, detail = '') => {
+  console.log((ok ? 'OK    ' : 'ECHEC ') + label + (!ok && detail ? ' -- ' + detail : ''));
+  if (!ok) failures++;
+};
+
+/* ---------- faux GitLab ---------- */
+function fakeGitlab() {
+  const users = { tokA: 'Alice', tokB: 'Bruno' };
+  const commits = []; // du plus ancien au plus récent : { id, short_id, title, author_name, committed_date, files:{path:base64} }
+  const tags = [];
+  let n = 0, beforeCommit = null;
+  const state = ref => { // fichiers à une branche (main) ou un commit
+    const i = ref === 'main' ? commits.length - 1 : commits.findIndex(c => c.id === ref);
+    return i < 0 ? null : { files: commits[i].files, upto: commits.slice(0, i + 1) };
+  };
+  const lastTouch = (upto, p) => [...upto].reverse().find(c => c.touched.includes(p));
+  const res = (status, body) => ({ ok: status < 300, status, json: async () => body, arrayBuffer: async () => new ArrayBuffer(0) });
+  const pub = c => ({ id: c.id, short_id: c.short_id, title: c.title, message: c.title, author_name: c.author_name, committed_date: c.committed_date });
+  async function fetch(url, opts = {}) {
+    const u = new URL(url); const tok = (opts.headers || {})['PRIVATE-TOKEN'];
+    if (!users[tok]) return res(401, { message: '401 Unauthorized' });
+    const p = decodeURIComponent(u.pathname.replace(/^\/api\/v4\/projects\/[^/]+/, ''));
+    const q = Object.fromEntries(u.searchParams);
+    const m = opts.method || 'GET';
+    if (m === 'GET' && p === '') return res(200, { id: 1, name_with_namespace: 'Atelier / Modèles', default_branch: 'main',
+      empty_repo: !commits.length, permissions: { project_access: { access_level: 30 } } });
+    if (m === 'GET' && p.startsWith('/repository/branches/')) return commits.length ? res(200, { name: 'main' }) : res(404, { message: '404 Branch Not Found' });
+    if (m === 'GET' && p.startsWith('/repository/files/')) {
+      const fp = p.slice('/repository/files/'.length); const st = state(q.ref);
+      if (!st || !(fp in st.files)) return res(404, { message: '404 File Not Found' });
+      return res(200, { file_path: fp, encoding: 'base64', content: st.files[fp], last_commit_id: lastTouch(st.upto, fp).id });
+    }
+    if (m === 'GET' && p === '/repository/commits') {
+      const st = state(q.ref_name); if (!st) return res(200, []);
+      return res(200, [...st.upto].reverse().filter(c => !q.path || c.touched.includes(q.path)).slice(0, +q.per_page || 20).map(pub));
+    }
+    if (m === 'POST' && p === '/repository/commits') {
+      if (beforeCommit) { const f = beforeCommit; beforeCommit = null; await f(); }
+      const b = JSON.parse(opts.body); const cur = state('main') || { files: {}, upto: [] };
+      const files = { ...cur.files };
+      for (const a of b.actions) {
+        const exists = a.file_path in files;
+        if (a.action === 'create' && exists) return res(400, { message: 'A file with this name already exists' });
+        if (a.action === 'update' && !exists) return res(400, { message: "A file with this name doesn't exist" });
+        if (a.action === 'update' && a.last_commit_id && lastTouch(cur.upto, a.file_path).id !== a.last_commit_id)
+          return res(400, { message: 'You are attempting to update a file that has changed since you started editing it.' });
+        files[a.file_path] = a.encoding === 'base64' ? a.content : Buffer.from(a.content, 'utf8').toString('base64');
+      }
+      const id = (++n).toString(16).padStart(40, '0');
+      const c = { id, short_id: id.slice(-8), title: b.commit_message, author_name: users[tok],
+        committed_date: new Date(Date.UTC(2026, 10, 17, 9, n)).toISOString(), files, touched: b.actions.map(a => a.file_path) };
+      commits.push(c); return res(201, pub(c));
+    }
+    if (m === 'GET' && p === '/repository/tags') return res(200, tags);
+    if (m === 'POST' && p === '/repository/tags') {
+      const b = JSON.parse(opts.body);
+      if (tags.some(t => t.name === b.tag_name)) return res(400, { message: 'Tag ' + b.tag_name + ' already exists' });
+      tags.push({ name: b.tag_name, commit: { id: b.ref } }); return res(201, tags.at(-1));
+    }
+    return res(404, { message: 'route inconnue ' + m + ' ' + p });
+  }
+  return { fetch, commits, tags, set beforeCommit(f) { beforeCommit = f; }, text: (ref, fp) => Buffer.from(state(ref).files[fp], 'base64') };
+}
+
+/* ---------- un poste = une instance de l'éditeur ---------- */
+const CFG = { base_url: 'https://gitlab.test', project: 'atelier/modeles', branch: 'main', path: 'modeles/moto.db' };
+async function poste(server, token) {
+  const w = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', virtualConsole: quiet }).window;
+  w.fetch = server.fetch; w.confirm = () => true; w.HTMLAnchorElement.prototype.click = () => {};
+  w.URL.createObjectURL = () => 'blob:x'; w.URL.revokeObjectURL = () => {};
+  await new Promise(r => setTimeout(r, 500));
+  w.localStorage.setItem('modea-gitlab-config', JSON.stringify(CFG));
+  w.eval(`gl.token=${JSON.stringify(token)}`);
+  const ev = s => w.eval(s);
+  return { w, ev, n: sql => ev(`exec(${JSON.stringify(sql)})[0].n`), err: async s => {
+    try { await ev(s); return null; } catch (e) { return e; } } };
+}
+
+(async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'modea-gl-'));
+  const moto = path.join(tmp, 'moto.db');
+  cp.execFileSync('python3', [path.join(root, 'scripts', 'generate_sample_moto_db.py'), moto]);
+  const S = fakeGitlab();
+  const alice = await poste(S, 'tokA'), bruno = await poste(S, 'tokB');
+
+  // 1) Alice publie son modèle local
+  alice.w.__b = new Uint8Array(fs.readFileSync(moto));
+  await alice.ev(`openBytes(__b,'moto.db')`);
+  await alice.ev('glSave()');
+  check('première publication : un commit', S.commits.length === 1, S.commits.length);
+  check('message de première publication', S.commits[0]?.title === 'Modea : première publication de moto.db', S.commits[0]?.title);
+  check('le commit contient le .db et le .sql', S.commits[0] && 'modeles/moto.db' in S.commits[0].files && 'modeles/moto.sql' in S.commits[0].files);
+  const dump = S.text('main', 'modeles/moto.sql').toString('utf8');
+  check('export texte lisible (INSERT par ligne, uid)', /INSERT INTO "objet" \("id", .*"uid"\) VALUES \(1, 'Moto'/.test(dump));
+  check('Alice est reliée à GitLab', alice.ev('gl.link && gl.link.lastCommitId') === S.commits[0]?.id);
+  check('bouton « Enregistrer dans GitLab »', alice.ev(`el('btnSave').textContent`) === 'Enregistrer dans GitLab');
+  check('réglages GitLab écrits dans le modèle (sans jeton)',
+    alice.n(`SELECT COUNT(*) n FROM meta WHERE key LIKE 'gitlab.%'`) === 4 && !alice.n(`SELECT COUNT(*) n FROM meta WHERE value LIKE 'tok%'`));
+  check('sans modification : pas de commit', (await alice.ev('glSave()'), S.commits.length === 1));
+
+  // 2) Bruno ouvre depuis GitLab (aucun modèle ouvert)
+  await bruno.ev('glOpen()');
+  check('Bruno ouvre le modèle publié', bruno.n('SELECT COUNT(*) n FROM objet') === 34);
+  check('Bruno part de la version d’Alice', bruno.ev('gl.link.lastCommitId') === S.commits[0].id);
+
+  // 3) Alice ajoute un objet et enregistre : message résumé
+  alice.ev(`run("INSERT INTO objet(nom,statut) VALUES ('Rétroviseur','brouillon')")`);
+  await alice.ev('glSave()');
+  check('résumé « 1 objet ajouté »', S.commits.at(-1).title === 'Modea : 1 objet ajouté', S.commits.at(-1).title);
+
+  // 4) Bruno est prévenu, puis son enregistrement est refusé (il ne peut pas écraser Alice)
+  await bruno.ev('glPoll()');
+  check('Bruno voit la nouvelle version (bandeau)', !bruno.ev(`el('glBanner').classList.contains('hidden')`)
+    && /Alice/.test(bruno.ev(`el('glBannerText').textContent`)));
+  bruno.ev(`run("UPDATE objet SET definition='modifié par Bruno' WHERE nom='Cadre'")`);
+  const nAvant = S.commits.length;
+  const e1 = await bruno.err('glSave()');
+  check('enregistrement de Bruno refusé (409)', e1 && e1.status === 409 && /Alice/.test(e1.message), e1 && e1.message);
+  check('le travail d’Alice n’est pas écrasé', S.commits.length === nAvant);
+
+  // 5) Course : Alice enregistre entre la vérification de Bruno et son commit -> GitLab refuse
+  await bruno.ev('glOpen()');
+  check('Bruno recharge la version d’Alice', bruno.n(`SELECT COUNT(*) n FROM objet WHERE nom='Rétroviseur'`) === 1);
+  bruno.ev(`run("UPDATE objet SET nom='Bloc moteur' WHERE nom='Moteur'")`);
+  alice.ev(`run("DELETE FROM relation WHERE id=22")`);
+  S.beforeCommit = () => alice.ev('glSave()');
+  const e2 = await bruno.err('glSave()');
+  check('commit concurrent refusé par GitLab (last_commit_id)', e2 && e2.status === 409, e2 && e2.message);
+  check('le commit concurrent d’Alice est bien passé', S.commits.at(-1).title === 'Modea : 1 relation supprimée', S.commits.at(-1).title);
+
+  // 6) Bruno recharge, refait sa modification : résumé « modifié »
+  await bruno.ev('glOpen()');
+  bruno.ev(`run("UPDATE objet SET nom='Bloc moteur' WHERE nom='Moteur'")`);
+  await bruno.ev('glSave()');
+  check('résumé « 1 objet modifié », auteur Bruno', S.commits.at(-1).title === 'Modea : 1 objet modifié' && S.commits.at(-1).author_name === 'Bruno',
+    S.commits.at(-1).title);
+
+  // 7) Historique, jalon, consultation, restauration (côté Alice, qui doit d'abord recharger)
+  await alice.ev('glOpen()');
+  await alice.ev('glLoadHistory()');
+  check('historique : 4 versions, la plus récente en tête', alice.ev('gl.history.commits.length') === 4
+    && alice.ev('gl.history.commits[0].author_name') === 'Bruno');
+  alice.ev(`el('gl_tag').value='v1.0'`);
+  await alice.ev('glTag()');
+  check('jalon v1.0 posé sur la dernière version', S.tags[0]?.name === 'v1.0' && S.tags[0].commit.id === S.commits.at(-1).id);
+  const e3 = await alice.err(`(el('gl_tag').value='v1.0', glTag())`);
+  check('jalon en double refusé avec un message clair', e3 && /existe/.test(e3.message), e3 && e3.message);
+  const first = S.commits[0].id;
+  await alice.ev(`glView(${JSON.stringify(first)})`);
+  check('consulter une version : ouverte sans lien GitLab', alice.n('SELECT COUNT(*) n FROM objet') === 34 && alice.ev('gl.link') === null);
+  await alice.ev(`glRestore(${JSON.stringify(first)})`);
+  const last = S.commits.at(-1);
+  check('restauration = nouveau commit', /^Modea : restauration de la version du .*\(1 objet modifié, 1 objet supprimé, 1 relation ajoutée\)$/.test(last.title), last.title);
+  check('le modèle restauré est celui de la première version', alice.n(`SELECT COUNT(*) n FROM objet WHERE nom IN ('Rétroviseur','Bloc moteur')`) === 0
+    && alice.ev('gl.link.lastCommitId') === last.id);
+
+  // 8) Publier un modèle local par-dessus un modèle existant : refusé
+  alice.w.__b = new Uint8Array(fs.readFileSync(moto));
+  await alice.ev(`openBytes(__b,'moto.db')`);
+  const e4 = await alice.err('glSave()');
+  check('publier par-dessus un modèle existant : refusé', e4 && /existe déjà/.test(e4.message), e4 && e4.message);
+
+  // 9) Migration v6 -> v7 : uid déterministes, identiques sur les deux postes
+  const v6 = path.join(tmp, 'v6.db');
+  fs.writeFileSync(path.join(tmp, 'v6.sql'), cp.execFileSync('git', ['-C', root, 'show', 'main:metamodele.sql']));
+  cp.execFileSync('python3', ['-c', `
+import sqlite3,sys
+c=sqlite3.connect(sys.argv[1]); c.executescript(open(sys.argv[2],encoding='utf-8').read())
+c.executemany("INSERT INTO objet(nom) VALUES (?)", [('Produit',),('Pièce',),('Document',)]); c.commit()`, v6, path.join(tmp, 'v6.sql')]);
+  for (const p of [alice, bruno]) { p.w.__b = new Uint8Array(fs.readFileSync(v6)); await p.ev(`openBytes(__b,'v6.db')`); }
+  const uids = p => JSON.stringify(p.ev(`exec("SELECT uid FROM objet ORDER BY id").map(r=>r.uid)`));
+  check('base v6 migrée en v7', alice.ev(`exec("PRAGMA user_version")[0].user_version`) === 7);
+  check('uid de migration déterministes (mêmes sur les deux postes)', uids(alice) === uids(bruno) && /"objet-1"/.test(uids(alice)), uids(alice));
+  alice.ev(`run("INSERT INTO objet(nom) VALUES ('Nouveau')")`);
+  check('nouvel élément : uid aléatoire', /^[0-9a-f]{32}$/.test(alice.ev(`exec("SELECT uid FROM objet WHERE nom='Nouveau'")[0].uid`)));
+
+  // 10) Base neuve de l'éditeur = metamodele.sql (même structure)
+  await alice.ev('newModel()');
+  const struct = alice.ev(`JSON.stringify(exec("SELECT m.type,m.name,(SELECT group_concat(name) FROM pragma_table_info(m.name)) cols FROM sqlite_master m WHERE m.name NOT LIKE 'sqlite_%' ORDER BY m.type,m.name"))`);
+  const py = cp.execFileSync('python3', ['-c', `
+import sqlite3,json
+c=sqlite3.connect(':memory:'); c.executescript(open(${JSON.stringify(path.join(root, 'metamodele.sql'))},encoding='utf-8').read())
+print(json.dumps([dict(type=t,name=n,cols=cols) for t,n,cols in c.execute("SELECT m.type,m.name,(SELECT group_concat(name) FROM pragma_table_info(m.name)) cols FROM sqlite_master m WHERE m.name NOT LIKE 'sqlite_%' ORDER BY m.type,m.name")]))`]).toString();
+  const a = JSON.parse(struct).filter(x => !x.name.startsWith('saisie_') && !/^trg_saisie/.test(x.name));
+  const b = JSON.parse(py);
+  check('base neuve de l’éditeur = metamodele.sql (tables, index, triggers, colonnes)', JSON.stringify(a) === JSON.stringify(b),
+    JSON.stringify(a.filter(x => !b.some(y => JSON.stringify(y) === JSON.stringify(x)))).slice(0, 300));
+
+  fs.rmSync(tmp, { recursive: true, force: true });
+  console.log(`\n${failures ? 'ECHEC' : 'OK'} : ${failures} test(s) en echec`);
+  process.exit(failures ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });

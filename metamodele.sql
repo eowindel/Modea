@@ -17,7 +17,7 @@ PRAGMA foreign_keys = ON;   -- OFF par défaut sous SQLite : à réactiver à CH
 -- Version de schéma : à incrémenter à chaque migration (nouvelle table/colonne),
 -- ici et dans SCHEMA_BASE (modea-editeur.html) en parallèle. Sert à openBytes() côté
 -- éditeur pour détecter un fichier trop ancien plutôt que de planter en silence.
-PRAGMA user_version = 6;
+PRAGMA user_version = 7;
 
 -- -----------------------------------------------------------------------------
 --  Domaine fonctionnel — regroupement métier des objets (facultatif mais utile)
@@ -439,3 +439,94 @@ JOIN propriete       p   ON p.id = app.propriete_id
 LEFT JOIN unite u ON u.id = p.unite_id
 LEFT JOIN grandeur_physique gp ON gp.id = u.grandeur_id
 LEFT JOIN discipline disc ON disc.id = app.discipline_id;
+
+-- =============================================================================
+--  v7 : travail à plusieurs (enregistrement dans GitLab)
+--  - META : réglages partagés avec le modèle (ex : gitlab.base_url, gitlab.project,
+--    gitlab.branch, gitlab.path). Le jeton d'accès n'y est JAMAIS écrit.
+--  - UID : identifiant stable de chaque ligne, identique sur tous les postes, qui
+--    permet de reconnaître un même élément dans deux versions du modèle (comparaison,
+--    fusion). Rempli automatiquement à l'insertion par un trigger ; une base v6
+--    migrée reçoit des uid déterministes (« <table>-<id> »), donc les mêmes chez
+--    tous ceux qui la migrent. Ajouté par ALTER TABLE pour que les bases neuves et
+--    migrées aient exactement la même structure.
+-- =============================================================================
+CREATE TABLE meta (
+    key     TEXT PRIMARY KEY,
+    value   TEXT
+);
+
+ALTER TABLE domaine ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_domaine_uid ON domaine(uid);
+CREATE TRIGGER trg_domaine_uid AFTER INSERT ON domaine FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE domaine SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE classe_objet ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_classe_objet_uid ON classe_objet(uid);
+CREATE TRIGGER trg_classe_objet_uid AFTER INSERT ON classe_objet FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE classe_objet SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE discipline ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_discipline_uid ON discipline(uid);
+CREATE TRIGGER trg_discipline_uid AFTER INSERT ON discipline FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE discipline SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE type_enumere ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_type_enumere_uid ON type_enumere(uid);
+CREATE TRIGGER trg_type_enumere_uid AFTER INSERT ON type_enumere FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE type_enumere SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE valeur_enumeree ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_valeur_enumeree_uid ON valeur_enumeree(uid);
+CREATE TRIGGER trg_valeur_enumeree_uid AFTER INSERT ON valeur_enumeree FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE valeur_enumeree SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE grandeur_physique ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_grandeur_physique_uid ON grandeur_physique(uid);
+CREATE TRIGGER trg_grandeur_physique_uid AFTER INSERT ON grandeur_physique FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE grandeur_physique SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE unite ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_unite_uid ON unite(uid);
+CREATE TRIGGER trg_unite_uid AFTER INSERT ON unite FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE unite SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE objet ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_objet_uid ON objet(uid);
+CREATE TRIGGER trg_objet_uid AFTER INSERT ON objet FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE objet SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE propriete ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_propriete_uid ON propriete(uid);
+CREATE TRIGGER trg_propriete_uid AFTER INSERT ON propriete FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE propriete SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE contrainte ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_contrainte_uid ON contrainte(uid);
+CREATE TRIGGER trg_contrainte_uid AFTER INSERT ON contrainte FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE contrainte SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE applicabilite ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_applicabilite_uid ON applicabilite(uid);
+CREATE TRIGGER trg_applicabilite_uid AFTER INSERT ON applicabilite FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE applicabilite SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE verbe_relation ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_verbe_relation_uid ON verbe_relation(uid);
+CREATE TRIGGER trg_verbe_relation_uid AFTER INSERT ON verbe_relation FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE verbe_relation SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE relation ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_relation_uid ON relation(uid);
+CREATE TRIGGER trg_relation_uid AFTER INSERT ON relation FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE relation SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE lien_exigence ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_lien_exigence_uid ON lien_exigence(uid);
+CREATE TRIGGER trg_lien_exigence_uid AFTER INSERT ON lien_exigence FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE lien_exigence SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE filtre_diagramme ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_filtre_diagramme_uid ON filtre_diagramme(uid);
+CREATE TRIGGER trg_filtre_diagramme_uid AFTER INSERT ON filtre_diagramme FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE filtre_diagramme SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;

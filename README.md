@@ -54,6 +54,17 @@ L'export **SHACL** cible les mêmes classes et propriétés : une forme par obje
 
 **Ce qui n'a pas été vérifié** : l'ouverture des exports dans des outils d'ontologie comme Protégé ou TopBraid EDG, et la conformité OWL 2 DL par un raisonneur. Les retours sont les bienvenus.
 
+## Travailler à plusieurs avec GitLab
+
+Le modèle peut être ouvert et enregistré dans un dépôt **GitLab**, directement depuis Modea : personne n'a besoin de connaître git. L'API REST v4 est appelée par le navigateur avec le **jeton d'accès personnel** de chacun (portée `api`, rôle Developer ou plus), comme dans 3DX Class Architect.
+
+- **GitLab…** : adresse, projet, branche et chemin du fichier (`gitlab.*` dans la table `meta` du modèle, donc partagés avec lui) ; le jeton reste dans le navigateur (mémoire de session, ou `localStorage` si « Se souvenir du jeton ») et n'est jamais écrit dans le modèle.
+- **Enregistrer dans GitLab** : un commit contenant le `.db` (référence) et un export texte trié `.sql` (pour lire les différences dans GitLab), avec un message résumé (« 2 objets ajoutés, 1 relation modifiée »). Chaque enregistrement est une sauvegarde datée et signée.
+- **Pas d'écrasement** : le commit indique la version lue (`last_commit_id`) ; GitLab le refuse si quelqu'un a enregistré entre-temps. Modea l'explique et propose de télécharger sa version puis de recharger. Une vérification chaque minute signale les nouvelles versions.
+- **Versions enregistrées** : consulter, restaurer (nouveau commit, historique conservé), poser un jalon (tag).
+
+Pour que deux versions du même modèle puissent être comparées, chaque ligne porte un **identifiant stable** (`uid`, schéma v7). Une base v6 est migrée à l'ouverture avec des `uid` déterministes (`objet-12`) : deux personnes qui migrent la même base obtiennent les mêmes. Prochaine étape envisagée : fusionner automatiquement deux enregistrements concurrents au lieu de refuser le second. Test : `node scripts/test_gitlab.cjs` (faux serveur GitLab, deux utilisateurs simulés).
+
 ## Démarrer
 
 1. Ouvrir `modea-editeur.html` dans Chrome ou Edge (double-clic).
@@ -73,6 +84,7 @@ Le socle est un **métamodèle neutre** dans **SQLite** : les tables *décrivent
 | `objet` | entité du domaine : nom, définition, domaine, nature, statut |
 | `propriete` | attribut d'un objet : type, obligatoire, multivalué, contraintes |
 | `relation` | lien orienté : association, composition, agrégation, généralisation, cardinalités, rôles |
+| `meta` | réglages partagés avec le modèle (emplacement GitLab) ; chaque table porte aussi un `uid` stable |
 
 Les vues `saisie_objet`, `saisie_propriete` et `saisie_relation` (avec triggers `INSTEAD OF`) permettent d'insérer **par nom** : aucun id manipulé à la main. C'est aussi le chemin d'un import automatisé.
 
@@ -83,7 +95,7 @@ Fichiers utiles :
 | `modea-editeur.html` | l'application (page autonome) |
 | `metamodele.sql`, `saisie.sql` | schéma et vues de saisie, à garder synchronisés avec le schéma embarqué dans l'éditeur |
 | `demo-cytoscape.html` | démonstrateur de graphe, ouvre un `.db` en lecture |
-| `scripts/` | `generate_sample_moto_db.py` (modèle d'exemple « moto »), `generate_sample_db.py`, `validate_schema.py`, `inline_vendor.py` |
+| `scripts/` | `generate_sample_moto_db.py` (modèle d'exemple « moto »), `generate_sample_db.py`, `validate_schema.py`, `inline_vendor.py`, `test_gitlab.cjs` (enregistrement GitLab à deux) |
 | `vendor/` | sql.js, Cytoscape et cytoscape-svg, injectés dans les pages par `inline_vendor.py` |
 | `brief-mdm-claude-code.md` | contexte du projet et questions ouvertes |
 

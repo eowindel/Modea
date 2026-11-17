@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.6">
+<meta name="version" content="0.8.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -85,6 +85,34 @@
   #helpBody li{margin-bottom:6px;line-height:1.55}
   #helpBody code{font-family:var(--mono);background:#EEF2F5;border-radius:4px;padding:1px 5px;font-size:12px}
 
+  .glchip{font-family:var(--mono);font-size:11px;color:var(--accent-deep);background:#E6F2F3;border:1px solid var(--line-strong);
+    border-radius:999px;padding:2px 9px;white-space:nowrap;align-self:center}
+  #glBanner{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 20px;
+    background:#FFF7E6;border-bottom:1px solid #E3B24F;font-size:12.5px}
+  #glBanner #glBannerText{flex:1 1 320px}
+  #glOverlay{position:fixed;inset:0;background:rgba(10,20,24,.45);z-index:100;
+    display:flex;align-items:center;justify-content:center;padding:24px}
+  #glModal{background:var(--surface);border-radius:14px;max-width:640px;width:100%;max-height:88vh;
+    display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  #glTopbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
+    border-bottom:1px solid var(--line-strong);flex:0 0 auto}
+  #glBody{overflow-y:auto;padding:6px 20px 18px}
+  #glBody section{padding:12px 0;border-bottom:1px solid var(--line)}
+  #glBody section:last-child{border-bottom:0}
+  #glBody h3{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent-deep);
+    margin:0 0 10px;font-family:var(--mono);font-weight:700}
+  #glBody .field input[type=password],.gltaginput{width:100%;padding:8px 10px;border:1px solid var(--line-strong);border-radius:7px;background:var(--surface)}
+  .gltaginput{width:auto;flex:1;min-width:0}
+  .glcheck{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin:8px 0 10px}
+  .glstatus{font-size:12px;margin:8px 0 0;min-height:1em}
+  .glstatus.ok{color:var(--accent-deep)} .glstatus.err{color:var(--danger)}
+  .glrow{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line)}
+  .glrow:last-child{border-bottom:0}
+  .glwhat{min-width:0;font-size:12.5px;overflow-wrap:anywhere}
+  .glmeta{font-size:11px;color:var(--muted);margin-top:2px}
+  .glacts{display:flex;gap:4px;flex:0 0 auto}
+  .gltag,.glcur{display:inline-block;font-family:var(--mono);font-size:10.5px;border-radius:999px;padding:0 7px;margin-left:6px}
+  .gltag{background:#FBEFD3;color:#7A5410} .glcur{background:#E6F2F3;color:var(--accent-deep)}
   #changelogOverlay{position:fixed;inset:0;background:rgba(10,20,24,.45);z-index:100;
     display:flex;align-items:center;justify-content:center;padding:24px}
   #changelogModal{background:var(--surface);border-radius:14px;max-width:520px;width:100%;max-height:80vh;
@@ -300,6 +328,7 @@
     <button class="btn" id="btnNew">Nouveau modèle</button>
     <button class="btn primary" id="btnSave" disabled>Enregistrer</button>
     <button class="btn ghost" id="btnDownload" disabled>Télécharger une copie</button>
+    <button class="btn ghost" id="btnGitlab" title="Ouvrir, enregistrer et retrouver les versions du modèle dans GitLab (travail à plusieurs)">GitLab…</button>
     <button class="btn ghost" id="btnExportTtl" disabled>Exporter en RDF (.ttl)</button>
     <button class="btn ghost" id="btnExportShacl" disabled>Exporter en SHACL (.ttl)</button>
     <button class="btn ghost" id="btnExportLiens" disabled>Exporter les liens externes (.ttl)</button>
@@ -307,6 +336,7 @@
   </div>
   <div class="stats">
     <span class="dbname" id="dbname"></span>
+    <span class="glchip hidden" id="glChip" title="Le modèle ouvert est relié à GitLab"></span>
     <div class="stat"><b id="cObj">0</b><span>objets</span></div>
     <div class="stat"><b id="cProp">0</b><span>propriétés</span></div>
     <div class="stat"><b id="cAffect">0</b><span>affectations</span></div>
@@ -436,6 +466,13 @@
             <li><b>Enregistrer</b> réécrit directement le fichier ouvert si ton navigateur le permet (Chrome/Edge), sinon télécharge une copie.</li>
             <li><b>Télécharger une copie</b> force un téléchargement, sans toucher au fichier d'origine.</li>
           </ul>
+          <h3>Travailler à plusieurs avec GitLab</h3>
+          <ul>
+            <li><b>GitLab…</b> ouvre la fenêtre de connexion : adresse de GitLab (coller l'adresse du projet suffit), branche, fichier du modèle dans le dépôt, et ton <b>jeton d'accès personnel</b> (portée « api »). Le jeton reste sur ton poste, il n'est jamais écrit dans le modèle.</li>
+            <li><b>Ouvrir depuis GitLab</b> charge la dernière version du modèle. Tant qu'il est relié à GitLab, le bouton devient <b>Enregistrer dans GitLab</b> : chaque enregistrement crée une version datée, à ton nom, avec un résumé automatique (« 2 objets ajoutés, 1 relation modifiée »). C'est aussi la sauvegarde du modèle.</li>
+            <li>Si quelqu'un enregistre pendant que tu travailles, un bandeau te prévient. Ton enregistrement est alors <b>refusé plutôt que d'écraser son travail</b> : télécharge ta version (copie de sécurité), recharge la sienne, puis refais tes modifications.</li>
+            <li><b>Versions enregistrées</b> : consulter une ancienne version (sans toucher à GitLab) ou la <b>restaurer</b> (elle redevient la version courante, l'historique est conservé). Un <b>jalon</b> donne un nom à la version enregistrée, par exemple avant une revue.</li>
+          </ul>
         </section>
 
         <section id="h-astuces">
@@ -462,6 +499,60 @@
   </div>
 </div>
 
+<div id="glBanner" class="hidden" role="status">
+  <span id="glBannerText"></span>
+  <button class="btn sm" id="glBannerCopy">Télécharger ma version</button>
+  <button class="btn sm primary" id="glBannerReload">Recharger la dernière version</button>
+  <button class="btn ghost sm" id="glBannerClose" aria-label="Masquer">✕</button>
+</div>
+
+<div id="glOverlay" class="hidden">
+  <div id="glModal" role="dialog" aria-modal="true" aria-label="GitLab">
+    <div id="glTopbar">
+      <span class="brand-mini">GitLab — enregistrer et partager le modèle</span>
+      <button class="btn ghost sm" id="glCloseBtn">Fermer ✕</button>
+    </div>
+    <div id="glBody">
+      <section>
+        <h3>Dépôt</h3>
+        <div class="field"><label><span class="lab">Adresse de GitLab</span>
+          <input type="text" id="gl_base_url" data-gl="base_url" placeholder="https://gitlab.mon-entreprise.local" autocomplete="off"></label>
+          <p class="hint">Vous pouvez coller l'adresse complète du projet : le projet se remplit tout seul.</p></div>
+        <div class="field"><label><span class="lab">Projet</span>
+          <input type="text" id="gl_project" data-gl="project" placeholder="groupe/projet" autocomplete="off"></label></div>
+        <div class="row2">
+          <div class="field"><label><span class="lab">Branche</span>
+            <input type="text" id="gl_branch" data-gl="branch" placeholder="main" autocomplete="off"></label></div>
+          <div class="field"><label><span class="lab">Fichier du modèle</span>
+            <input type="text" id="gl_path" data-gl="path" placeholder="modeles/mon-modele.db" autocomplete="off"></label></div>
+        </div>
+        <div class="field"><label><span class="lab">Jeton d'accès personnel (portée « api »)</span>
+          <input type="password" id="gl_token" placeholder="glpat-…" autocomplete="off"></label>
+          <label class="glcheck"><input type="checkbox" id="gl_remember"> Se souvenir du jeton dans ce navigateur</label>
+          <p class="hint">Le jeton reste sur ce poste : il n'est jamais écrit dans le modèle.</p></div>
+        <div class="actions"><button class="btn" id="glTest">Tester la connexion</button></div>
+        <p id="glStatus" class="glstatus"></p>
+      </section>
+      <section>
+        <h3>Modèle</h3>
+        <p class="hint" id="glLinkInfo"></p>
+        <div class="actions"><button class="btn" id="glOpen">Ouvrir depuis GitLab</button>
+          <button class="btn primary" id="glSave">Enregistrer dans GitLab</button></div>
+      </section>
+      <section>
+        <h3>Versions enregistrées</h3>
+        <div id="glHistory"></div>
+      </section>
+      <section>
+        <h3>Jalon</h3>
+        <p class="hint">Donne un nom à la version enregistrée (tag GitLab), par exemple « v1.0 » avant une revue.</p>
+        <div class="actions"><input type="text" id="gl_tag" class="gltaginput" placeholder="v1.0" autocomplete="off">
+          <button class="btn" id="glTag">Poser le jalon</button></div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <main id="app">
   <!-- Empty state -->
   <section class="empty" id="empty">
@@ -472,6 +563,7 @@
     <div class="cta">
       <button class="btn primary" id="btnOpen2">Ouvrir un modèle…</button>
       <button class="btn" id="btnNew2">Nouveau modèle vierge</button>
+      <button class="btn" id="btnGitlab2">Ouvrir depuis GitLab…</button>
     </div>
     <div id="autosaveBanner" class="hidden" style="margin-top:18px;padding:12px;border:1px solid var(--line-strong);border-radius:8px;background:#FFF7E6">
       <p style="margin:0 0 8px">Une sauvegarde automatique a été trouvée : <b id="autosaveName"></b>. Elle provient d'une session précédente qui n'a pas été enregistrée.</p>
@@ -921,11 +1013,17 @@ const TYPES = ['texte','entier','decimal','booleen','date','datetime','enum','id
 const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
-const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.6'; // à incrémenter à chaque commit taggé
+const SCHEMA_VERSION = 7; // à incrémenter ici ET dans metamodele.sql à chaque migration
+const APP_VERSION = 'v0.8'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.8', date:'2026-11-17', items:[
+    "Travail à plusieurs avec GitLab : le bouton « GitLab… » relie le modèle à un dépôt GitLab avec votre jeton d'accès. « Ouvrir depuis GitLab » charge la dernière version, et « Enregistrer dans GitLab » crée une nouvelle version datée, à votre nom, avec un résumé automatique des modifications. Chaque enregistrement sert aussi de sauvegarde.",
+    "Rien n'est jamais écrasé : si un collègue a enregistré pendant que vous travailliez, votre enregistrement est refusé avec une explication, et un bandeau signale dès qu'une nouvelle version est disponible.",
+    "Historique des versions : consulter une ancienne version, la restaurer (l'historique est conservé) ou poser un jalon nommé (par exemple « v1.0 » avant une revue).",
+    "Les modèles existants sont mis à jour automatiquement à l'ouverture, sans perte. Les messages d'erreur restent affichés plus longtemps pour pouvoir être lus."
+  ]},
   { version:'v0.6.6', date:'2026-11-08', items:[
     "Pied de page : le copyright, la licence (MIT), le lien vers casarou.com et l'adresse de contact apparaissent désormais en bas de l'outil."
   ]},
@@ -1240,6 +1338,97 @@ JOIN propriete       p   ON p.id = app.propriete_id
 LEFT JOIN unite u ON u.id = p.unite_id
 LEFT JOIN grandeur_physique gp ON gp.id = u.grandeur_id
 LEFT JOIN discipline disc ON disc.id = app.discipline_id;
+
+-- =============================================================================
+--  v7 : travail à plusieurs (enregistrement dans GitLab)
+--  - META : réglages partagés avec le modèle (ex : gitlab.base_url, gitlab.project,
+--    gitlab.branch, gitlab.path). Le jeton d'accès n'y est JAMAIS écrit.
+--  - UID : identifiant stable de chaque ligne, identique sur tous les postes, qui
+--    permet de reconnaître un même élément dans deux versions du modèle (comparaison,
+--    fusion). Rempli automatiquement à l'insertion par un trigger ; une base v6
+--    migrée reçoit des uid déterministes (« <table>-<id> »), donc les mêmes chez
+--    tous ceux qui la migrent. Ajouté par ALTER TABLE pour que les bases neuves et
+--    migrées aient exactement la même structure.
+-- =============================================================================
+CREATE TABLE meta (
+    key     TEXT PRIMARY KEY,
+    value   TEXT
+);
+
+ALTER TABLE domaine ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_domaine_uid ON domaine(uid);
+CREATE TRIGGER trg_domaine_uid AFTER INSERT ON domaine FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE domaine SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE classe_objet ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_classe_objet_uid ON classe_objet(uid);
+CREATE TRIGGER trg_classe_objet_uid AFTER INSERT ON classe_objet FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE classe_objet SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE discipline ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_discipline_uid ON discipline(uid);
+CREATE TRIGGER trg_discipline_uid AFTER INSERT ON discipline FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE discipline SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE type_enumere ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_type_enumere_uid ON type_enumere(uid);
+CREATE TRIGGER trg_type_enumere_uid AFTER INSERT ON type_enumere FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE type_enumere SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE valeur_enumeree ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_valeur_enumeree_uid ON valeur_enumeree(uid);
+CREATE TRIGGER trg_valeur_enumeree_uid AFTER INSERT ON valeur_enumeree FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE valeur_enumeree SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE grandeur_physique ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_grandeur_physique_uid ON grandeur_physique(uid);
+CREATE TRIGGER trg_grandeur_physique_uid AFTER INSERT ON grandeur_physique FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE grandeur_physique SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE unite ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_unite_uid ON unite(uid);
+CREATE TRIGGER trg_unite_uid AFTER INSERT ON unite FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE unite SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE objet ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_objet_uid ON objet(uid);
+CREATE TRIGGER trg_objet_uid AFTER INSERT ON objet FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE objet SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE propriete ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_propriete_uid ON propriete(uid);
+CREATE TRIGGER trg_propriete_uid AFTER INSERT ON propriete FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE propriete SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE contrainte ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_contrainte_uid ON contrainte(uid);
+CREATE TRIGGER trg_contrainte_uid AFTER INSERT ON contrainte FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE contrainte SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE applicabilite ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_applicabilite_uid ON applicabilite(uid);
+CREATE TRIGGER trg_applicabilite_uid AFTER INSERT ON applicabilite FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE applicabilite SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE verbe_relation ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_verbe_relation_uid ON verbe_relation(uid);
+CREATE TRIGGER trg_verbe_relation_uid AFTER INSERT ON verbe_relation FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE verbe_relation SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE relation ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_relation_uid ON relation(uid);
+CREATE TRIGGER trg_relation_uid AFTER INSERT ON relation FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE relation SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE lien_exigence ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_lien_exigence_uid ON lien_exigence(uid);
+CREATE TRIGGER trg_lien_exigence_uid AFTER INSERT ON lien_exigence FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE lien_exigence SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+ALTER TABLE filtre_diagramme ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_filtre_diagramme_uid ON filtre_diagramme(uid);
+CREATE TRIGGER trg_filtre_diagramme_uid AFTER INSERT ON filtre_diagramme FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE filtre_diagramme SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
 `;
 
 let SQL=null, db=null, fileHandle=null, dbName="modele.db", viewMode='fiches';
@@ -1264,8 +1453,28 @@ function exec(sql,params){ // renvoie tableau d'objets
 function run(sql,params){ db.run(sql,params||[]); dirty=true; }
 
 /* ---------- ouverture / création ---------- */
+// Tables dont chaque ligne porte un identifiant stable (uid), dans l'ordre d'affichage des résumés
+const UID_TABLES = ['objet','propriete','applicabilite','relation','verbe_relation','contrainte','domaine','classe_objet',
+  'discipline','type_enumere','valeur_enumeree','grandeur_physique','unite','lien_exigence','filtre_diagramme'];
+/* v6 -> v7 (idempotent) : table meta + colonne uid. Les uid des lignes existantes sont
+   déterministes (« objet-12 ») : deux personnes qui migrent la même base v6 obtiennent les
+   mêmes, ce qui permet de comparer ou fusionner leurs versions. Les lignes créées ensuite
+   reçoivent un uid aléatoire (trigger), comme dans metamodele.sql. */
+function migrateV7(d){
+  d.run("CREATE TABLE IF NOT EXISTS meta (\n    key     TEXT PRIMARY KEY,\n    value   TEXT\n)");
+  for(const t of UID_TABLES){
+    const cols=(d.exec("PRAGMA table_info("+t+")")[0]||{values:[]}).values.map(v=>v[1]);
+    if(!cols.length || cols.includes('uid')) continue;
+    d.run("ALTER TABLE "+t+" ADD COLUMN uid TEXT");
+    d.run("UPDATE "+t+" SET uid = '"+t+"-' || id");
+    d.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_"+t+"_uid ON "+t+"(uid)");
+    d.run("CREATE TRIGGER IF NOT EXISTS trg_"+t+"_uid AFTER INSERT ON "+t+" FOR EACH ROW WHEN NEW.uid IS NULL\n"
+      +"BEGIN UPDATE "+t+" SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END");
+  }
+}
 async function openBytes(bytes,name){
   await ensureSql();
+  glDetach(); // un modèle ouvert depuis le disque n'est relié à GitLab que si glOpen le relie ensuite
   try{ db && db.close(); }catch(e){}
   db=new SQL.Database(bytes);
   run("PRAGMA foreign_keys = ON");
@@ -1285,6 +1494,7 @@ async function openBytes(bytes,name){
     // passés par ce garde-fou avant l'introduction du filtre par statut dans le diagramme)
     const filtreCols = exec("PRAGMA table_info(filtre_diagramme)").map(c=>c.name);
     if(!filtreCols.includes('statuts')){ run("ALTER TABLE filtre_diagramme ADD COLUMN statuts TEXT"); }
+    migrateV7(db); // v6 -> v7 : table meta + identifiants stables (uid)
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
   dbName=name||"modele.db"; dirty=false; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
@@ -1296,6 +1506,7 @@ async function newModel(){
   try{ db && db.close(); }catch(e){}
   db=new SQL.Database();
   db.run(SCHEMA_BASE);
+  glDetach();
   dbName="nouveau-modele.db"; fileHandle=null; dirty=false; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
   enterEditor(); refreshAll(); toast("Nouveau modèle prêt","ok");
 }
@@ -3117,6 +3328,415 @@ function exportLiens(){
   }catch(e){ toast(friendly(e),"err"); }
 }
 
+/* ---------- GitLab : enregistrer, partager et versionner le modèle ----------
+   L'API REST v4 de GitLab est appelée directement par le navigateur (GitLab
+   accepte les appels d'API depuis toute origine tant qu'aucun cookie n'est
+   envoyé ; même approche que 3DX Class Architect).
+   - Réglages (adresse, projet, branche, fichier) : table meta du modèle
+     (« gitlab.* »), recopiés dans le navigateur pour « Ouvrir depuis GitLab »
+     quand aucun modèle n'est ouvert. Le jeton n'est JAMAIS écrit dans le modèle :
+     mémoire de la session, ou localStorage si « Se souvenir du jeton ».
+   - Enregistrer = un commit contenant le .db (référence) et un export texte
+     .sql trié (pour lire les différences dans GitLab).
+   - Travail à plusieurs : le commit précise la version lue (last_commit_id) ;
+     GitLab le refuse si quelqu'un a enregistré entre-temps. Rien n'est donc
+     jamais écrasé. Une vérification régulière signale les nouvelles versions.
+   --------------------------------------------------------------------------- */
+const GL_KEYS = ['base_url','project','branch','path'];
+const GL_LAST_KEY = 'modea-gitlab-config';
+const glTokenKey = baseUrl => 'modea-gitlab-token|'+baseUrl;
+const GL_POLL_MS = 60*1000;
+const GL_ACCESS = {10:'Guest',20:'Reporter',30:'Developer',40:'Maintainer',50:'Owner'};
+// link : version GitLab dont le modèle ouvert est parti { baseUrl, project, branch, path, lastCommitId, at, author }
+// baseBytes : cette version, telle qu'ouverte (sert au résumé des modifications du commit)
+const gl = { token:'', link:null, baseBytes:null, remote:null, history:null, timer:null, busy:false, restoreLabel:null, status:null };
+
+class GitLabError extends Error{ constructor(m,status){ super(m); this.status=status||0; } }
+
+function glClient({baseUrl, token, project}){
+  const api = String(baseUrl).replace(/\/+$/,'')+'/api/v4';
+  const pid = encodeURIComponent(String(project).trim().replace(/^\/+|\/+$/g,''));
+  const file = p => encodeURIComponent(String(p).replace(/^\/+/,''));
+  async function call(method, path, {body, query, okStatuses=[]}={}){
+    const url = api+path+(query?'?'+new URLSearchParams(query):'');
+    let res;
+    try{
+      res = await fetch(url, { method, headers:{'PRIVATE-TOKEN':token, ...(body?{'Content-Type':'application/json'}:{})},
+        body: body?JSON.stringify(body):undefined });
+    }catch(e){
+      throw new GitLabError("GitLab injoignable depuis le navigateur ("+e.message+"). Vérifiez l'adresse et le réseau ; "
+        +"si l'adresse est bonne, l'administrateur GitLab a peut-être restreint les appels depuis une page web (CORS).",0);
+    }
+    if(okStatuses.includes(res.status)) return {status:res.status};
+    if(!res.ok){
+      let detail=''; try{ const j=await res.json(); detail=j.message??j.error??''; }catch(e){ /* corps non JSON */ }
+      if(typeof detail==='object') detail=JSON.stringify(detail);
+      const msg = ({
+        401:"Jeton refusé (401) : jeton invalide, expiré ou révoqué.",
+        403:"Accès refusé (403) : le jeton doit avoir la portée « api » et un rôle Developer ou plus (Maintainer pour une branche ou des tags protégés)."+(detail?' '+detail:''),
+        404:"Introuvable (404) : vérifiez le projet"+(detail?' — '+detail:'')+'.'
+      })[res.status] || ('Erreur GitLab '+res.status+(detail?' : '+detail:''));
+      throw new GitLabError(msg,res.status);
+    }
+    return res.status===204 ? null : res.json();
+  }
+  return {
+    project: () => call('GET','/projects/'+pid),
+    branchExists: async b => (await call('GET','/projects/'+pid+'/repository/branches/'+encodeURIComponent(b),{okStatuses:[404]})).status!==404,
+    // fichier (contenu base64 + last_commit_id) à une branche ou un commit ; {status:404} s'il n'existe pas
+    file: (path, ref) => call('GET','/projects/'+pid+'/repository/files/'+file(path),{query:{ref},okStatuses:[404]}),
+    commits: (path, ref, n=20) => call('GET','/projects/'+pid+'/repository/commits',{query:{ref_name:ref, path, per_page:n}}),
+    commit: body => call('POST','/projects/'+pid+'/repository/commits',{body}),
+    tags: () => call('GET','/projects/'+pid+'/repository/tags',{query:{per_page:100}}),
+    createTag: (name, ref) => call('POST','/projects/'+pid+'/repository/tags',{body:{tag_name:name, ref}}),
+  };
+}
+// « https://gitlab.corp/groupe/projet(.git)(/-/tree/main) » -> { baseUrl, project } ; null sinon
+function parseGitlabProjectUrl(input){
+  let u; try{ u=new URL(String(input||'').trim()); }catch(e){ return null; }
+  if(!/^https?:$/.test(u.protocol)) return null;
+  const project=u.pathname.split('/-/')[0].replace(/\.git$/,'').replace(/^\/+|\/+$/g,'');
+  return project.includes('/') ? { baseUrl:u.origin, project } : null;
+}
+function bytesToBase64(bytes){
+  let s=''; for(let i=0;i<bytes.length;i+=0x8000) s+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000));
+  return btoa(s);
+}
+function base64ToBytes(b64){
+  const s=atob(String(b64).replace(/\s+/g,'')); const out=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++) out[i]=s.charCodeAt(i); return out;
+}
+const glDate = s => s ? new Date(s).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}) : '';
+
+/* ---- réglages et jeton ---- */
+function glStoredConfig(){ try{ return JSON.parse(localStorage.getItem(GL_LAST_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function glConfig(){
+  const c=glStoredConfig();
+  if(db){ try{ for(const r of exec("SELECT key,value FROM meta WHERE key LIKE 'gitlab.%'")) c[r.key.slice(7)]=r.value; }catch(e){ /* pas de meta */ } }
+  return { base_url:(c.base_url||'').replace(/\/+$/,''), project:c.project||'', branch:c.branch||'main', path:c.path||'' };
+}
+function glSetConfig(key, value){
+  value=String(value==null?'':value).trim();
+  const c=glStoredConfig(); c[key]=value;
+  try{ localStorage.setItem(GL_LAST_KEY, JSON.stringify(c)); }catch(e){ /* stockage indisponible */ }
+  if(!db) return;
+  const cur=exec("SELECT value FROM meta WHERE key=?",['gitlab.'+key])[0];
+  if((cur?cur.value:'')===value) return;
+  if(value) run("INSERT INTO meta(key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",['gitlab.'+key,value]);
+  else run("DELETE FROM meta WHERE key=?",['gitlab.'+key]);
+}
+function glToken(cfg){
+  if(gl.token) return gl.token;
+  try{ return localStorage.getItem(glTokenKey(cfg.base_url))||''; }catch(e){ return ''; }
+}
+function glClientOrError(cfg=glConfig()){
+  if(!cfg.base_url || !cfg.project) throw new GitLabError("Renseignez l'adresse de GitLab et le projet (bouton « GitLab »).");
+  const token=glToken(cfg);
+  if(!token) throw new GitLabError("Renseignez votre jeton d'accès GitLab (bouton « GitLab »).");
+  return glClient({baseUrl:cfg.base_url, token, project:cfg.project});
+}
+const glPathOf = cfg => cfg.path || dbName;
+const glDumpPath = path => path.replace(/\.(db|sqlite3?)$/i,'')+'.sql';
+const glSameTarget = (link,cfg) => !!link && link.baseUrl===cfg.base_url && link.project===cfg.project
+  && link.branch===cfg.branch && link.path===glPathOf(cfg);
+
+/* ---- export texte (.sql) : trié par clé primaire, pour des différences lisibles ---- */
+function sqlLiteral(v){
+  if(v===null || v===undefined) return 'NULL';
+  if(typeof v==='number') return String(v);
+  if(v instanceof Uint8Array) return "X'"+Array.from(v,b=>b.toString(16).padStart(2,'0')).join('')+"'";
+  return "'"+String(v).replace(/'/g,"''")+"'";
+}
+function dumpModel(d=db){
+  const rows=(sql,params)=>{ const st=d.prepare(sql); if(params) st.bind(params); const o=[]; while(st.step()) o.push(st.get()); st.free(); return o; };
+  const out=['-- Modea : export texte du modèle, pour lire les différences entre versions dans GitLab.',
+    '-- Fichier généré à chaque enregistrement : la référence est le fichier .db du même nom.',''];
+  const objs=rows(`SELECT type,name,sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%'
+    ORDER BY CASE type WHEN 'table' THEN 0 WHEN 'index' THEN 1 WHEN 'view' THEN 2 ELSE 3 END, name`);
+  for(const [type,name,sql] of objs){
+    out.push(sql+';');
+    if(type==='table'){
+      const cols=rows('SELECT name,pk FROM pragma_table_info(?)',[name]);
+      const pk=cols.filter(c=>c[1]>0).sort((a,b)=>a[1]-b[1]).map(c=>'"'+c[0]+'"');
+      const list=cols.map(c=>'"'+c[0]+'"').join(', ');
+      for(const r of rows('SELECT '+list+' FROM "'+name+'" ORDER BY '+(pk.length?pk.join(', '):'rowid')))
+        out.push('INSERT INTO "'+name+'" ('+list+') VALUES ('+r.map(sqlLiteral).join(', ')+');');
+    }
+    out.push('');
+  }
+  return out.join('\n');
+}
+
+/* ---- résumé des modifications (message de commit), par identifiant stable ---- */
+const GL_LABELS = { // [singulier, pluriel, féminin]
+  objet:['objet','objets',0], propriete:['propriété','propriétés',1], applicabilite:['affectation','affectations',1],
+  relation:['relation','relations',1], verbe_relation:['verbe','verbes',0], contrainte:['contrainte','contraintes',1],
+  domaine:['domaine','domaines',0], classe_objet:['nature','natures',1], discipline:['discipline','disciplines',1],
+  type_enumere:['liste de valeurs','listes de valeurs',1], valeur_enumeree:['valeur de liste','valeurs de liste',1],
+  grandeur_physique:['grandeur','grandeurs',1], unite:['unité','unités',1], lien_exigence:['lien externe','liens externes',0],
+  filtre_diagramme:['filtre du diagramme','filtres du diagramme',0]
+};
+function glChanges(baseBytes, d=db){
+  const old=new SQL.Database(baseBytes);
+  try{
+    migrateV7(old); // une version v6 n'a pas encore d'uid : on la compare comme si elle était migrée
+    const snap=(x,t)=>{ const m=new Map(); const st=x.prepare('SELECT * FROM "'+t+'"');
+      while(st.step()){ const o=st.getAsObject(); m.set(o.uid, JSON.stringify(o)); } st.free(); return m; };
+    const parts=[];
+    for(const t of UID_TABLES){
+      const a=snap(old,t), b=snap(d,t); let add=0, mod=0, del=0;
+      for(const [k,v] of b){ if(!a.has(k)) add++; else if(a.get(k)!==v) mod++; }
+      for(const k of a.keys()) if(!b.has(k)) del++;
+      const [sg,pl,fem]=GL_LABELS[t];
+      for(const [n,verbe] of [[add,'ajouté'],[mod,'modifié'],[del,'supprimé']])
+        if(n) parts.push(n+' '+(n>1?pl:sg)+' '+verbe+(fem?'e':'')+(n>1?'s':''));
+    }
+    const meta=x=>JSON.stringify(x.exec("SELECT key,value FROM meta ORDER BY key")[0]||null);
+    if(meta(old)!==meta(d)) parts.push('réglages modifiés');
+    return parts;
+  }finally{ old.close(); }
+}
+
+/* ---- ouvrir, enregistrer ---- */
+function glDetach(){ gl.link=null; gl.baseBytes=null; gl.remote=null; gl.restoreLabel=null; glShowBanner(); if(el('glChip')) glUpdateUI(); }
+async function glOpenVersion(bytes, cfg, link, name){
+  await openBytes(bytes, name || glPathOf(cfg).split('/').pop());
+  for(const k of GL_KEYS) glSetConfig(k, cfg[k]); // le modèle garde ses réglages GitLab
+  gl.link=link; gl.baseBytes=db.export(); dirty=false;
+  glStartPolling(); glUpdateUI();
+}
+async function glOpen(){
+  if(dirty && !confirm("Le modèle ouvert a des modifications non enregistrées. Les abandonner et ouvrir la dernière version depuis GitLab ?")) return;
+  const cfg=glConfig(); const path=cfg.path;
+  if(!path) throw new GitLabError("Indiquez le fichier du modèle dans le dépôt (ex : modeles/mon-modele.db).");
+  const c=glClientOrError(cfg);
+  const f=await c.file(path, cfg.branch);
+  if(f.status===404) throw new GitLabError("Aucun modèle « "+path+" » sur la branche « "+cfg.branch+" ».");
+  const head=(await c.commits(path, cfg.branch, 1))[0]||{};
+  await glOpenVersion(base64ToBytes(f.content), cfg,
+    { baseUrl:cfg.base_url, project:cfg.project, branch:cfg.branch, path, lastCommitId:f.last_commit_id, at:head.committed_date, author:head.author_name });
+  toast("Modèle ouvert depuis GitLab"+(head.author_name?" (version du "+glDate(head.committed_date)+", "+head.author_name+")":""),"ok");
+}
+function glConflictError(head){
+  gl.remote=head; glShowBanner();
+  return new GitLabError("Enregistrement refusé : "+(head.author_name||"quelqu'un")+" a enregistré une nouvelle version ("+glDate(head.committed_date)
+    +") depuis que vous avez ouvert le modèle. Pour ne pas écraser son travail : téléchargez votre version (copie de sécurité), "
+    +"rechargez la sienne, puis refaites vos modifications.",409);
+}
+async function glSave(){
+  if(!db) throw new GitLabError("Aucun modèle ouvert.");
+  if(gl.busy) return; gl.busy=true; glUpdateUI();
+  try{
+    const cfg=glConfig(); const path=glPathOf(cfg);
+    const c=glClientOrError(cfg);
+    // les réglages voyagent avec le modèle : qui l'ouvre ensuite (copie, autre poste) les retrouve
+    for(const k of GL_KEYS) glSetConfig(k, k==='path' ? path : cfg[k]);
+    const link=glSameTarget(gl.link,cfg) ? gl.link : null;
+    const parts=link ? glChanges(gl.baseBytes) : null;
+    if(link && !parts.length && !gl.restoreLabel){ dirty=false; toast("Aucune modification à enregistrer","ok"); return; }
+    const project=await c.project();
+    const branchExists=await c.branchExists(cfg.branch);
+    // branche absente : elle part de la branche par défaut (sauf dépôt vide, où le commit la crée)
+    const startBranch=!branchExists && !project.empty_repo ? project.default_branch : null;
+    const ref=branchExists ? cfg.branch : startBranch;
+    const dumpPath=glDumpPath(path);
+    const [dbFile,dumpFile]=ref ? await Promise.all([c.file(path,ref), c.file(dumpPath,ref)]) : [{status:404},{status:404}];
+    const exists=dbFile.status!==404;
+    if(exists && !link) throw new GitLabError("Un modèle existe déjà à « "+path+" » sur la branche « "+cfg.branch
+      +" ». Pour ne pas l'écraser : ouvrez-le depuis GitLab, ou choisissez un autre fichier.");
+    if(exists && dbFile.last_commit_id!==link.lastCommitId) throw glConflictError((await c.commits(path,cfg.branch,1))[0]||{});
+    const resume = link ? parts.join(', ') : '';
+    const message = 'Modea : '+(gl.restoreLabel ? gl.restoreLabel+(resume?' ('+resume+')':'')
+      : link ? (resume||'enregistrement du modèle') : 'première publication de '+path.split('/').pop());
+    const actions=[
+      { action:exists?'update':'create', file_path:path, encoding:'base64', content:bytesToBase64(db.export()),
+        ...(exists?{last_commit_id:link.lastCommitId}:{}) }, // GitLab refuse si le fichier a changé depuis
+      { action:dumpFile.status!==404?'update':'create', file_path:dumpPath, content:dumpModel() }
+    ];
+    let commit;
+    try{
+      commit=await c.commit({ branch:cfg.branch, ...(startBranch?{start_branch:startBranch}:{}), commit_message:message, actions });
+    }catch(e){
+      // enregistrement concurrent entre notre vérification et le commit : GitLab l'a refusé
+      if(e.status===400 && link){ const h=(await c.commits(path,cfg.branch,1))[0]; if(h && h.id!==link.lastCommitId) throw glConflictError(h); }
+      throw e;
+    }
+    gl.link={ baseUrl:cfg.base_url, project:cfg.project, branch:cfg.branch, path, lastCommitId:commit.id,
+      at:commit.committed_date||commit.created_at, author:commit.author_name };
+    gl.baseBytes=db.export(); gl.restoreLabel=null; gl.remote=null; dirty=false; clearAutosave();
+    glShowBanner(); glStartPolling();
+    toast("Enregistré dans GitLab : "+message.replace(/^Modea : /,''),"ok");
+    if(gl.history) glLoadHistory().catch(()=>{});
+  }finally{ gl.busy=false; glUpdateUI(); }
+}
+
+/* ---- nouvelles versions des autres ---- */
+function glStartPolling(){ if(gl.timer) clearInterval(gl.timer); gl.timer=setInterval(()=>{ glPoll(); }, GL_POLL_MS); }
+async function glPoll(){
+  if(!gl.link || gl.busy || document.hidden) return;
+  try{
+    const l=gl.link; const c=glClient({ baseUrl:l.baseUrl, token:glToken({base_url:l.baseUrl}), project:l.project });
+    if(!glToken({base_url:l.baseUrl})) return;
+    const h=(await c.commits(l.path, l.branch, 1))[0];
+    if(h && h.id!==l.lastCommitId && gl.link===l){ gl.remote=h; glShowBanner(); }
+  }catch(e){ /* silencieux : réseau coupé, jeton absent… on réessaiera */ }
+}
+function glShowBanner(){
+  const b=el('glBanner'); if(!b) return;
+  const r=gl.remote;
+  if(!r || !gl.link){ b.classList.add('hidden'); return; }
+  el('glBannerText').textContent="Nouvelle version enregistrée dans GitLab par "+(r.author_name||'?')+" ("+glDate(r.committed_date)+") : « "
+    +(r.title||'')+" »."+(dirty?" Vous avez des modifications non enregistrées : téléchargez d'abord votre version, puis rechargez et refaites-les.":"");
+  el('glBannerCopy').classList.toggle('hidden', !dirty);
+  b.classList.remove('hidden');
+}
+
+/* ---- historique, consultation, restauration, jalons ---- */
+async function glLoadHistory(){
+  const cfg=glConfig(); const c=glClientOrError(cfg); const path=glPathOf(cfg);
+  const [commits,tags]=await Promise.all([c.commits(path,cfg.branch,20), c.tags().catch(()=>[])]);
+  const byCommit=new Map();
+  for(const t of tags||[]){ const id=t.commit&&t.commit.id; if(id){ if(!byCommit.has(id)) byCommit.set(id,[]); byCommit.get(id).push(t.name); } }
+  gl.history={commits, byCommit, path};
+  glRenderHistory();
+}
+function glRenderHistory(){
+  const box=el('glHistory'); if(!box) return;
+  const h=gl.history;
+  if(!h){ box.innerHTML='<p class="hint">Testez la connexion pour afficher les versions enregistrées.</p>'; return; }
+  if(!h.commits.length){ box.innerHTML='<p class="hint">Aucune version de « '+esc(h.path)+' » sur cette branche.</p>'; return; }
+  const head=h.commits[0].id;
+  box.innerHTML=h.commits.map(cm=>{
+    const tags=(h.byCommit.get(cm.id)||[]).map(t=>'<span class="gltag">'+esc(t)+'</span>').join('');
+    const cur=gl.link && gl.link.lastCommitId===cm.id ? '<span class="glcur">ouverte</span>' : '';
+    return '<div class="glrow"><div class="glwhat"><b>'+esc(cm.title||'')+'</b>'+tags+cur
+      +'<div class="glmeta">'+esc(glDate(cm.committed_date))+' · '+esc(cm.author_name||'')+' · <span class="mono">'+esc(cm.short_id||'')+'</span></div></div>'
+      +'<div class="glacts"><button class="btn xs" data-glview="'+esc(cm.id)+'">Consulter</button>'
+      +(cm.id!==head?'<button class="btn xs" data-glrestore="'+esc(cm.id)+'">Restaurer</button>':'')+'</div></div>';
+  }).join('');
+}
+async function glView(sha){
+  if(dirty && !confirm("Le modèle ouvert a des modifications non enregistrées. Les abandonner pour consulter cette version ?")) return;
+  const cfg=glConfig(); const c=glClientOrError(cfg); const path=glPathOf(cfg);
+  const f=await c.file(path, sha); if(f.status===404) throw new GitLabError("Version introuvable.");
+  const cm=(gl.history&&gl.history.commits.find(x=>x.id===sha))||{};
+  await openBytes(base64ToBytes(f.content), path.split('/').pop().replace(/\.(db|sqlite3?)$/i,'')+'@'+sha.slice(0,8)+'.db');
+  glUpdateUI(); glRenderHistory();
+  toast("Version du "+glDate(cm.committed_date)+" ouverte en consultation : elle n'est pas reliée à GitLab (« Enregistrer » en fait une copie locale).","ok");
+}
+async function glRestore(sha){
+  const cm=(gl.history&&gl.history.commits.find(x=>x.id===sha))||{};
+  if(!confirm("Restaurer la version du "+glDate(cm.committed_date)+" ("+(cm.author_name||'?')+") ?\n\nElle devient la version courante dans GitLab ; l'historique est conservé, rien n'est perdu."
+    +(dirty?"\n\nVos modifications non enregistrées seront abandonnées.":""))) return;
+  const cfg=glConfig(); const c=glClientOrError(cfg); const path=glPathOf(cfg);
+  const [old,cur]=await Promise.all([c.file(path,sha), c.file(path,cfg.branch)]);
+  if(old.status===404 || cur.status===404) throw new GitLabError("Version introuvable.");
+  const head=(await c.commits(path,cfg.branch,1))[0]||{};
+  // on part de la version courante (pour le refus en cas d'enregistrement concurrent et le résumé), avec le contenu de l'ancienne
+  await openBytes(base64ToBytes(old.content), path.split('/').pop());
+  gl.link={ baseUrl:cfg.base_url, project:cfg.project, branch:cfg.branch, path, lastCommitId:cur.last_commit_id, at:head.committed_date, author:head.author_name };
+  gl.baseBytes=base64ToBytes(cur.content); gl.restoreLabel='restauration de la version du '+glDate(cm.committed_date);
+  dirty=true;
+  await glSave();
+}
+async function glTag(){
+  const name=(el('gl_tag').value||'').trim();
+  if(!name) throw new GitLabError("Donnez un nom au jalon (ex : v1.0).");
+  if(!gl.link) throw new GitLabError("Ouvrez ou enregistrez d'abord le modèle dans GitLab.");
+  if(dirty) throw new GitLabError("Enregistrez d'abord vos modifications : le jalon marque la version enregistrée.");
+  const c=glClientOrError();
+  try{ await c.createTag(name, gl.link.lastCommitId); }
+  catch(e){ if(e.status===400) throw new GitLabError("Jalon refusé : le nom « "+name+" » existe peut-être déjà ("+e.message+")."); throw e; }
+  el('gl_tag').value=''; toast("Jalon « "+name+" » posé sur la version enregistrée","ok");
+  glLoadHistory().catch(()=>{});
+}
+
+/* ---- interface ---- */
+async function glRun(fn, ...args){
+  try{ return await fn(...args); }
+  catch(e){ const m=(e&&e.message)||String(e); gl.status={ok:false,text:m}; glRenderStatus(); toast(m,"err"); }
+}
+function glRenderStatus(){
+  const s=el('glStatus'); if(!s) return;
+  s.textContent=gl.status?gl.status.text:''; s.className='glstatus'+(gl.status?(gl.status.ok?' ok':' err'):'');
+}
+function glUpdateUI(){
+  const linked=!!gl.link;
+  el('btnSave').textContent = linked ? 'Enregistrer dans GitLab' : 'Enregistrer';
+  el('btnSave').title = linked ? 'Crée une nouvelle version du modèle dans GitLab ('+gl.link.project+', branche '+gl.link.branch+')' : '';
+  const chip=el('glChip');
+  chip.classList.toggle('hidden', !linked);
+  if(linked) chip.textContent='GitLab · '+gl.link.branch+(gl.link.at?' · version du '+glDate(gl.link.at):'');
+  if(el('glOverlay').classList.contains('hidden')) return;
+  const cfg=glConfig();
+  el('glLinkInfo').textContent = !db ? "Aucun modèle ouvert : « Ouvrir depuis GitLab » charge la dernière version du fichier indiqué."
+    : linked ? "Le modèle ouvert est relié à « "+gl.link.path+" » (branche "+gl.link.branch+")"+(gl.link.author?", version du "+glDate(gl.link.at)+" par "+gl.link.author:"")
+      +". « Enregistrer » crée une nouvelle version."+(dirty?" Modifications non enregistrées.":"")
+    : "Le modèle ouvert n'est pas encore relié à GitLab. « Enregistrer dans GitLab » le publie à « "+glPathOf(cfg)+" ».";
+  el('glSave').disabled = !db || gl.busy;
+  el('glOpen').disabled = gl.busy;
+  el('glTag').disabled = !linked || gl.busy;
+}
+function glOpenDialog(){
+  const cfg=glConfig();
+  for(const k of GL_KEYS) el('gl_'+k).value = k==='path' ? cfg.path : cfg[k];
+  el('gl_path').placeholder = db ? dbName : 'modeles/mon-modele.db';
+  el('gl_token').value=glToken(cfg);
+  let remembered=false; try{ remembered=!!localStorage.getItem(glTokenKey(cfg.base_url)); }catch(e){}
+  el('gl_remember').checked=remembered;
+  el('glOverlay').classList.remove('hidden');
+  glRenderStatus(); glRenderHistory(); glUpdateUI();
+  if(cfg.base_url && cfg.project && glToken(cfg) && !gl.history) glRun(glLoadHistory);
+}
+function glCloseDialog(){ el('glOverlay').classList.add('hidden'); }
+function glOnField(input){
+  const key=input.dataset.gl; let value=input.value.trim();
+  if(key==='base_url'){
+    const p=parseGitlabProjectUrl(value);
+    if(p){ value=p.baseUrl; input.value=value; el('gl_project').value=p.project; glSetConfig('project',p.project); }
+  }
+  glSetConfig(key, value);
+  if(gl.link && !glSameTarget(gl.link, glConfig())){ glDetach(); toast("Emplacement GitLab modifié : le modèle n'est plus relié à la version ouverte","ok"); }
+  gl.history=null; gl.status=null; glRenderStatus(); glRenderHistory(); glUpdateUI();
+}
+function glOnToken(){
+  const cfg=glConfig(); gl.token=el('gl_token').value.trim();
+  try{
+    if(el('gl_remember').checked && gl.token) localStorage.setItem(glTokenKey(cfg.base_url), gl.token);
+    else localStorage.removeItem(glTokenKey(cfg.base_url));
+  }catch(e){ /* stockage indisponible */ }
+  gl.status=null; glRenderStatus();
+}
+async function glTest(){
+  const c=glClientOrError();
+  gl.status={ok:true,text:'Connexion…'}; glRenderStatus();
+  const p=await c.project();
+  const pa=p.permissions||{}; const level=Math.max((pa.project_access||{}).access_level||0,(pa.group_access||{}).access_level||0);
+  gl.status={ok:true,text:'Connecté à '+p.name_with_namespace+(level?' — rôle '+(GL_ACCESS[level]||level):'')};
+  glRenderStatus();
+  await glLoadHistory();
+}
+function glWire(){
+  el('btnGitlab').onclick=glOpenDialog; el('btnGitlab2').onclick=glOpenDialog;
+  el('glCloseBtn').onclick=glCloseDialog;
+  el('glOverlay').addEventListener('click',e=>{ if(e.target===el('glOverlay')) glCloseDialog(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !el('glOverlay').classList.contains('hidden')) glCloseDialog(); });
+  document.querySelectorAll('[data-gl]').forEach(i=>i.addEventListener('change',()=>glOnField(i)));
+  el('gl_token').addEventListener('change',glOnToken); el('gl_remember').addEventListener('change',glOnToken);
+  el('glTest').onclick=()=>glRun(glTest);
+  el('glOpen').onclick=()=>glRun(async()=>{ await glOpen(); glUpdateUI(); glRenderHistory(); });
+  el('glSave').onclick=()=>glRun(glSave);
+  el('glTag').onclick=()=>glRun(glTag);
+  el('glHistory').addEventListener('click',e=>{
+    const v=e.target.closest('[data-glview]'), r=e.target.closest('[data-glrestore]');
+    if(v) glRun(glView, v.dataset.glview); else if(r) glRun(glRestore, r.dataset.glrestore);
+  });
+  el('glBannerReload').onclick=()=>glRun(glOpen);
+  el('glBannerCopy').onclick=()=>download();
+  el('glBannerClose').onclick=()=>el('glBanner').classList.add('hidden');
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) glPoll(); });
+}
+
 /* ---------- enregistrement ---------- */
 function currentBytes(){ return db.export(); }
 async function saveToHandle(){
@@ -3130,6 +3750,7 @@ function download(){
   a.click(); URL.revokeObjectURL(a.href);
 }
 async function save(){
+  if(gl.link) return glRun(glSave); // modèle relié à GitLab : « Enregistrer » crée un commit
   if(fileHandle){ try{ await saveToHandle(); return; }catch(e){ /* retombe sur download */ } }
   if(window.showSaveFilePicker){
     try{
@@ -3163,7 +3784,8 @@ function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;"
 function toast(msg,kind){
   const d=document.createElement('div'); d.className='toast'+(kind?(' '+kind):'');
   d.innerHTML=esc(msg); el('toasts').appendChild(d);
-  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},2600);
+  const ms = kind==='err' ? Math.max(5000, msg.length*45) : 2600; // une erreur longue reste lisible
+  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},ms);
 }
 
 /* ---------- init UI ---------- */
@@ -3188,7 +3810,8 @@ async function saveAutosave(){
     const idb=await openAutosaveDB();
     await new Promise((res,rej)=>{
       const tx=idb.transaction(AUTOSAVE_STORE,'readwrite');
-      tx.objectStore(AUTOSAVE_STORE).put({name:dbName, bytes:db.export(), savedAt:Date.now()}, AUTOSAVE_KEY);
+      tx.objectStore(AUTOSAVE_STORE).put({name:dbName, bytes:db.export(), savedAt:Date.now(),
+        gitlab: gl.link ? {link:gl.link, baseBytes:gl.baseBytes, restoreLabel:gl.restoreLabel} : null}, AUTOSAVE_KEY);
       tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
     });
   }catch(e){ /* silencieux */ }
@@ -3224,7 +3847,14 @@ async function restoreAutosave(){
   const snap=await loadAutosave();
   if(!snap) return;
   el('autosaveBanner').classList.add('hidden');
-  try{ await openBytes(snap.bytes, snap.name); toast("Sauvegarde automatique restaurée","ok"); }
+  try{
+    await openBytes(snap.bytes, snap.name);
+    if(snap.gitlab){ // le travail restauré repart de la version GitLab d'origine : un enregistrement concurrent sera refusé, pas écrasé
+      gl.link=snap.gitlab.link; gl.baseBytes=snap.gitlab.baseBytes; gl.restoreLabel=snap.gitlab.restoreLabel||null;
+      dirty=true; glStartPolling(); glUpdateUI(); glPoll();
+    }
+    toast("Sauvegarde automatique restaurée","ok");
+  }
   catch(e){ showLoadErr(friendly(e)); }
 }
 function dismissAutosave(){
@@ -3500,7 +4130,7 @@ window.addEventListener('beforeunload', e=>{
   e.preventDefault(); e.returnValue='';
 });
 el('appVersion').textContent = APP_VERSION;
-fillStaticSelects(); wire(); updatePropTypeUI(); updateExigenceTypeUI(); checkAutosaveOnStartup();
+fillStaticSelects(); wire(); glWire(); updatePropTypeUI(); updateExigenceTypeUI(); checkAutosaveOnStartup();
 </script>
 <!-- VENDOR:BEGIN (genere par scripts/inline_vendor.py - ne pas editer) -->
 <script type="text/plain" id="vendor-sqljs">
