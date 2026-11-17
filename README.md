@@ -28,7 +28,7 @@ Modea est né d'un besoin précis : adapter son propre modèle de domaine tout e
   - le **diagramme** interactif (Cytoscape), filtrable par nature, domaine et statut, avec des configurations favorites ;
   - l'**analyse d'impact**, de la propriété vers les objets et inversement, à profondeur réglable.
 - **Curation** : ajout, édition et suppression ; statut brouillon / validé / obsolète ; détection d'un schéma de base trop ancien.
-- **Exports** : modèle en **RDF/OWL** et **SHACL** (Turtle) ; diagramme en **PNG**, **SVG** ou **page HTML autonome** navigable, à partager sans donner accès à l'outil.
+- **Exports** : modèle en **RDF/OWL** et **SHACL** (Turtle) ; vocabulaire vers **BoMarkdown Studio** (nomenclatures) ; diagramme en **PNG**, **SVG** ou **page HTML autonome** navigable, à partager sans donner accès à l'outil.
 - **Hors-ligne et sans lock-in** : le moteur SQLite et la bibliothèque de graphe sont embarqués dans la page ; le modèle est un simple fichier `.db`.
 
 ## Interopérabilité : exports RDF/OWL et SHACL
@@ -53,6 +53,24 @@ L'export **SHACL** cible les mêmes classes et propriétés : une forme par obje
 - sur des instances d'exemple, les données correctes sont acceptées et les données incomplètes (propriété obligatoire absente, composant manquant ou en trop) sont rejetées.
 
 **Ce qui n'a pas été vérifié** : l'ouverture des exports dans des outils d'ontologie comme Protégé ou TopBraid EDG, et la conformité OWL 2 DL par un raisonneur. Les retours sont les bienvenus.
+
+## Export vers BoMarkdown Studio
+
+[BoMarkdown Studio](https://github.com/eowindel/bomarkdown-studio) conçoit des **nomenclatures** (BOM) en texte. Modea décrit des *types* d'objets, Studio des *structures concrètes* : l'export ne convertit donc pas le modèle, il fournit à Studio le **vocabulaire** que le modèle autorise. Le bouton **Exporter vers BoMarkdown** télécharge deux fichiers :
+
+- `<modele>_Icons.json` : une icône par objet (initiales, couleur selon la nature), à importer une fois dans Studio (**Icônes → Importer**) ;
+- `<modele>-vocabulaire.bmd` : les règles et les liens dans le bloc `${{ }}$` du diagramme, puis un squelette de nomenclature construit à partir des compositions, à compléter.
+
+| Modèle Modea | BoMarkdown |
+|---|---|
+| objet | type `(i:<code>,<nom>)` et alias `(a:<code>)` ; le code est le nom sans accents (`boite_de_vitesses`) |
+| composition, agrégation | règle de compatibilité (`compat`) : Studio signale un élément placé sous un parent qui ne le prévoit pas ; style `o` (optionnel) si la cardinalité est `0..1` ou `0..*` |
+| généralisation | un sous-type est admis partout où son parent l'est ; un type purement abstrait n'apparaît pas dans le squelette |
+| association (verbe) | type de lien transverse `(l:<verbe>:<alias>)` |
+| cardinalité autre que `1` | étiquette `(t:1..*)` |
+| statut validé / brouillon / obsolète | `(s:R)` / `(s:D)` / `(s:O)` |
+
+Limites : les propriétés n'ont pas d'équivalent dans BoMarkdown et ne sont pas exportées ; un objet sans composition n'est pas contraint (on peut lui ajouter n'importe quel enfant) ; renommer un objet change son code, donc les `.bmd` déjà écrits ne le reconnaissent plus. Test : `python3 scripts/test_export_bmd.py` vérifie la cohérence du fichier et, si Studio (`../bomarkdown-studio`) et Chromium sont présents, son chargement dans Studio.
 
 ## Démarrer
 

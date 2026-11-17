@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.6">
+<meta name="version" content="0.7.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -303,6 +303,7 @@
     <button class="btn ghost" id="btnExportTtl" disabled>Exporter en RDF (.ttl)</button>
     <button class="btn ghost" id="btnExportShacl" disabled>Exporter en SHACL (.ttl)</button>
     <button class="btn ghost" id="btnExportLiens" disabled>Exporter les liens externes (.ttl)</button>
+    <button class="btn ghost" id="btnExportBmd" disabled title="Types, règles et liens du modèle pour concevoir des nomenclatures dans BoMarkdown Studio">Exporter vers BoMarkdown</button>
     <input type="file" id="file" accept=".db,.sqlite,.sqlite3" class="hidden">
   </div>
   <div class="stats">
@@ -922,10 +923,14 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.6'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.7'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.7', date:'2026-11-17', items:[
+    "Nouvel export vers BoMarkdown Studio : le bouton « Exporter vers BoMarkdown » fournit les types d'objets (avec une icône par type), les règles de composition et les verbes de relation du modèle, pour concevoir des nomenclatures qui le respectent. Studio signale tout élément placé sous un parent qui ne le prévoit pas.",
+    "Le fichier exporté contient aussi un premier squelette de nomenclature, construit à partir des compositions du modèle, à compléter dans Studio."
+  ]},
   { version:'v0.6.6', date:'2026-11-08', items:[
     "Pied de page : le copyright, la licence (MIT), le lien vers casarou.com et l'adresse de contact apparaissent désormais en bas de l'outil."
   ]},
@@ -3117,6 +3122,160 @@ function exportLiens(){
   }catch(e){ toast(friendly(e),"err"); }
 }
 
+/* ---------- export vers BoMarkdown Studio (.bmd + _Icons.json) -------------
+   Exporte le VOCABULAIRE du modèle pour concevoir des nomenclatures dans
+   BoMarkdown Studio (éditeur de BOM en texte). Modea décrit des types,
+   BoMarkdown des structures concrètes : on ne convertit donc pas le modèle,
+   on fournit à Studio les types, les règles et les liens qu'il autorise.
+     objet                     -> type (i:<code>,<nom>) + icône (couleur = classe d'objet)
+     composition / agrégation  -> règle « compat » parent -> enfants
+                                  (style h, ou o « optionnel » si card_cible 0..1 / 0..*)
+     généralisation            -> un sous-type est admis là où son parent l'est,
+                                  et hérite des règles de son parent
+     association (verbe)       -> type de lien transverse (l:<code>:alias)
+     statut                    -> (s:R) valide, (s:D) brouillon, (s:O) obsolète
+   Le .bmd contient ces règles dans son bloc ${{ }}$ (donc rien à régler dans
+   Studio) et un squelette : l'arbre des compositions, puis une colonne par
+   classe pour les objets hors composition. Les icônes s'importent une fois
+   dans Studio (Icônes > Importer).
+   --------------------------------------------------------------------------- */
+const BMD_PALETTE = ['#2563eb','#16a34a','#d97706','#9333ea','#dc2626','#0891b2','#db2777','#65a30d','#7c3aed','#ea580c'];
+const BMD_STATUT = { valide:'R', brouillon:'D', obsolete:'O' };
+const BMD_OPTIONNEL = new Set(['0..1','0..*']);
+function bmdCode(s){
+  return String(s).normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'x';
+}
+// libellé d'un bloc (i:…) : la virgule et les parenthèses y sont des séparateurs
+const bmdLabel = s => String(s).replace(/,/g,' -').replace(/\(/g,'[').replace(/\)/g,']');
+function bmdInitiales(nom){
+  const mots = String(nom).split(/[\s\-']+/).filter(m=>m && !['de','du','des','la','le','à'].includes(m.toLowerCase()));
+  return (mots.length>1 ? mots.slice(0,2).map(m=>m[0]).join('') : String(nom).slice(0,2)).toUpperCase();
+}
+function bmdIcon(nom, couleur){
+  const t = bmdInitiales(nom).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">'
+    + '<rect x="3" y="3" width="42" height="42" rx="9" fill="'+couleur+'"/>'
+    + '<text x="24" y="25" font-family="system-ui,sans-serif" font-size="18" font-weight="700" fill="#fff" '
+    + 'text-anchor="middle" dominant-baseline="middle">'+t+'</text></svg>';
+  let bin=''; new TextEncoder().encode(svg).forEach(b=>{ bin+=String.fromCharCode(b); });
+  return 'data:image/svg+xml;base64,'+btoa(bin);
+}
+function buildBomarkdown(){
+  const objets = new Map(exec(`SELECT o.id,o.nom,o.statut,c.nom AS classe FROM objet o
+    LEFT JOIN classe_objet c ON c.id=o.classe_id ORDER BY o.id`).map(o=>[o.id,o]));
+  const rels = exec(`SELECT r.*, v.nom AS verbe FROM relation r LEFT JOIN verbe_relation v ON v.id=r.verbe_id ORDER BY r.id`);
+  // codes uniques (deux noms peuvent donner le même code une fois les accents retirés)
+  const pris = new Set();
+  for(const o of objets.values()){
+    let c = bmdCode(o.nom), k = c, i = 2; while(pris.has(k)) k = c+'_'+(i++);
+    pris.add(k); o.code = k;
+  }
+  const classes = [...new Set([...objets.values()].map(o=>o.classe||''))].sort();
+  const couleur = new Map(classes.map((c,i)=>[c, BMD_PALETTE[i % BMD_PALETTE.length]]));
+  const multi = new Map(); const add = (m,k,v)=>{ if(!m.has(k)) m.set(k,new Set()); m.get(k).add(v); };
+
+  // généralisation : sous-types (transitifs) et parents directs
+  const sousGen = new Map(), surGen = new Map();
+  rels.filter(r=>r.type==='generalisation').forEach(r=>{ add(sousGen,r.cible_id,r.source_id); add(surGen,r.source_id,r.cible_id); });
+  const sousTypes = id => { const vus=new Set(), pile=[id];
+    while(pile.length){ for(const s of sousGen.get(pile.pop())||[]) if(!vus.has(s)){ vus.add(s); pile.push(s); } } return vus; };
+  const surTypes = id => { const vus=new Set(), pile=[id];
+    while(pile.length){ for(const s of surGen.get(pile.pop())||[]) if(!vus.has(s)){ vus.add(s); pile.push(s); } } return vus; };
+
+  // règles de compatibilité : parent -> style -> enfants
+  const estComp = r => r.type==='composition' || r.type==='agregation';
+  const regles = new Map();
+  const regle = (p,st) => { if(!regles.has(p)) regles.set(p,new Map()); const m=regles.get(p); if(!m.has(st)) m.set(st,new Set()); return m.get(st); };
+  rels.filter(estComp).forEach(r=>{
+    const st = BMD_OPTIONNEL.has(r.card_cible) ? 'o' : 'h';
+    [r.cible_id, ...sousTypes(r.cible_id)].forEach(e=>regle(r.source_id,st).add(e));
+  });
+  const directes = new Map([...regles].map(([p,m])=>[p,new Map([...m].map(([st,s])=>[st,new Set(s)]))]));
+  for(const id of objets.keys()) for(const sup of surTypes(id))
+    for(const [st,es] of directes.get(sup)||[]) es.forEach(e=>regle(id,st).add(e));
+  const compat = {};
+  for(const [p,m] of regles){
+    const by = {};
+    [...m.keys()].sort().forEach(st=>{ by[st] = [...m.get(st)].map(e=>objets.get(e).code).sort(); });
+    compat[objets.get(p).code] = by;
+  }
+
+  // types de liens transverses : un par verbe d'association
+  const links = {}, codeLien = new Map(), codesLiens = new Set();
+  rels.filter(r=>r.type==='association').forEach(r=>{
+    const v = r.verbe || 'associé'; if(codeLien.has(v)) return;
+    let c = bmdCode(v), k = c, i = 2; while(codesLiens.has(k)) k = c+'_'+(i++);
+    codesLiens.add(k); codeLien.set(v,k);
+    const col = BMD_PALETTE[(codeLien.size-1) % BMD_PALETTE.length];
+    links[k] = { label:v, Color:col, thickness:1, dashpattern:'',
+      arrow:'<marker id="arrow_'+k+'" refX="6" refY="3" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 6 3 L 0 6 z" fill="'+col+'"/></marker>' };
+  });
+
+  // squelette de nomenclature
+  const comp = new Map(), aUnParent = new Set(), sortants = new Map();
+  rels.forEach(r=>{
+    if(estComp(r)){ if(!comp.has(r.source_id)) comp.set(r.source_id,[]); comp.get(r.source_id).push(r); aUnParent.add(r.cible_id); }
+    else if(r.type==='association'){ if(!sortants.has(r.source_id)) sortants.set(r.source_id,[]); sortants.get(r.source_id).push(r); }
+  });
+  const ligne = (id, niveau, rel) => {
+    const o = objets.get(id);
+    let s = ' '.repeat(niveau)+'+ (i:'+o.code+','+bmdLabel(o.nom)+')(s:'+(BMD_STATUT[o.statut]||'D')+')(a:'+o.code+')';
+    if(rel){
+      if(BMD_OPTIONNEL.has(rel.card_cible)) s += '(h:o)';
+      if(rel.card_cible!=='1') s += '(t:'+rel.card_cible+',grey)';
+    }
+    const parVerbe = new Map();
+    (sortants.get(id)||[]).forEach(a=>{ const c=codeLien.get(a.verbe||'associé');
+      if(!parVerbe.has(c)) parVerbe.set(c,[]); parVerbe.get(c).push(objets.get(a.cible_id).code); });
+    for(const [c,cibles] of parVerbe) s += '(l:'+c+':'+cibles.join(',')+')';
+    return s;
+  };
+  const lignes = [], places = new Set();
+  const arbre = (id, niveau, rel) => {
+    places.add(id); lignes.push(ligne(id, niveau, rel));
+    (comp.get(id)||[]).forEach(r=>{ if(!places.has(r.cible_id)) arbre(r.cible_id, niveau+1, r); });
+  };
+  [...objets.keys()].filter(id=>comp.has(id) && !aUnParent.has(id)).forEach(id=>arbre(id,0));
+  // un type purement abstrait (parent de généralisation, sans composition) n'a pas d'occurrence propre
+  const abstrait = id => sousGen.has(id) && !comp.has(id) && !aUnParent.has(id);
+  const parClasse = new Map();
+  [...objets.keys()].filter(id=>!places.has(id) && !abstrait(id)).forEach(id=>{
+    const c = objets.get(id).classe || 'Autres'; if(!parClasse.has(c)) parClasse.set(c,[]); parClasse.get(c).push(id);
+  });
+  for(const [c,ids] of parClasse){
+    if(lignes.length) lignes.push('+newcolumn 40');
+    lignes.push('Objets hors composition : '+c);
+    ids.forEach(id=>lignes.push(ligne(id,0)));
+  }
+
+  // bloc ${{ }}$ : une ligne par règle et par type de lien, pour rester lisible dans Studio
+  const j = v => JSON.stringify(v);
+  const section = (cle,obj) => '  '+j(cle)+': {\n'+Object.entries(obj).map(([k,v])=>'    '+j(k)+': '+j(v)).join(',\n')+'\n  }';
+  const entete = ['  "haslegend": false'];
+  if(Object.keys(compat).length) entete.push(section('compat',compat));
+  if(Object.keys(links).length) entete.push(section('links',links));
+  entete.push(section('hierarchy',{ o:{ label:'Optionnel (0..1 / 0..*)', arrow:'', arrowStyle:'none', Color:'#6b7280', thickness:1, dashpattern:'6 4' } }));
+  const bmd = '${{\n'+entete.join(',\n')+'\n}}$\n'   // le bloc doit ouvrir le diagramme
+    + 'Vocabulaire exporté de Modea : '+baseName()+'\n'
+    + "Types = objets, règles de compatibilité = compositions, liens = verbes d'association.\n"
+    + "Importer d'abord "+baseName()+"_Icons.json dans BoMarkdown Studio (Icônes > Importer).\n"
+    + lignes.join('\n')+'\n';
+  const icons = [...objets.values()].map(o=>({ name:o.code, label:o.nom, type:'svg', filename:o.code+'.svg',
+    icon:bmdIcon(o.nom, couleur.get(o.classe||'')) }));
+  return { bmd, icons, compat, links };
+}
+function exportBomarkdown(){
+  const n = exec("SELECT COUNT(*) n FROM objet")[0].n;
+  if(!n) return toast("Le modèle est vide","err");
+  try{
+    const r = buildBomarkdown();
+    downloadText(baseName()+'-vocabulaire.bmd', r.bmd, 'text/plain');
+    // deux téléchargements successifs : le navigateur peut demander l'autorisation une fois
+    setTimeout(()=>downloadText(baseName()+'_Icons.json', JSON.stringify(r.icons,null,2), 'application/json'), 400);
+    toast("Export BoMarkdown généré : importer d'abord "+baseName()+"_Icons.json dans Studio (Icônes), puis ouvrir le .bmd","ok");
+  }catch(e){ toast(friendly(e),"err"); }
+}
+
 /* ---------- enregistrement ---------- */
 function currentBytes(){ return db.export(); }
 async function saveToHandle(){
@@ -3235,7 +3394,7 @@ function dismissAutosave(){
 function enterEditor(){
   el('empty').classList.add('hidden');
   el('editor').classList.remove('hidden'); el('readout').classList.remove('hidden');
-  el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false; el('btnExportLiens').disabled=false;
+  el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false; el('btnExportLiens').disabled=false; el('btnExportBmd').disabled=false;
   startAutosaveTimer();
 }
 function fillStaticSelects(){
@@ -3253,6 +3412,7 @@ function wire(){
   el('btnExportTtl').onclick=()=>exportTurtle();
   el('btnExportShacl').onclick=()=>exportShacl();
   el('btnExportLiens').onclick=()=>exportLiens();
+  el('btnExportBmd').onclick=()=>exportBomarkdown();
   el('file').onchange=async e=>{const f=e.target.files[0]; if(!f)return; fileHandle=null;
     try{ await openBytes(new Uint8Array(await f.arrayBuffer()), f.name); }
     catch(err){ showLoadErr(friendly(err)); } e.target.value="";};
