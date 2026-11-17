@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.6.6">
+<meta name="version" content="0.6.7">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -922,10 +922,15 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 6; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.6.6'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.6.7'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.6.7', date:'2026-11-17', items:[
+    "Correction : après un enregistrement (ou un téléchargement, ou une sauvegarde automatique), supprimer un objet supprime de nouveau ses affectations et ses relations. Elles pouvaient rester dans le modèle, rattachées à un objet disparu.",
+    "Les modèles touchés par ce défaut sont réparés automatiquement à l'ouverture : les éléments orphelins sont nettoyés et un message indique combien. Enregistrez ensuite pour conserver la correction.",
+    "Les messages longs restent affichés le temps de pouvoir les lire."
+  ]},
   { version:'v0.6.6', date:'2026-11-08', items:[
     "Pied de page : le copyright, la licence (MIT), le lien vers casarou.com et l'adresse de contact apparaissent désormais en bas de l'outil."
   ]},
@@ -1262,6 +1267,29 @@ function exec(sql,params){ // renvoie tableau d'objets
   const out=[]; while(st.step()) out.push(st.getAsObject()); st.free(); return out;
 }
 function run(sql,params){ db.run(sql,params||[]); dirty=true; }
+// sql.js ferme puis rouvre la base dans export() : les PRAGMA de connexion sont perdus, dont foreign_keys.
+// Sans ce rappel, après un enregistrement, supprimer un objet ne supprimait plus ses affectations et
+// relations (ON DELETE CASCADE inactif) : elles restaient orphelines dans le modèle.
+function exportDb(){ const b=db.export(); db.run("PRAGMA foreign_keys = ON"); return b; }
+/* Réparation à l'ouverture des modèles enregistrés avec ce défaut : on applique après coup ce que la
+   base aurait dû faire à la suppression (règle ON DELETE de chaque lien) : CASCADE -> l'élément orphelin
+   est supprimé, SET NULL -> la référence est vidée. Les autres cas sont seulement comptés. */
+function repairOrphans(){
+  let fixed=0, left=0;
+  for(let pass=0; pass<10; pass++){
+    const rows=exec("PRAGMA foreign_key_check"); if(!rows.length) break;
+    let progress=0; left=0;
+    for(const r of rows){
+      const fk=exec("PRAGMA foreign_key_list("+r.table+")").find(f=>f.id===r.fkid);
+      if(fk && fk.on_delete==='CASCADE') db.run('DELETE FROM "'+r.table+'" WHERE rowid=?',[r.rowid]);
+      else if(fk && fk.on_delete==='SET NULL') db.run('UPDATE "'+r.table+'" SET "'+fk.from+'"=NULL WHERE rowid=?',[r.rowid]);
+      else { left++; continue; }
+      progress++;
+    }
+    fixed+=progress; if(!progress) break;
+  }
+  return {fixed, left};
+}
 
 /* ---------- ouverture / création ---------- */
 async function openBytes(bytes,name){
@@ -1287,9 +1315,12 @@ async function openBytes(bytes,name){
     if(!filtreCols.includes('statuts')){ run("ALTER TABLE filtre_diagramme ADD COLUMN statuts TEXT"); }
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
-  dbName=name||"modele.db"; dirty=false; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
+  const rep=repairOrphans();
+  dbName=name||"modele.db"; dirty=rep.fixed>0; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
   enterEditor(); refreshAll();
-  toast("Modèle chargé","ok");
+  if(rep.fixed) toast("Modèle réparé : "+rep.fixed+" élément(s) orphelin(s) nettoyé(s) (affectations, relations… d'éléments déjà supprimés). Enregistrez pour conserver la correction.","ok");
+  else toast("Modèle chargé","ok");
+  if(rep.left) toast(rep.left+" référence(s) vers des éléments supprimés n'ont pas pu être réparées automatiquement (propriété liée à une liste de valeurs ou une unité disparue).","err");
 }
 async function newModel(){
   await ensureSql();
@@ -3118,7 +3149,7 @@ function exportLiens(){
 }
 
 /* ---------- enregistrement ---------- */
-function currentBytes(){ return db.export(); }
+function currentBytes(){ return exportDb(); }
 async function saveToHandle(){
   const w=await fileHandle.createWritable(); await w.write(currentBytes()); await w.close();
   dirty=false; clearAutosave();
@@ -3163,7 +3194,8 @@ function esc(s){return (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;"
 function toast(msg,kind){
   const d=document.createElement('div'); d.className='toast'+(kind?(' '+kind):'');
   d.innerHTML=esc(msg); el('toasts').appendChild(d);
-  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},2600);
+  const ms = Math.max(kind==='err' ? 5000 : 2600, msg.length*45); // un message long reste lisible
+  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},ms);
 }
 
 /* ---------- init UI ---------- */
@@ -3188,7 +3220,7 @@ async function saveAutosave(){
     const idb=await openAutosaveDB();
     await new Promise((res,rej)=>{
       const tx=idb.transaction(AUTOSAVE_STORE,'readwrite');
-      tx.objectStore(AUTOSAVE_STORE).put({name:dbName, bytes:db.export(), savedAt:Date.now()}, AUTOSAVE_KEY);
+      tx.objectStore(AUTOSAVE_STORE).put({name:dbName, bytes:exportDb(), savedAt:Date.now()}, AUTOSAVE_KEY);
       tx.oncomplete=res; tx.onerror=()=>rej(tx.error);
     });
   }catch(e){ /* silencieux */ }

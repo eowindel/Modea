@@ -83,7 +83,7 @@ Fichiers utiles :
 | `modea-editeur.html` | l'application (page autonome) |
 | `metamodele.sql`, `saisie.sql` | schéma et vues de saisie, à garder synchronisés avec le schéma embarqué dans l'éditeur |
 | `demo-cytoscape.html` | démonstrateur de graphe, ouvre un `.db` en lecture |
-| `scripts/` | `generate_sample_moto_db.py` (modèle d'exemple « moto »), `generate_sample_db.py`, `validate_schema.py`, `inline_vendor.py` |
+| `scripts/` | `generate_sample_moto_db.py` (modèle d'exemple « moto »), `generate_sample_db.py`, `validate_schema.py`, `inline_vendor.py`, `test_integrite.cjs` (suppressions en cascade, réparation des orphelins) |
 | `vendor/` | sql.js, Cytoscape et cytoscape-svg, injectés dans les pages par `inline_vendor.py` |
 | `brief-mdm-claude-code.md` | contexte du projet et questions ouvertes |
 
