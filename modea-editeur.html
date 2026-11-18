@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.9.0">
+<meta name="version" content="0.10.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -294,6 +294,8 @@
   .cyfiltersaved-name:hover{text-decoration:underline}
   .cyfiltersaved-fav{background:none;border:0;cursor:pointer;font-size:14px;color:#C9A227;padding:0 2px;line-height:1}
   .cyswatch{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:middle}
+  .cyswatch.dom{box-shadow:inset 0 0 0 1px var(--line-strong)}
+  .domchip{display:inline-block;padding:1px 7px;border-radius:5px;color:#132428;box-shadow:inset 0 0 0 1px var(--line)}
   #cyWrap{position:relative;height:62vh;min-height:360px;border:1px solid var(--line);border-radius:8px;background:
     radial-gradient(var(--line) 1px, transparent 1px) 0 0/20px 20px, #FCFDFE}
   #viewDiag:fullscreen{display:flex;flex-direction:column;width:100vw;height:100vh;
@@ -457,7 +459,7 @@
 
         <section id="h-diagramme">
           <h3>Diagramme</h3>
-          <p>Vue graphe interactive (Cytoscape) du modèle :</p>
+          <p>Vue graphe interactive (Cytoscape) du modèle. La <b>bordure</b> d'une boîte indique la nature de l'objet, son <b>fond pastel</b> son domaine (les objets sans domaine restent sur fond blanc) ; la même couleur de domaine se retrouve dans la liste Objets, la vue Impact et l'export HTML.</p>
           <ul>
             <li><b>Recherche</b> + <b>Centrer</b> pour localiser un objet dans un gros modèle.</li>
             <li><b>Disposition</b> : force dirigée (par défaut, s'en sort bien avec beaucoup de nœuds), hiérarchique, concentrique, cercle, grille.</li>
@@ -1041,16 +1043,31 @@ function extraCatColor(i){
   const hue = (i * 137.508) % 360;
   return hslToHex(hue, 62, 45);
 }
+// Fond pastel par domaine (issue #17) : même principe d'angle doré que les natures, en très
+// clair pour rester un fond (le texte sombre reste lisible) et ne pas concurrencer la couleur
+// de bordure, qui porte la nature. Attribué dans l'ordre alphabétique de TOUS les domaines du
+// modèle, pour qu'un domaine garde la même teinte quels que soient les filtres ou la vue.
+const NO_DOMAIN_FILL = '#FCFDFE';
+function domaineFills(){
+  const m={ '— sans domaine': NO_DOMAIN_FILL };
+  exec("SELECT nom FROM domaine").map(r=>r.nom).sort((a,b)=>a.localeCompare(b))
+    .forEach((n,i)=>{ m[n]=hslToHex((25 + i*137.508) % 360, 75, 90); });
+  return m;
+}
 
 const TYPES = ['texte','entier','decimal','booleen','date','datetime','enum','identifiant','grandeur'];
 const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 8; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.9'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.10'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.10', date:'2026-11-18', items:[
+    "Chaque domaine a sa couleur de fond pastel : dans le Diagramme, la vue Impact et l'export HTML, le fond d'une boîte indique son domaine, tandis que la bordure continue d'indiquer sa nature. Les objets sans domaine restent sur fond blanc.",
+    "La même couleur apparaît sur le domaine dans la liste Objets et dans le filtre par domaine du diagramme, pour s'y retrouver d'un coup d'œil."
+  ]},
   { version:'v0.9', date:'2026-11-18', items:[
     "Les relations se modifient : dans la liste Relations, « Éditer » recharge la relation dans le formulaire pour changer ses objets, son type, ses cardinalités ou son nom, sans avoir à la supprimer et la recréer.",
     "Nouveau champ « Nom technique » sur chaque relation (facultatif), repris dans l'export RDF et cherchable dans la liste Relations.",
@@ -1484,7 +1501,7 @@ ALTER TABLE relation ADD COLUMN nom_technique TEXT;
 
 let SQL=null, db=null, fileHandle=null, dbName="modele.db", viewMode='fiches';
 let dirty=false, backupTimer=null;
-let cy=null, cySvgReady=false, natureColor={}, cyNatures=[], cyDomaines=[], cyPropsByObj={};
+let cy=null, cySvgReady=false, natureColor={}, domaineFill={}, cyNatures=[], cyDomaines=[], cyPropsByObj={};
 let cyImpact=null, impactSelectedNode=null;
 let cyLayoutAuto=true, cyImpactLayoutAuto=true;
 const CY_LARGE_GRAPH_THRESHOLD=300;
@@ -2076,11 +2093,12 @@ function renderMgObjets(){
                       ${baseFrom} ORDER BY o.nom LIMIT ${MG_MAX_ROWS}`, params);
   el('mgObjCount').textContent = total+' objet'+(total>1?'s':'');
   const body=el('mgObjBody'); body.innerHTML='';
+  const fills=domaineFills();
   if(!rows.length) body.innerHTML='<tr><td colspan="7" class="noprops">Aucun objet.</td></tr>';
   rows.forEach(o=>{
     const tr=document.createElement('tr'); tr.className='mgrow'; tr.dataset.id=o.id;
     tr.innerHTML=`<td><span class="mgname">${esc(o.nom)}</span>${o.definition?`<span class="mgdef">${esc(o.definition)}</span>`:''}</td>
-      <td>${esc(o.classe)}</td><td>${esc(o.domaine)}</td>
+      <td>${esc(o.classe)}</td><td><span class="domchip" style="background:${fills[o.domaine]||NO_DOMAIN_FILL}">${esc(o.domaine)}</span></td>
       <td>${o.disc_code?esc(o.disc_code)+' — '+esc(o.disc_nom):'—'}</td><td>${o.nprop}</td>
       <td>${statutSelectHtml('objet',o.id,o.statut)}</td>
       <td class="mgactions"><button class="btn xs ghost" data-act="edit">Éditer</button>
@@ -2339,6 +2357,7 @@ function buildCyElements(){
       LEFT JOIN discipline disc ON disc.id=o.discipline_id`);
   assignNatureColors(objs.map(o=>o.classe));
   cyDomaines=[...new Set(objs.map(o=>o.domaine))].sort((a,b)=>a.localeCompare(b));
+  domaineFill=domaineFills();
 
   const props = exec(`SELECT a.objet_id,p.nom,p.type,p.multivalue,gp.nom AS grandeur,u.symbole AS unite,a.obligatoire
                       FROM applicabilite a JOIN propriete p ON p.id=a.propriete_id
@@ -2356,7 +2375,7 @@ function buildCyElements(){
     const labelFull = buildCyNodeLabel(nomAffiche, byObj[o.id]||[]);
     return { data:{ id:'n'+o.id, nom:o.nom, label:nomAffiche, labelCompact:nomAffiche, labelFull,
              classe:o.classe, domaine:o.domaine, statut:o.statut, discCode:o.disc_code||'', discNom:o.disc_nom||'',
-             definition:o.definition||'', color:natureColor[o.classe] },
+             definition:o.definition||'', color:natureColor[o.classe], fill:domaineFill[o.domaine]||NO_DOMAIN_FILL },
       classes:'obj' };
   });
   const edges = rels.map(r=>({
@@ -2370,6 +2389,7 @@ function buildCyImpactElements(){
   const objs = exec(`SELECT o.id,o.nom, COALESCE(d.nom,'— sans domaine') AS domaine, COALESCE(c.nom,'— sans nature') AS classe
       FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id`);
   assignNatureColors(objs.map(o=>o.classe));
+  domaineFill=domaineFills();
 
   const props = exec(`SELECT p.id,p.nom,p.type,gp.nom AS grandeur,u.symbole AS unite,
                       (SELECT COUNT(*) FROM applicabilite a WHERE a.propriete_id=p.id) AS nobj
@@ -2382,7 +2402,7 @@ function buildCyImpactElements(){
   // pouvant partager une meme valeur numerique (contrairement au diagramme objet, qui n'a
   // qu'une seule table et peut se permettre un prefixe 'n' unique)
   const nodes = objs.map(o=>({
-    data:{ id:'o'+o.id, nom:o.nom, label:decorateNodeLabel(o.nom, o.classe, o.domaine), classe:o.classe, domaine:o.domaine, color:natureColor[o.classe] },
+    data:{ id:'o'+o.id, nom:o.nom, label:decorateNodeLabel(o.nom, o.classe, o.domaine), classe:o.classe, domaine:o.domaine, color:natureColor[o.classe], fill:domaineFill[o.domaine]||NO_DOMAIN_FILL },
     classes:'obj'
   })).concat(props.map(p=>({
     data:{ id:'p'+p.id, label:p.nom, type:typeLabel(p), nobj:p.nobj },
@@ -2420,7 +2440,7 @@ function cyStyle(isLarge){
   const rules = [
     { selector:'node.obj', style:{
         'shape':'round-rectangle', 'width':'label', 'height':'label', 'padding':'8px',
-        'background-color':'#FCFDFE', 'border-width':4, 'border-color':'data(color)',
+        'background-color':'data(fill)', 'border-width':4, 'border-color':'data(color)',
         'label':'data(label)', 'color':'#132428', 'font-size':10, 'font-family':'ui-monospace,monospace',
         'text-valign':'center', 'text-halign':'center', 'text-wrap':'wrap', 'text-max-width':220
     }},
@@ -2538,7 +2558,7 @@ function renderCyLegendFilters(){
   const hostD=el('cyFilterDomaine'); hostD.innerHTML='';
   cyDomaines.forEach(d=>{
     const row=document.createElement('label'); row.className='check'; row.style.display='flex';
-    row.innerHTML=`<input type="checkbox" checked data-domaine="${esc(d)}">${esc(d)}`;
+    row.innerHTML=`<input type="checkbox" checked data-domaine="${esc(d)}"><span class="cyswatch dom" style="background:${domaineFill[d]||NO_DOMAIN_FILL}"></span>${esc(d)}`;
     row.querySelector('input').addEventListener('change', applyCyFilters);
     hostD.appendChild(row);
   });
@@ -2787,7 +2807,7 @@ function renderStaticDiagramHtml(o){
       var hostD=document.getElementById('filterDomaine'); hostD.innerHTML='';
       DOMAINES.forEach(function(d){
         var row=document.createElement('label');
-        row.innerHTML='<input type="checkbox" checked data-domaine="'+escHtml(d)+'">'+escHtml(d);
+        row.innerHTML='<input type="checkbox" checked data-domaine="'+escHtml(d.nom)+'"><span class="swatch" style="background:'+escHtml(d.fill)+';box-shadow:inset 0 0 0 1px #B9C4CE"></span>'+escHtml(d.nom);
         row.querySelector('input').addEventListener('change', applyFilters);
         hostD.appendChild(row);
       });
@@ -2860,7 +2880,8 @@ function buildDiagramHtmlExport(){
   // meme si le graphe source a ete filtre avant l'export
   const natures = [...new Map(visibleNodes.map(n=>[n.data('classe'), n.data('color')]))]
     .map(([nom,color])=>({nom,color})).sort((a,b)=>a.nom.localeCompare(b.nom));
-  const domaines = [...new Set(visibleNodes.map(n=>n.data('domaine')))].sort((a,b)=>a.localeCompare(b));
+  const domaines = [...new Map(visibleNodes.map(n=>[n.data('domaine'), n.data('fill')]))]
+    .map(([nom,fill])=>({nom,fill})).sort((a,b)=>a.nom.localeCompare(b.nom));
 
   return renderStaticDiagramHtml({
     title: baseName(),
