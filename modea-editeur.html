@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.8.0">
+<meta name="version" content="0.8.1">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -152,10 +152,10 @@
   .btn.danger:hover{background:rgba(192,57,43,.1)}
 
   /* ---- Layout ---- */
-  main{max-width:1200px;margin:0 auto;padding:22px 20px 24px;
+  main{margin:0;padding:22px 20px 24px;
     display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:22px;align-items:start}
   /* ---- Pied de page (footer casarou) ---- */
-  .app-footer{max-width:1200px;margin:0 auto;padding:12px 20px 28px;font-size:12px;line-height:1.5;
+  .app-footer{margin:0;padding:12px 20px 28px;font-size:12px;line-height:1.5;
     text-align:center;color:var(--muted)}
   .app-footer a{color:inherit;text-decoration:underline;text-underline-offset:2px}
   .app-footer a:hover,.app-footer a:focus-visible{color:var(--accent-deep);text-decoration-thickness:2px}
@@ -1042,10 +1042,13 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 7; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.8'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.8.1'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.8.1', date:'2026-11-18', items:[
+    "L'éditeur occupe désormais toute la largeur de l'écran : sur un grand écran, le diagramme et les listes ont plus de place au lieu d'être limités à une colonne centrale."
+  ]},
   { version:'v0.8', date:'2026-11-17', items:[
     "Travail à plusieurs avec GitLab : le bouton « GitLab… » relie le modèle à un dépôt GitLab avec votre jeton d'accès. « Ouvrir depuis GitLab » charge la dernière version, et « Enregistrer dans GitLab » crée une nouvelle version datée, à votre nom, avec un résumé automatique des modifications. Chaque enregistrement sert aussi de sauvegarde.",
     "Travail en même temps : si un collègue a enregistré pendant que vous travailliez, Modea fusionne automatiquement vos deux versions au moment d'enregistrer. Seuls les vrais conflits vous sont demandés (une même information modifiée différemment, un élément modifié d'un côté et supprimé de l'autre…), et rien n'est jamais écrasé sans votre choix.",
