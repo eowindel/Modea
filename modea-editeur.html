@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.8.1">
+<meta name="version" content="0.9.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -439,7 +439,8 @@
             <li><b>Agrégation</b> — même idée, lien plus lâche (la partie peut exister sans le tout).</li>
             <li><b>Association</b> — lien simple sans notion de tout/partie.</li>
           </ul>
-          <p>Suppression possible depuis la liste Relations. Il n'y a pas d'édition de relation : supprime puis recrée si besoin.</p>
+          <p>Le <b>nom technique</b> (facultatif) est un identifiant propre à chaque relation, destiné aux outils en aval (ex : <code>REL_EQUIPEMENT_LOCAL</code>). Il est repris dans l'export RDF.</p>
+          <p>Dans la liste Relations, <b>Éditer</b> recharge la relation dans le formulaire : on peut alors changer ses objets, son type, ses cardinalités, son nom ou son nom technique, puis valider avec « Mettre à jour la relation » (ou « Annuler la modification »). <b>Supprimer</b> la retire du modèle.</p>
         </section>
 
         <section id="h-listes">
@@ -751,7 +752,11 @@
           <input type="text" id="r_nom" list="dl_relNom" placeholder="porte, est rattaché à…" autocomplete="off">
           <datalist id="dl_relNom"></datalist></label></div>
       </div>
-      <div class="actions"><button class="btn primary" id="addRel">Ajouter la relation</button></div>
+      <div class="field"><label><span class="lab">Nom technique</span>
+        <input type="text" id="r_tech" placeholder="ex : REL_EQUIPEMENT_LOCAL (facultatif)" autocomplete="off" spellcheck="false"></label></div>
+      <p class="hint" id="r_editHint" style="display:none">Modification d'une relation existante — valider met à jour cette relation.</p>
+      <div class="actions"><button class="btn primary" id="addRel">Ajouter la relation</button>
+        <button class="btn ghost" id="cancelRelEdit" style="display:none">Annuler la modification</button></div>
     </div>
 
     <!-- Lien d'exigence (traçabilité vers un A-Box externe, ex : ARIS) -->
@@ -829,7 +834,7 @@
 
         <div id="subViewRels" class="hidden">
           <div class="mgbar">
-            <input type="text" id="mgRelSearch" placeholder="Rechercher (source, cible, nom du lien)…">
+            <input type="text" id="mgRelSearch" placeholder="Rechercher (source, cible, nom du lien, nom technique)…">
             <select id="mgRelType"><option value="">Tous types</option></select>
             <select id="mgRelStatut"><option value="">Tous statuts</option><option value="brouillon">Brouillon</option><option value="valide">Validé</option><option value="obsolete">Obsolète</option></select>
             <span class="mgcount" id="mgRelCount"></span>
@@ -1041,11 +1046,16 @@ const TYPES = ['texte','entier','decimal','booleen','date','datetime','enum','id
 const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
-const SCHEMA_VERSION = 7; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.8.1'; // à incrémenter à chaque commit taggé
+const SCHEMA_VERSION = 8; // à incrémenter ici ET dans metamodele.sql à chaque migration
+const APP_VERSION = 'v0.9'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.9', date:'2026-11-18', items:[
+    "Les relations se modifient : dans la liste Relations, « Éditer » recharge la relation dans le formulaire pour changer ses objets, son type, ses cardinalités ou son nom, sans avoir à la supprimer et la recréer.",
+    "Nouveau champ « Nom technique » sur chaque relation (facultatif), repris dans l'export RDF et cherchable dans la liste Relations.",
+    "Les modèles existants sont mis à jour automatiquement à l'ouverture, sans perte."
+  ]},
   { version:'v0.8.1', date:'2026-11-18', items:[
     "L'éditeur occupe désormais toute la largeur de l'écran : sur un grand écran, le diagramme et les listes ont plus de place au lieu d'être limités à une colonne centrale."
   ]},
@@ -1466,6 +1476,10 @@ ALTER TABLE filtre_diagramme ADD COLUMN uid TEXT;
 CREATE UNIQUE INDEX idx_filtre_diagramme_uid ON filtre_diagramme(uid);
 CREATE TRIGGER trg_filtre_diagramme_uid AFTER INSERT ON filtre_diagramme FOR EACH ROW WHEN NEW.uid IS NULL
 BEGIN UPDATE filtre_diagramme SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+
+-- v8 : nom technique d'une relation (identifiant libre pour les outils en aval). Ajouté par
+-- ALTER TABLE, comme uid, pour que bases neuves et migrées aient les colonnes dans le même ordre.
+ALTER TABLE relation ADD COLUMN nom_technique TEXT;
 `;
 
 let SQL=null, db=null, fileHandle=null, dbName="modele.db", viewMode='fiches';
@@ -1534,6 +1548,13 @@ function migrateV7(d){
       +"BEGIN UPDATE "+t+" SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END");
   }
 }
+/* v7 -> v8 (idempotent) : nom technique des relations. */
+function migrateV8(d){
+  const cols=(d.exec("PRAGMA table_info(relation)")[0]||{values:[]}).values.map(v=>v[1]);
+  if(cols.length && !cols.includes('nom_technique')) d.run("ALTER TABLE relation ADD COLUMN nom_technique TEXT");
+}
+// Met une base (ouverte, ou version GitLab à comparer/fusionner) au schéma courant
+function migrateSchema(d){ migrateV7(d); migrateV8(d); }
 async function openBytes(bytes,name){
   await ensureSql();
   glDetach(); // un modèle ouvert depuis le disque n'est relié à GitLab que si glOpen le relie ensuite
@@ -1556,7 +1577,7 @@ async function openBytes(bytes,name){
     // passés par ce garde-fou avant l'introduction du filtre par statut dans le diagramme)
     const filtreCols = exec("PRAGMA table_info(filtre_diagramme)").map(c=>c.name);
     if(!filtreCols.includes('statuts')){ run("ALTER TABLE filtre_diagramme ADD COLUMN statuts TEXT"); }
-    migrateV7(db); // v6 -> v7 : table meta + identifiants stables (uid)
+    migrateSchema(db); // v6 -> v7 : table meta + uid ; v7 -> v8 : nom technique des relations
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
   const rep=repairOrphans();
@@ -1683,7 +1704,9 @@ function deleteProp(id){
 }
 function deleteRelation(id){
   if(!confirm("Supprimer cette relation ?")) return;
+  const uid=(exec("SELECT uid FROM relation WHERE id=?",[id])[0]||{}).uid;
   run("DELETE FROM relation WHERE id=?",[id]);
+  if(uid!=null && relEditUid===uid) resetRelForm();
   toast("Relation supprimée","ok"); refreshAll();
 }
 function deleteApplicabilite(id, objetNom, propNom){
@@ -1877,18 +1900,51 @@ function updateAffectPropList(){
   fillDatalist('dl_propriete_dispo', rows.map(r=>r.nom));
 }
 
+// relation en cours de modification dans le formulaire (null = création). On retient son uid,
+// stable même si une fusion GitLab renumérote les lignes pendant la saisie.
+let relEditUid=null;
 function addRel(){
   const sid=findIdByName('objet', v('r_src'));
   const tid=findIdByName('objet', v('r_tgt'));
   if(!sid||!tid) return toast("Choisis deux objets existants (noms exacts)","err");
+  const relEditId = relEditUid!=null ? (exec("SELECT id FROM relation WHERE uid=?",[relEditUid])[0]||{}).id : null;
+  if(relEditUid!=null && relEditId==null){
+    resetRelForm(); return toast("Cette relation n'existe plus (supprimée entre-temps)","err");
+  }
   try{
     const vid=ensureVerbeRelation(v('r_nom'));
-    run("INSERT INTO relation(verbe_id,type,source_id,cible_id,card_source,card_cible) VALUES (?,?,?,?,?,?)",
-        [vid,v('r_type'),sid,tid,v('r_cs'),v('r_cc')]);
-    clear(['r_src','r_tgt','r_nom']);
-    el('r_type').value='association'; el('r_cs').value='1'; el('r_cc').value='0..*';
-    refreshAll(); focus('r_src'); toast("Relation ajoutée","ok");
+    const tech=v('r_tech').trim()||null;
+    if(relEditId!=null){
+      run("UPDATE relation SET verbe_id=?,type=?,source_id=?,cible_id=?,card_source=?,card_cible=?,nom_technique=? WHERE id=?",
+          [vid,v('r_type'),sid,tid,v('r_cs'),v('r_cc'),tech,relEditId]);
+      toast("Relation mise à jour","ok");
+    }else{
+      run("INSERT INTO relation(verbe_id,type,source_id,cible_id,card_source,card_cible,nom_technique) VALUES (?,?,?,?,?,?,?)",
+          [vid,v('r_type'),sid,tid,v('r_cs'),v('r_cc'),tech]);
+      toast("Relation ajoutée","ok");
+    }
+    resetRelForm(); refreshAll(); focus('r_src');
   }catch(e){ toast(friendly(e),"err"); }
+}
+function resetRelForm(){
+  clear(['r_src','r_tgt','r_nom','r_tech']);
+  el('r_type').value='association'; el('r_cs').value='1'; el('r_cc').value='0..*';
+  setRelEditMode(null); updateRelPreview();
+}
+function setRelEditMode(uid){
+  relEditUid=uid;
+  el('r_editHint').style.display = uid!=null ? '' : 'none';
+  el('cancelRelEdit').style.display = uid!=null ? '' : 'none';
+  el('addRel').textContent = uid!=null ? "Mettre à jour la relation" : "Ajouter la relation";
+}
+function editRelRow(id){
+  const r=exec(`SELECT s.nom src,c.nom tgt,vb.nom verbe,r.type,r.card_source cs,r.card_cible cc,r.nom_technique tech,r.uid
+                FROM relation r JOIN objet s ON s.id=r.source_id JOIN objet c ON c.id=r.cible_id
+                LEFT JOIN verbe_relation vb ON vb.id=r.verbe_id WHERE r.id=?`,[id])[0];
+  if(!r) return;
+  el('r_src').value=r.src; el('r_tgt').value=r.tgt; el('r_nom').value=r.verbe||'';
+  el('r_type').value=r.type; el('r_cs').value=r.cs; el('r_cc').value=r.cc; el('r_tech').value=r.tech||'';
+  setRelEditMode(r.uid); updateRelPreview(); switchToTab('pRel'); focus('r_nom');
 }
 function updateExigenceTypeUI(){
   const t = v('ex_type');
@@ -2108,22 +2164,23 @@ function renderPropObjetsDetail(proprieteId, proprieteNom){
 function renderMgRels(){
   const search=v('mgRelSearch').trim(), type=v('mgRelType'), statut=v('mgRelStatut');
   const where=[]; const params=[];
-  if(search){ where.push("(s.nom LIKE ? OR c.nom LIKE ? OR vb.nom LIKE ?)"); params.push('%'+search+'%','%'+search+'%','%'+search+'%'); }
+  if(search){ where.push("(s.nom LIKE ? OR c.nom LIKE ? OR vb.nom LIKE ? OR r.nom_technique LIKE ?)"); params.push('%'+search+'%','%'+search+'%','%'+search+'%','%'+search+'%'); }
   if(type){ where.push("r.type=?"); params.push(type); }
   if(statut){ where.push("r.statut=?"); params.push(statut); }
   const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
   const baseFrom = `FROM relation r JOIN objet s ON s.id=r.source_id JOIN objet c ON c.id=r.cible_id LEFT JOIN verbe_relation vb ON vb.id=r.verbe_id ${whereSql}`;
   const total = exec(`SELECT COUNT(*) n ${baseFrom}`, params)[0].n;
-  const rows = exec(`SELECT r.id,s.nom src,vb.nom rel,r.type,c.nom tgt,r.card_source cs,r.card_cible cc,r.statut ${baseFrom} ORDER BY s.nom,c.nom LIMIT ${MG_MAX_ROWS}`, params);
+  const rows = exec(`SELECT r.id,s.nom src,vb.nom rel,r.nom_technique tech,r.type,c.nom tgt,r.card_source cs,r.card_cible cc,r.statut ${baseFrom} ORDER BY s.nom,c.nom LIMIT ${MG_MAX_ROWS}`, params);
   el('mgRelCount').textContent = total+' relation'+(total>1?'s':'');
   const body=el('mgRelBody'); body.innerHTML='';
   if(!rows.length) body.innerHTML='<tr><td colspan="7" class="noprops">Aucune relation.</td></tr>';
   rows.forEach(r=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${esc(r.src)} <span class="mgdef">[${r.cs}]</span></td><td class="typ">──▶</td>
-      <td>${esc(r.tgt)} <span class="mgdef">[${r.cc}]</span></td><td>${r.type}</td><td>${r.rel?esc(r.rel):''}</td>
+      <td>${esc(r.tgt)} <span class="mgdef">[${r.cc}]</span></td><td>${r.type}</td><td>${r.rel?esc(r.rel):''}${r.tech?` <span class="mgdef">${esc(r.tech)}</span>`:''}</td>
       <td>${statutSelectHtml('relation',r.id,r.statut)}</td>
-      <td class="mgactions"><button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button></td>`;
+      <td class="mgactions"><button class="btn xs ghost" data-act="edit" data-id="${r.id}">Éditer</button>
+        <button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button></td>`;
     body.appendChild(tr);
   });
   el('mgRelMsg').textContent = total>MG_MAX_ROWS ? MG_MAX_ROWS+' affichées sur '+total+' — affine la recherche pour voir le reste.' : '';
@@ -2999,6 +3056,7 @@ function vocabHeader(){
     ['cardinaliteCible',"Cardinalité brute côté cible, telle que saisie dans le modèle"],
     ['roleSource',"Rôle nommé côté source"],
     ['roleCible',"Rôle nommé côté cible"],
+    ['nomTechnique',"Nom technique de la relation, tel que saisi dans le modèle"],
     ['discipline',"Code de la discipline associée à cet usage précis de la propriété"],
     ['ordre',"Ordre d'affichage de la propriété pour cet objet"],
     ['multivalue',"Indique si la propriété admet plusieurs valeurs"],
@@ -3127,7 +3185,7 @@ function emitVerbRelations(out, slugFor){
   return iri;
 }
 function emitObjectProperties(out, slugFor, objIri, verbIri){
-  const rows = exec(`SELECT id,verbe_id,type,source_id,cible_id,card_source,card_cible,role_source,role_cible
+  const rows = exec(`SELECT id,verbe_id,type,source_id,cible_id,card_source,card_cible,role_source,role_cible,nom_technique
       FROM relation WHERE type<>'generalisation'`);
   const relSlugById = new Map();
   rows.forEach(r=>{
@@ -3152,6 +3210,7 @@ function emitObjectProperties(out, slugFor, objIri, verbIri){
     if(cardFrag) parts.push(cardFrag);
     if(r.role_source) parts.push('modea:roleSource '+lit(r.role_source));
     if(r.role_cible) parts.push('modea:roleCible '+lit(r.role_cible));
+    if(r.nom_technique) parts.push('modea:nomTechnique '+lit(r.nom_technique));
     out.push(':'+src+' rdfs:subClassOf [ '+parts.join(' ; ')+' ] .');
     out.push('');
   });
@@ -3545,7 +3604,7 @@ const GL_LABELS = { // [singulier, pluriel, féminin]
 function glChanges(baseBytes, d=db){
   const old=new SQL.Database(baseBytes);
   try{
-    migrateV7(old); // une version v6 n'a pas encore d'uid : on la compare comme si elle était migrée
+    migrateSchema(old); // une version v6 n'a pas encore d'uid : on la compare comme si elle était migrée
     const snap=(x,t)=>{ const m=new Map(); const st=x.prepare('SELECT * FROM "'+t+'"');
       while(st.step()){ const o=st.getAsObject(); m.set(o.uid, JSON.stringify(o)); } st.free(); return m; };
     const parts=[];
@@ -3755,7 +3814,7 @@ const MERGE_COLS = { nom:'nom', definition:'définition', description:'descripti
   classe_id:'nature', discipline_id:'discipline', origine:'origine', type:'type', multivalue:'multivaluée',
   type_enumere_id:'liste de valeurs', unite_id:'unité', obligatoire:'obligatoire', ordre:'ordre', verbe_id:'verbe',
   source_id:'objet source', cible_id:'objet cible', card_source:'cardinalité source', card_cible:'cardinalité cible',
-  role_source:'rôle source', role_cible:'rôle cible', valeur:'valeur', libelle:'libellé', message:'message',
+  role_source:'rôle source', role_cible:'rôle cible', nom_technique:'nom technique', valeur:'valeur', libelle:'libellé', message:'message',
   severite:'sévérité', code:'code', symbole:'symbole', iri_externe:'IRI externe', systeme_externe:'système externe',
   objet_id:'objet', propriete_id:'propriété', relation_id:'relation', grandeur_id:'grandeur', commentaire:'commentaire',
   favori:'favori', natures:'natures', domaines:'domaines', statuts:'statuts' };
@@ -3796,7 +3855,7 @@ function mergeModels(baseBytes, mineDb, theirsBytes, choices, who){
   const target=new SQL.Database(theirsBytes), base=new SQL.Database(baseBytes);
   let keep=false;
   try{
-    migrateV7(target); migrateV7(base); target.run('PRAGMA foreign_keys = ON');
+    migrateSchema(target); migrateSchema(base); target.run('PRAGMA foreign_keys = ON');
     repairOrphans(target); // une version enregistrée avant la v0.6.7 peut contenir des orphelins : on ne les réintroduit pas
     const schema=mergeSchema(target), S=Object.fromEntries(schema.map(s=>[s.t,s]));
     const B=mergeSnapshot(base,schema), M=mergeSnapshot(mineDb,schema), T=mergeSnapshot(target,schema);
@@ -3983,7 +4042,7 @@ async function glIntegrate(c, cfg, path){
   }
   try{ db.close(); }catch(e){}
   db=r.db; db.run('PRAGMA foreign_keys = ON');
-  const tb=new SQL.Database(theirs); migrateV7(tb); gl.baseBytes=tb.export(); tb.close();
+  const tb=new SQL.Database(theirs); migrateSchema(tb); gl.baseBytes=tb.export(); tb.close();
   gl.link={...gl.link, lastCommitId:f.last_commit_id, at:head.committed_date, author:who};
   gl.mergedWith=who||'?'; gl.remote=null; dirty=true;
   gl.lastMerge={ conflicts:r.conflicts.length, warnings:r.warnings, applied:r.applied };
@@ -4216,6 +4275,7 @@ function dismissAutosave(){
 
 function enterEditor(){
   el('empty').classList.add('hidden');
+  if(relEditUid!=null) resetRelForm(); // un autre modèle s'ouvre : on quitte la modification en cours
   el('editor').classList.remove('hidden'); el('readout').classList.remove('hidden');
   el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false; el('btnExportLiens').disabled=false;
   startAutosaveTimer();
@@ -4249,6 +4309,7 @@ function wire(){
   });
   el('addAffect').onclick=addOrUpdateAffect;
   el('addRel').onclick=addRel;
+  el('cancelRelEdit').onclick=resetRelForm;
   el('addExigence').onclick=addLienExigence;
   el('ex_type').addEventListener('change', updateExigenceTypeUI);
   // tabs
@@ -4351,7 +4412,8 @@ function wire(){
   });
   el('mgRelBody').addEventListener('click', e=>{
     const btn=e.target.closest('button[data-act]'); if(!btn) return;
-    if(btn.dataset.act==='del') deleteRelation(+btn.dataset.id);
+    if(btn.dataset.act==='edit') editRelRow(+btn.dataset.id);
+    else if(btn.dataset.act==='del') deleteRelation(+btn.dataset.id);
   });
   el('mgExBody').addEventListener('click', e=>{
     const btn=e.target.closest('button[data-act]'); if(!btn) return;

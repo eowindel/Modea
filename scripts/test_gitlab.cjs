@@ -275,16 +275,18 @@ async function poste(server, token) {
   const e4 = await alice.err('glSave()');
   check('publier par-dessus un modèle existant : refusé', e4 && /existe déjà/.test(e4.message), e4 && e4.message);
 
-  // 9) Migration v6 -> v7 : uid déterministes, identiques sur les deux postes
+  // 9) Migration v6 -> schéma courant : uid déterministes, identiques sur les deux postes
+  //    (v0.6.7 = dernière version publiée avec le schéma v6)
   const v6 = path.join(tmp, 'v6.db');
-  fs.writeFileSync(path.join(tmp, 'v6.sql'), cp.execFileSync('git', ['-C', root, 'show', 'main:metamodele.sql']));
+  fs.writeFileSync(path.join(tmp, 'v6.sql'), cp.execFileSync('git', ['-C', root, 'show', 'v0.6.7:metamodele.sql']));
   cp.execFileSync('python3', ['-c', `
 import sqlite3,sys
 c=sqlite3.connect(sys.argv[1]); c.executescript(open(sys.argv[2],encoding='utf-8').read())
 c.executemany("INSERT INTO objet(nom) VALUES (?)", [('Produit',),('Pièce',),('Document',)]); c.commit()`, v6, path.join(tmp, 'v6.sql')]);
   for (const p of [alice, bruno]) { p.w.__b = new Uint8Array(fs.readFileSync(v6)); await p.ev(`openBytes(__b,'v6.db')`); }
   const uids = p => JSON.stringify(p.ev(`exec("SELECT uid FROM objet ORDER BY id").map(r=>r.uid)`));
-  check('base v6 migrée en v7', alice.ev(`exec("PRAGMA user_version")[0].user_version`) === 7);
+  check('base v6 migrée au schéma courant', alice.ev(`exec("PRAGMA user_version")[0].user_version`) === alice.ev('SCHEMA_VERSION'));
+  check('migration : nom technique des relations ajouté', alice.ev(`exec("PRAGMA table_info(relation)").some(c=>c.name==='nom_technique')`));
   check('uid de migration déterministes (mêmes sur les deux postes)', uids(alice) === uids(bruno) && /"objet-1"/.test(uids(alice)), uids(alice));
   alice.ev(`run("INSERT INTO objet(nom) VALUES ('Nouveau')")`);
   check('nouvel élément : uid aléatoire', /^[0-9a-f]{32}$/.test(alice.ev(`exec("SELECT uid FROM objet WHERE nom='Nouveau'")[0].uid`)));
