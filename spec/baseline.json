@@ -1,0 +1,1864 @@
+{
+  "format": "specform",
+  "formatVersion": 2,
+  "project": {
+    "name": "Modea — modélisation de domaine",
+    "version": "1.0",
+    "productManager": "",
+    "status": "draft"
+  },
+  "useCases": {
+    "CU-001": {
+      "id": "CU-001",
+      "title": "Créer un modèle de domaine",
+      "actor": "Contributeur",
+      "trigger": "« Nouveau modèle »",
+      "preconditions": "",
+      "happyPath": [
+        "Le contributeur demande un nouveau modèle",
+        "Le système crée un modèle vide, prêt à la saisie",
+        "Le contributeur nomme le modèle à son premier enregistrement"
+      ],
+      "alternatives": [],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-001"
+      ],
+      "relatedUX": [
+        "UX-001",
+        "UX-002",
+        "UX-017"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-002": {
+      "id": "CU-002",
+      "title": "Ouvrir un modèle existant",
+      "actor": "Lecteur ou contributeur",
+      "trigger": "« Ouvrir »",
+      "preconditions": "",
+      "happyPath": [
+        "L’utilisateur choisit un modèle parmi ceux auxquels il a accès",
+        "Le système charge sa dernière version et affiche les compteurs"
+      ],
+      "alternatives": [],
+      "errorHandling": [
+        "Le modèle n'est pas lisible : un message explique pourquoi, aucun modèle n'est ouvert"
+      ],
+      "relatedRules": [
+        "RB-019"
+      ],
+      "relatedUX": [
+        "UX-001",
+        "UX-002"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-003": {
+      "id": "CU-003",
+      "title": "Décrire un objet du domaine",
+      "actor": "Contributeur",
+      "trigger": "Onglet Objet",
+      "preconditions": "",
+      "happyPath": [
+        "Saisir le nom de l'objet",
+        "Choisir ou taper sa nature, son domaine, sa discipline",
+        "Rédiger sa définition",
+        "Valider"
+      ],
+      "alternatives": [
+        "Le nom correspond à un objet existant : sa fiche est préchargée et la validation la met à jour",
+        "Nature ou domaine nouveaux : ils sont créés à la volée",
+        "Code de discipline nouveau : son nom est demandé"
+      ],
+      "errorHandling": [
+        "Nom vide : refusé"
+      ],
+      "relatedRules": [
+        "RB-001",
+        "RB-009",
+        "RB-010",
+        "RB-011",
+        "RB-018"
+      ],
+      "relatedUX": [
+        "UX-003"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-004": {
+      "id": "CU-004",
+      "title": "Définir une propriété partagée",
+      "actor": "Contributeur",
+      "trigger": "Onglet Propriété",
+      "preconditions": "",
+      "happyPath": [
+        "Saisir le nom de la propriété",
+        "Choisir son type",
+        "Compléter les informations propres au type (liste de valeurs, grandeur et unité)",
+        "Poser éventuellement des contraintes de valeur",
+        "Indiquer si elle est multivaluée, la décrire",
+        "Valider"
+      ],
+      "alternatives": [
+        "Le nom correspond à une propriété existante : sa définition est préchargée, la modification s’applique partout où elle est affectée"
+      ],
+      "errorHandling": [
+        "Type liste de valeurs sans liste, ou type grandeur sans unité : refusé",
+        "Contrainte incompatible avec le type : refusée"
+      ],
+      "relatedRules": [
+        "RB-001",
+        "RB-002",
+        "RB-004",
+        "RB-005",
+        "RB-006",
+        "RB-007",
+        "RB-010"
+      ],
+      "relatedUX": [
+        "UX-004"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-005": {
+      "id": "CU-005",
+      "title": "Gérer une liste de valeurs",
+      "actor": "Contributeur",
+      "trigger": "Onglet Listes de valeurs",
+      "preconditions": "",
+      "happyPath": [
+        "Choisir une liste ou taper un nom nouveau",
+        "Ajouter des valeurs (code, libellé)",
+        "Supprimer les valeurs devenues inutiles"
+      ],
+      "alternatives": [
+        "Supprimer la liste entière, si aucune propriété ne l’utilise"
+      ],
+      "errorHandling": [
+        "Code déjà présent dans la liste : refusé",
+        "Liste utilisée : suppression refusée"
+      ],
+      "relatedRules": [
+        "RB-008",
+        "RB-010"
+      ],
+      "relatedUX": [
+        "UX-005"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-006": {
+      "id": "CU-006",
+      "title": "Affecter une propriété à un objet",
+      "actor": "Contributeur",
+      "trigger": "Onglet Affectation, ou « Éditer » sur une propriété affectée",
+      "preconditions": "",
+      "happyPath": [
+        "Choisir l'objet",
+        "Choisir une propriété parmi celles qu’il ne porte pas encore",
+        "Indiquer si elle est obligatoire et sa discipline",
+        "Valider"
+      ],
+      "alternatives": [
+        "Propriété déjà affectée : son caractère obligatoire et sa discipline sont mis à jour",
+        "Retirer une propriété d’un objet depuis la liste des objets (ligne dépliée)"
+      ],
+      "errorHandling": [
+        "Objet ou propriété inconnus : refusé"
+      ],
+      "relatedRules": [
+        "RB-003",
+        "RB-009",
+        "RB-020"
+      ],
+      "relatedUX": [
+        "UX-006",
+        "UX-009"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-007": {
+      "id": "CU-007",
+      "title": "Relier deux objets",
+      "actor": "Contributeur",
+      "trigger": "Onglet Relation",
+      "preconditions": "",
+      "happyPath": [
+        "Choisir l’objet source et l’objet cible",
+        "Choisir le type de lien et les cardinalités",
+        "Nommer la relation (verbe)",
+        "Vérifier l’aperçu, valider"
+      ],
+      "alternatives": [],
+      "errorHandling": [
+        "Objet inconnu : refusé",
+        "Généralisation d’un objet vers lui-même : refusée"
+      ],
+      "relatedRules": [
+        "RB-012",
+        "RB-013",
+        "RB-014",
+        "RB-010",
+        "RB-020"
+      ],
+      "relatedUX": [
+        "UX-007"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-008": {
+      "id": "CU-008",
+      "title": "Supprimer un élément du modèle",
+      "actor": "Contributeur",
+      "trigger": "« Supprimer » dans une liste",
+      "preconditions": "",
+      "happyPath": [
+        "Le contributeur demande la suppression",
+        "Le système annonce les conséquences (affectations, relations, objets concernés)",
+        "Le contributeur confirme",
+        "L’élément et ses dépendants sont retirés"
+      ],
+      "alternatives": [
+        "Le contributeur annule : rien ne change"
+      ],
+      "errorHandling": [
+        "Élément de référentiel encore utilisé : suppression refusée avec le nombre d’usages"
+      ],
+      "relatedRules": [
+        "RB-015",
+        "RB-016",
+        "RB-017",
+        "RB-008"
+      ],
+      "relatedUX": [
+        "UX-009",
+        "UX-016"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-009": {
+      "id": "CU-009",
+      "title": "Curer le modèle",
+      "actor": "Contributeur",
+      "trigger": "Relecture du modèle par les experts du domaine",
+      "preconditions": "",
+      "happyPath": [
+        "Filtrer les listes sur le statut « brouillon »",
+        "Relire chaque élément, le corriger si besoin",
+        "Passer son statut à « validé », ou « obsolète » s’il n’a plus cours"
+      ],
+      "alternatives": [],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-018",
+        "RB-019"
+      ],
+      "relatedUX": [
+        "UX-009",
+        "UX-010"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-010": {
+      "id": "CU-010",
+      "title": "Rechercher et filtrer dans les listes",
+      "actor": "Lecteur ou contributeur",
+      "trigger": "Vue Fiches",
+      "preconditions": "",
+      "happyPath": [
+        "Choisir la liste (objets, propriétés, relations, liens externes, référentiels)",
+        "Taper un texte et/ou choisir des filtres",
+        "Déplier une ligne pour voir son détail"
+      ],
+      "alternatives": [
+        "Plus de 300 résultats : seuls les 300 premiers sont affichés, avec invitation à affiner"
+      ],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-029"
+      ],
+      "relatedUX": [
+        "UX-009"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-011": {
+      "id": "CU-011",
+      "title": "Explorer le modèle en diagramme",
+      "actor": "Lecteur ou contributeur",
+      "trigger": "Vue Diagramme",
+      "preconditions": "",
+      "happyPath": [
+        "Le système dessine les objets et leurs relations",
+        "L’utilisateur cherche et centre un objet",
+        "Il clique un objet pour en isoler le voisinage et voir son détail",
+        "Il filtre par nature, domaine ou statut, change de disposition, affiche ou non les propriétés"
+      ],
+      "alternatives": [
+        "Enregistrer la combinaison de filtres comme configuration, la réappliquer en un clic",
+        "Passer en plein écran"
+      ],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-011",
+        "RB-012",
+        "RB-029",
+        "RB-030"
+      ],
+      "relatedUX": [
+        "UX-010"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-012": {
+      "id": "CU-012",
+      "title": "Analyser l'impact d'une propriété ou d'un objet",
+      "actor": "Lecteur ou contributeur",
+      "trigger": "Vue Impact",
+      "preconditions": "",
+      "happyPath": [
+        "Rechercher une propriété ou un objet",
+        "Le sélectionner",
+        "Régler la profondeur de propagation (1 à 5)",
+        "Lire les objets ou propriétés touchés"
+      ],
+      "alternatives": [
+        "Repérer les propriétés affectées à aucun objet"
+      ],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-002",
+        "RB-003"
+      ],
+      "relatedUX": [
+        "UX-011"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-013": {
+      "id": "CU-013",
+      "title": "Tracer une exigence externe",
+      "actor": "Contributeur",
+      "trigger": "Onglet Lien externe",
+      "preconditions": "",
+      "happyPath": [
+        "Saisir l’adresse de l’élément externe et le nom du système",
+        "Choisir la cible : un objet ou une propriété",
+        "Commenter, enregistrer"
+      ],
+      "alternatives": [
+        "Consulter et supprimer les liens depuis la liste des liens externes"
+      ],
+      "errorHandling": [
+        "Adresse, système ou cible manquants : refusé"
+      ],
+      "relatedRules": [
+        "RB-023",
+        "RB-020"
+      ],
+      "relatedUX": [
+        "UX-008",
+        "UX-009"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-014": {
+      "id": "CU-014",
+      "title": "Exporter le modèle aux standards du web sémantique",
+      "actor": "Lecteur ou contributeur",
+      "trigger": "Menu Exporter",
+      "preconditions": "",
+      "happyPath": [
+        "Choisir l’export : modèle (RDF/OWL), règles de validation (SHACL) ou liens externes",
+        "Confirmer ou corriger l’adresse de base proposée",
+        "Récupérer le fichier produit"
+      ],
+      "alternatives": [],
+      "errorHandling": [
+        "Modèle vide, ou aucun lien externe : export refusé",
+        "Adresse de base invalide : refusée"
+      ],
+      "relatedRules": [
+        "RB-021",
+        "RB-022",
+        "RB-023"
+      ],
+      "relatedUX": [
+        "UX-002"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-015": {
+      "id": "CU-015",
+      "title": "Consulter le modèle sans le modifier",
+      "actor": "Lecteur",
+      "trigger": "Accès au modèle avec le rôle lecteur",
+      "preconditions": "",
+      "happyPath": [
+        "Le lecteur ouvre le modèle",
+        "Il navigue : recherche, filtres, détail des objets, diagramme, impact",
+        "Aucune action de modification ne lui est proposée"
+      ],
+      "alternatives": [],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-019"
+      ],
+      "relatedUX": [
+        "UX-012",
+        "UX-010"
+      ],
+      "status": "draft",
+      "notes": "Arbitrage A-02 et A-03.",
+      "images": []
+    },
+    "CU-016": {
+      "id": "CU-016",
+      "title": "Enregistrer une version du modèle",
+      "actor": "Contributeur",
+      "trigger": "« Enregistrer »",
+      "preconditions": "",
+      "happyPath": [
+        "Le contributeur enregistre",
+        "Le système crée une version datée, à son nom, avec le résumé des changements",
+        "Les autres contributeurs peuvent la voir"
+      ],
+      "alternatives": [
+        "Aucune modification : aucune version créée, un message l’indique",
+        "Un collègue a enregistré entre-temps : voir CU-017"
+      ],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-026",
+        "RB-024",
+        "RB-019"
+      ],
+      "relatedUX": [
+        "UX-002",
+        "UX-016"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-017": {
+      "id": "CU-017",
+      "title": "Travailler en même temps qu'un collègue",
+      "actor": "Contributeur",
+      "trigger": "Enregistrement alors qu’une version plus récente existe",
+      "preconditions": "Deux contributeurs ont modifié le même modèle depuis la même version.",
+      "happyPath": [
+        "Le système reprend automatiquement tout ce qui ne se chevauche pas",
+        "Il présente les seuls vrais conflits",
+        "Le contributeur choisit pour chacun",
+        "Le système enregistre la version fusionnée"
+      ],
+      "alternatives": [
+        "Aucun conflit : la fusion et l’enregistrement se font sans question"
+      ],
+      "errorHandling": [
+        "Le contributeur annule l’arbitrage : rien n’est enregistré, son travail reste intact",
+        "Une modification ne peut être reprise sans enfreindre une règle du modèle : elle est signalée comme non reprise"
+      ],
+      "relatedRules": [
+        "RB-024",
+        "RB-025"
+      ],
+      "relatedUX": [
+        "UX-013"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-018": {
+      "id": "CU-018",
+      "title": "Être averti d'une nouvelle version et l'intégrer",
+      "actor": "Contributeur",
+      "trigger": "Un collègue enregistre une version du modèle ouvert",
+      "preconditions": "",
+      "happyPath": [
+        "Un bandeau signale la nouvelle version et son auteur",
+        "Le contributeur choisit « Intégrer ses modifications »",
+        "Le système fusionne avec son travail en cours, sans enregistrer"
+      ],
+      "alternatives": [
+        "Recharger la dernière version en abandonnant son travail",
+        "Mettre de côté une copie de son travail"
+      ],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-024",
+        "RB-025"
+      ],
+      "relatedUX": [
+        "UX-014",
+        "UX-013"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-019": {
+      "id": "CU-019",
+      "title": "Consulter l'historique et restaurer une version",
+      "actor": "Contributeur",
+      "trigger": "« Versions enregistrées »",
+      "preconditions": "",
+      "happyPath": [
+        "Afficher la liste des versions (date, auteur, résumé, jalons)",
+        "Consulter une version",
+        "La restaurer si besoin"
+      ],
+      "alternatives": [
+        "Consulter sans restaurer : rien ne change dans les versions"
+      ],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-027",
+        "RB-026"
+      ],
+      "relatedUX": [
+        "UX-015"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-020": {
+      "id": "CU-020",
+      "title": "Poser un jalon",
+      "actor": "Contributeur",
+      "trigger": "Avant une revue ou une diffusion",
+      "preconditions": "",
+      "happyPath": [
+        "Saisir le nom du jalon",
+        "Le système le pose sur la version enregistrée"
+      ],
+      "alternatives": [],
+      "errorHandling": [
+        "Nom de jalon déjà utilisé : refusé"
+      ],
+      "relatedRules": [
+        "RB-027"
+      ],
+      "relatedUX": [
+        "UX-015"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-021": {
+      "id": "CU-021",
+      "title": "Reprendre un travail interrompu",
+      "actor": "Contributeur",
+      "trigger": "Retour après une interruption",
+      "preconditions": "",
+      "happyPath": [
+        "Le système propose de restaurer le travail non enregistré (nom du modèle, date)",
+        "Le contributeur restaure",
+        "Il retrouve son travail et l’enregistre"
+      ],
+      "alternatives": [
+        "Le contributeur ignore : le travail interrompu est abandonné"
+      ],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-028"
+      ],
+      "relatedUX": [
+        "UX-001"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-022": {
+      "id": "CU-022",
+      "title": "Comparer deux versions du modèle",
+      "actor": "Lecteur ou contributeur",
+      "trigger": "Historique des versions",
+      "preconditions": "Besoin non prototypé, exprimé lors du cadrage : à confirmer.",
+      "happyPath": [
+        "Choisir deux versions",
+        "Le système liste les éléments ajoutés, supprimés et modifiés",
+        "Pour un élément modifié, afficher les valeurs avant / après"
+      ],
+      "alternatives": [],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-031"
+      ],
+      "relatedUX": [
+        "UX-018",
+        "UX-015"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "CU-023": {
+      "id": "CU-023",
+      "title": "Importer des éléments en masse",
+      "actor": "Contributeur",
+      "trigger": "Reprise d’un existant volumineux",
+      "preconditions": "Besoin non prototypé, exprimé lors du cadrage : à confirmer.",
+      "happyPath": [
+        "Le contributeur fournit des lignes décrivant objets, propriétés, affectations et relations par leurs noms",
+        "Le système les importe en brouillon",
+        "Il signale les lignes rejetées et pourquoi"
+      ],
+      "alternatives": [],
+      "errorHandling": [],
+      "relatedRules": [
+        "RB-032",
+        "RB-018",
+        "RB-010"
+      ],
+      "relatedUX": [
+        "UX-016"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    }
+  },
+  "businessRules": {
+    "RB-001": {
+      "id": "RB-001",
+      "title": "Unicité des noms",
+      "statement": "Dans un modèle, un objet, une propriété, une nature, un domaine, un verbe de relation, une liste de valeurs et une grandeur physique sont identifiés par leur nom, qui est unique dans sa catégorie. Une discipline est identifiée par son code, unique.",
+      "context": "Le nom est ce que l'utilisateur saisit et reconnaît : c'est par lui qu'il désigne un élément, jamais par un identifiant interne.",
+      "example": "Saisir « Moteur » dans le formulaire objet alors qu'un objet « Moteur » existe ouvre sa fiche en modification au lieu d'en créer un second.",
+      "validation": "Tenter de créer deux propriétés du même nom : la seconde saisie met à jour la première.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-001",
+        "CU-003",
+        "CU-004"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-002": {
+      "id": "RB-002",
+      "title": "Une propriété est une définition partagée",
+      "statement": "Une propriété est définie une seule fois (nom, type, caractère multivalué, liste de valeurs ou unité, contraintes, description), indépendamment de tout objet. Elle peut être affectée à autant d'objets que nécessaire. Toute modification de sa définition s'applique partout où elle est affectée.",
+      "context": "Évite les définitions divergentes d'une même notion d'un objet à l'autre.",
+      "example": "Modifier le type de « Numéro de série » le modifie pour les 12 objets qui portent cette propriété.",
+      "validation": "Modifier une propriété affectée à deux objets, puis vérifier la fiche des deux objets.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-004",
+        "CU-012"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-003": {
+      "id": "RB-003",
+      "title": "Ce qui dépend de l'usage est porté par l'affectation",
+      "statement": "Le caractère obligatoire et la discipline sont propres à l'affectation d'une propriété à un objet : une même propriété peut être obligatoire sur un objet et facultative sur un autre. Un objet ne porte qu'une fois une propriété donnée ; affecter de nouveau une propriété déjà affectée met à jour son caractère obligatoire et sa discipline.",
+      "context": "",
+      "example": "« Masse » est obligatoire pour « Moteur » et facultative pour « Selle ».",
+      "validation": "Affecter deux fois la même propriété au même objet : une seule affectation subsiste, avec les dernières valeurs.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-006",
+        "CU-012"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-004": {
+      "id": "RB-004",
+      "title": "Types de propriété",
+      "statement": "Une propriété a l'un des types suivants : texte, entier, décimal, booléen, date, date et heure, liste de valeurs, identifiant, grandeur physique. Le caractère multivalué (plusieurs valeurs possibles) est une caractéristique de la propriété elle-même, pas de son usage sur un objet. Le type par défaut est texte.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-004"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-005": {
+      "id": "RB-005",
+      "title": "Propriété de type liste de valeurs",
+      "statement": "Une propriété de type « liste de valeurs » est obligatoirement rattachée à une liste de valeurs, et seule une propriété de ce type peut l'être. La liste peut être choisie parmi les existantes ou créée en tapant un nom nouveau.",
+      "context": "",
+      "example": "",
+      "validation": "Créer une propriété de type liste de valeurs sans liste : refusé avec un message explicite.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-004"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-006": {
+      "id": "RB-006",
+      "title": "Propriété de type grandeur physique",
+      "statement": "Une propriété de type « grandeur physique » est obligatoirement rattachée à une grandeur (ex. Pression) et à une unité de cette grandeur (ex. bar), et seule une propriété de ce type peut l'être. Grandeurs et unités sont réutilisables entre propriétés ; dans une grandeur, le symbole d'une unité est unique. Une unité peut avoir un libellé distinct de son symbole.",
+      "context": "",
+      "example": "Grandeur « Pression », unités « bar », « Pa », « psi ».",
+      "validation": "Créer une propriété de type grandeur sans unité : refusé.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-004"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-007": {
+      "id": "RB-007",
+      "title": "Contraintes de valeur",
+      "statement": "Une propriété peut porter des contraintes sur les valeurs admises : un motif attendu pour les types texte et identifiant ; une valeur minimale et/ou maximale pour les types entier, décimal et grandeur physique. Une propriété porte au plus une contrainte de chaque sorte. Une contrainte incompatible avec le type est refusée.",
+      "context": "",
+      "example": "Numéro de série : motif « [A-Z]{2}-[0-9]{6} ». Puissance : minimum 0.",
+      "validation": "Poser un minimum sur une propriété de type texte : refusé avec un message explicite.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-004"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "Le modèle de données du proto prévoit aussi un message et une sévérité (violation / avertissement) par contrainte, non saisissables dans l'interface.",
+      "images": []
+    },
+    "RB-008": {
+      "id": "RB-008",
+      "title": "Listes de valeurs",
+      "statement": "Une liste de valeurs a un nom et des valeurs ordonnées ; chaque valeur a un code, unique dans la liste, et un libellé facultatif. Les valeurs sont rangées dans l'ordre d'ajout. Une liste peut être partagée par plusieurs propriétés. Elle ne peut être supprimée tant qu'une propriété l'utilise ; sa suppression retire ses valeurs.",
+      "context": "",
+      "example": "Liste « Statut de cycle de vie » : EN_COURS (En cours), VALIDE (Validé), ARCHIVE (Archivé).",
+      "validation": "Supprimer une liste utilisée par une propriété : refusé, le nombre de propriétés concernées est indiqué.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-005",
+        "CU-008"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-009": {
+      "id": "RB-009",
+      "title": "Disciplines",
+      "statement": "Une discipline (métier technique concerné) a un code et un nom. Lorsqu'on saisit un code de discipline inconnu, son nom doit aussi être indiqué pour la créer. Une discipline peut qualifier un objet, et aussi l'affectation d'une propriété à un objet.",
+      "context": "",
+      "example": "« 10 — Mécanique », « 99 — Électricité ».",
+      "validation": "Saisir un code inconnu sans nom : refusé avec la demande d'indiquer le nom.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-003",
+        "CU-006"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-010": {
+      "id": "RB-010",
+      "title": "Création à la volée des référentiels",
+      "statement": "Nature, domaine, verbe de relation, liste de valeurs, grandeur et unité se créent simplement en tapant un nom qui n'existe pas encore dans le champ correspondant ; un nom existant réutilise l'élément existant. L'utilisateur n'a pas à les déclarer au préalable.",
+      "context": "La saisie doit rester fluide lors de l'initialisation d'un modèle.",
+      "example": "",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-003",
+        "CU-004",
+        "CU-005",
+        "CU-007",
+        "CU-023"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-011": {
+      "id": "RB-011",
+      "title": "Trois axes de classement d'un objet",
+      "statement": "Un objet peut être classé selon trois axes indépendants et facultatifs : sa nature (sa forme : Produit, Fiche, Document…), son domaine (regroupement fonctionnel dans l'organisation : Conception, Ventes, Qualité…) et sa discipline. La nature est un classement : deux objets de même nature ne partagent pas leurs propriétés. Le partage de propriétés par héritage passe uniquement par une relation de généralisation.",
+      "context": "Les objets d'une même nature ont en pratique environ 90 % de propriétés distinctes : le modèle est majoritairement en classification, pas en héritage.",
+      "example": "",
+      "validation": "",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-003",
+        "CU-011"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-012": {
+      "id": "RB-012",
+      "title": "Types de relation et sens de lecture",
+      "statement": "Une relation est un lien orienté d'un objet source vers un objet cible, de l'un des types : association (lien simple), composition (la source est le tout, la cible une partie qui n'existe pas sans lui), agrégation (même idée, la partie peut exister sans le tout), généralisation (la source est un cas particulier de la cible : « la source est un(e) cible »). Une relation peut être nommée par un verbe (« contient », « est rattaché à ») ; les verbes forment un vocabulaire partagé, réutilisé d'une relation à l'autre.",
+      "context": "",
+      "example": "Moto ◆— contient → Moteur (composition). Moto électrique ▷ Moto (généralisation).",
+      "validation": "",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-007",
+        "CU-011"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-013": {
+      "id": "RB-013",
+      "title": "Cardinalités",
+      "statement": "Chaque extrémité d'une relation porte une cardinalité parmi 0..1, 1, 0..* et 1..*. Par défaut : 1 côté source, 0..* côté cible. Chaque extrémité peut aussi porter un nom de rôle facultatif.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-007"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-014": {
+      "id": "RB-014",
+      "title": "Généralisation non réflexive",
+      "statement": "Une généralisation ne peut pas relier un objet à lui-même. Une relation d'un autre type peut relier un objet à lui-même.",
+      "context": "",
+      "example": "",
+      "validation": "Créer une généralisation d'un objet vers lui-même : refusé avec un message explicite.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-007"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-015": {
+      "id": "RB-015",
+      "title": "Suppression d'un objet",
+      "statement": "Supprimer un objet retire aussi ses affectations de propriétés, les relations dont il est source ou cible, et les liens externes qui le visent. Avant de supprimer, l'utilisateur confirme, après avoir été informé du nombre d'affectations et de relations qui seront retirées.",
+      "context": "",
+      "example": "« Supprimer « Moteur » ? Cela retirera aussi 6 affectation(s) de propriété et 3 relation(s). »",
+      "validation": "Supprimer un objet relié : aucune affectation ni relation ne subsiste vers un objet disparu, y compris après enregistrement et réouverture.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-008"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-016": {
+      "id": "RB-016",
+      "title": "Suppression d'une propriété",
+      "statement": "Supprimer une propriété la retire de tous les objets qui l'utilisent, ainsi que ses contraintes et les liens externes qui la visent. L'utilisateur confirme après avoir été informé du nombre d'objets concernés.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-008"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-017": {
+      "id": "RB-017",
+      "title": "Suppression d'un élément de référentiel",
+      "statement": "Un domaine, une nature, une discipline, un verbe de relation ou une liste de valeurs ne peut être supprimé tant qu'il est utilisé ; le message indique le nombre d'usages. Une grandeur physique ne peut être supprimée tant qu'une propriété utilise l'une de ses unités ; sa suppression retire ses unités.",
+      "context": "",
+      "example": "",
+      "validation": "Supprimer un domaine encore porté par un objet : refusé, avec le nombre d'objets concernés.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-008"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-018": {
+      "id": "RB-018",
+      "title": "Statut de curation",
+      "statement": "Objets, propriétés, affectations et relations portent un statut : brouillon, validé ou obsolète. Tout élément créé est en brouillon. Le statut se change directement depuis les listes, sans ouvrir de formulaire.",
+      "context": "Le modèle est initialisé en grande partie par reprise d'existant : le statut pilote la relecture (curation) par les experts du domaine.",
+      "example": "",
+      "validation": "",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-003",
+        "CU-009",
+        "CU-023"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-019": {
+      "id": "RB-019",
+      "title": "Rôles : lecteur et contributeur",
+      "statement": "Deux rôles : le lecteur consulte le modèle (listes, diagramme, impact, exports) sans pouvoir le modifier ; le contributeur peut en plus créer, modifier, supprimer, changer les statuts et enregistrer des versions.",
+      "context": "Le proto n'a pas de gestion des droits : rôle défini lors du cadrage.",
+      "example": "",
+      "validation": "",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-002",
+        "CU-009",
+        "CU-015",
+        "CU-016"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "Arbitrage A-03. Non prototypé.",
+      "images": []
+    },
+    "RB-020": {
+      "id": "RB-020",
+      "title": "Saisie guidée par noms et valeurs autorisées",
+      "statement": "L'utilisateur désigne toujours les éléments par leur nom (avec suggestions à la saisie), jamais par un identifiant interne. Les champs dont les valeurs sont limitées (type de propriété, type de relation, cardinalité, statut) ne proposent que les valeurs autorisées. Un nom d'objet ou de propriété inconnu est refusé là où un élément existant est attendu (affectation, relation, lien externe).",
+      "context": "Garantit la cohérence du modèle saisi par des non-spécialistes.",
+      "example": "",
+      "validation": "Créer une relation vers un objet inexistant : refusé, avec invitation à choisir un nom existant.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-006",
+        "CU-007",
+        "CU-013"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-021": {
+      "id": "RB-021",
+      "title": "Paramètres des exports sémantiques",
+      "statement": "Chaque export sémantique demande l'adresse de base (IRI) du modèle : elle commence par http:// ou https:// et se termine par # ou / (un # est ajouté sinon). Une adresse par défaut est proposée, dérivée du nom du modèle, puis la dernière adresse utilisée. La même adresse doit servir pour les trois exports (modèle, règles de validation, liens externes), régénérés ensemble quand le modèle change. L'export d'un modèle vide, ou des liens externes quand il n'y en a aucun, est refusé.",
+      "context": "",
+      "example": "http://example.org/modea/moto# (à remplacer par une adresse réelle avant diffusion).",
+      "validation": "Saisir une adresse sans http(s) : refusé avec un message.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-014"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-022": {
+      "id": "RB-022",
+      "title": "Correspondance du modèle avec les standards RDF/OWL et SHACL",
+      "statement": "L'export ontologique (RDF/OWL) traduit : un objet en classe ; une propriété en propriété de données partagée, restreinte sur chaque objet par son affectation (cardinalité selon obligatoire et multivalué) ; une généralisation en sous-classe ; association, composition et agrégation en propriété d'objet avec restriction de cardinalité ; une liste de valeurs en type de données énuméré ; nature, domaine et discipline en schémas de concepts (la nature reste un classement, jamais une sous-classe) ; statut, origine et unité en annotations. L'export de règles de validation (SHACL) produit une forme par objet avec les cardinalités des affectations et des relations, et les contraintes de valeur (motif, bornes, valeurs énumérées). Quand un même verbe relie un objet à plusieurs types d'objets, les cardinalités sont comptées séparément pour chaque type visé.",
+      "context": "Interopérabilité avec les outils d'ontologie, sans dépendre de l'outil de modélisation.",
+      "example": "",
+      "validation": "Les fichiers produits se chargent sans erreur dans un outil standard ; les règles de validation sont valides ; sur des données d'exemple, les données correctes sont acceptées et les incomplètes rejetées.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-014"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-023": {
+      "id": "RB-023",
+      "title": "Liens vers un référentiel externe",
+      "statement": "Un lien externe trace un élément d'un système extérieur (par exemple un processus du référentiel de processus) qui impose une exigence sur une partie du modèle. Il comporte l'adresse (IRI) de l'élément externe et le nom du système, tous deux obligatoires, un commentaire facultatif, et vise exactement un objet ou une propriété du modèle. Le contenu du système externe n'est pas géré dans le modèle.",
+      "context": "",
+      "example": "Processus ARIS « Valider une nomenclature » → objet « Nomenclature ».",
+      "validation": "Enregistrer un lien sans système externe : refusé.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-013",
+        "CU-014"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-024": {
+      "id": "RB-024",
+      "title": "Aucune modification concurrente perdue",
+      "statement": "Lorsque plusieurs contributeurs modifient le même modèle en même temps, aucune modification n'est écrasée sans décision explicite. Ce qui ne se chevauche pas est repris automatiquement, y compris des modifications de champs différents d'un même élément. Seuls les vrais conflits sont soumis au contributeur : une même information modifiée différemment des deux côtés ; un élément modifié d'un côté et supprimé de l'autre ; un élément supprimé alors que l'autre s'en sert ; un même élément créé des deux côtés avec des valeurs différentes. Un élément créé à l'identique des deux côtés n'est pas dupliqué.",
+      "context": "Le mécanisme (fusion, verrouillage par élément…) est laissé au choix de la solution ; le besoin est l'absence de perte silencieuse.",
+      "example": "Alice modifie la définition de « Moteur », Bruno son statut : les deux changements sont repris sans question. Si tous deux modifient la définition, le contributeur qui enregistre en second choisit.",
+      "validation": "Rejouer chaque cas de conflit avec deux contributeurs simultanés.",
+      "priority": "essential",
+      "relatedUseCases": [
+        "CU-016",
+        "CU-017",
+        "CU-018"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "Arbitrage A-01.",
+      "images": []
+    },
+    "RB-025": {
+      "id": "RB-025",
+      "title": "Élément conservé lors d’un conflit de suppression",
+      "statement": "Quand un conflit oppose une suppression à une modification et que le contributeur choisit de conserver l'élément, celui-ci revient avec ses dépendants (affectations, relations) supprimés par la suppression. Si l'arbitrage est annulé, rien n'est enregistré et le travail en cours reste intact.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-017",
+        "CU-018"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-026": {
+      "id": "RB-026",
+      "title": "Versions identifiées : auteur, date, résumé",
+      "statement": "Chaque enregistrement d'une version partagée du modèle conserve son auteur, sa date et un résumé automatique des changements par catégorie (objets, propriétés, affectations, relations, référentiels… ajoutés, modifiés, supprimés). Enregistrer sans aucune modification ne crée pas de version.",
+      "context": "",
+      "example": "« 2 objets ajoutés, 1 relation modifiée ».",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-016",
+        "CU-019"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "Arbitrage A-01.",
+      "images": []
+    },
+    "RB-027": {
+      "id": "RB-027",
+      "title": "Historique, restauration et jalons",
+      "statement": "Toutes les versions enregistrées restent consultables. Restaurer une ancienne version en fait la version courante sous la forme d'une nouvelle version : l'historique n'est jamais réécrit. Un jalon donne un nom unique à une version (par exemple « v1.0 » avant une revue) ; un nom de jalon déjà utilisé est refusé.",
+      "context": "",
+      "example": "",
+      "validation": "Restaurer une version : l'historique compte une version de plus, la version restaurée est indiquée dans son résumé.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-019",
+        "CU-020"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "Arbitrage A-01.",
+      "images": []
+    },
+    "RB-028": {
+      "id": "RB-028",
+      "title": "Aucune saisie perdue en cas d’interruption",
+      "statement": "Un travail en cours non enregistré n'est pas perdu si la session s'interrompt (fermeture, panne). À la reprise, l'utilisateur se voit proposer de restaurer ce travail ou de l'abandonner. Quitter avec des modifications non enregistrées demande confirmation.",
+      "context": "Le proto fait une copie de secours toutes les 5 minutes ; la fréquence et le mécanisme relèvent de la solution.",
+      "example": "",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-021"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-029": {
+      "id": "RB-029",
+      "title": "Volumétrie et fluidité",
+      "statement": "Les listes restent fluides avec plusieurs milliers d'éléments. Au-delà de 300 résultats, une liste n'affiche que les 300 premiers et invite à affiner la recherche. Le diagramme reste navigable sur un modèle de plusieurs centaines d'objets.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-010",
+        "CU-011"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-030": {
+      "id": "RB-030",
+      "title": "Configurations de filtres partagées",
+      "statement": "Une configuration de filtres du diagramme (natures, domaines, statuts cochés) peut être enregistrée sous un nom unique et marquée favorite. Elle fait partie du modèle : tous ceux qui ouvrent le modèle la retrouvent.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "nice_to_have",
+      "relatedUseCases": [
+        "CU-011"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "RB-031": {
+      "id": "RB-031",
+      "title": "Comparaison de deux versions",
+      "statement": "Deux versions d'un même modèle se comparent élément par élément : éléments ajoutés, supprimés, et pour chaque élément modifié, les informations qui ont changé. Un élément garde son identité d'une version à l'autre, même renommé.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-022"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "Arbitrage A-04. Non prototypé.",
+      "images": []
+    },
+    "RB-032": {
+      "id": "RB-032",
+      "title": "Import en masse par noms",
+      "statement": "L'import en masse désigne les éléments par leur nom, comme la saisie : objets, propriétés, affectations et relations. Les noms inconnus là où un élément existant est attendu sont signalés et la ligne n'est pas importée ; les référentiels (nature, domaine…) se créent à la volée comme en saisie. Tout élément importé arrive en brouillon.",
+      "context": "",
+      "example": "",
+      "validation": "",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-023"
+      ],
+      "relatedUX": [],
+      "status": "draft",
+      "notes": "Arbitrage A-04. Non prototypé dans l’interface (le proto le permet hors interface).",
+      "images": []
+    }
+  },
+  "uxPoints": {
+    "UX-001": {
+      "id": "UX-001",
+      "screen": "Accueil",
+      "description": "Écran affiché tant qu'aucun modèle n'est ouvert : rappel du principe (une propriété se crée une fois puis s'affecte à plusieurs objets) et accès aux modèles.",
+      "interactions": [
+        "Ouvrir un modèle",
+        "Créer un modèle vierge",
+        "Restaurer ou ignorer un travail interrompu (bandeau)"
+      ],
+      "messages": {
+        "success": "",
+        "error": "Ce modèle n'a pas pu être ouvert : <raison>.",
+        "warning": "Une sauvegarde automatique a été trouvée : <modèle> — <date>. Elle provient d'une session précédente qui n'a pas été enregistrée."
+      },
+      "states": [
+        "Sans travail interrompu",
+        "Avec travail interrompu"
+      ],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-001",
+        "CU-002",
+        "CU-021"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-002": {
+      "id": "UX-002",
+      "screen": "En-tête",
+      "description": "Nom de l'outil et du modèle ouvert, compteurs d'objets, de propriétés, d'affectations et de relations, accès aux actions sur le modèle, aux exports, à l'aide et aux notes de version.",
+      "interactions": [
+        "Ouvrir",
+        "Nouveau modèle",
+        "Enregistrer",
+        "Exporter (modèle, règles de validation, liens externes)",
+        "Aide",
+        "Notes de version"
+      ],
+      "messages": {
+        "success": "",
+        "error": "",
+        "warning": ""
+      },
+      "states": [
+        "Modèle enregistré",
+        "Modifications non enregistrées"
+      ],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-001",
+        "CU-002",
+        "CU-014",
+        "CU-016"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-003": {
+      "id": "UX-003",
+      "screen": "Saisie — Objet",
+      "description": "Formulaire : nom, nature, domaine, discipline (code, et nom si le code est nouveau), définition. Les champs proposent les valeurs existantes. Taper le nom d'un objet existant précharge sa fiche ; le bouton devient « Mettre à jour l'objet » et un message l'indique.",
+      "interactions": [
+        "Suggestions à la saisie",
+        "Entrée valide le formulaire",
+        "Ajouter / Mettre à jour"
+      ],
+      "messages": {
+        "success": "Objet « <nom> » ajouté. / Objet « <nom> » mis à jour.",
+        "error": "Donne un nom à l'objet. / Cette discipline n'existe pas — indique aussi son nom pour la créer.",
+        "warning": "Cet objet existe déjà — valider met à jour sa fiche."
+      },
+      "states": [
+        "Création",
+        "Modification"
+      ],
+      "accessibility": {
+        "keyboard": true,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-003"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-004": {
+      "id": "UX-004",
+      "screen": "Saisie — Propriété",
+      "description": "Formulaire : nom, type, multivaluée, description. Les champs propres au type n'apparaissent que si nécessaire : liste de valeurs (type liste), grandeur, unité et libellé de l'unité (type grandeur, avec rappel des unités existantes), motif (texte, identifiant), minimum et maximum (entier, décimal, grandeur). Taper un nom existant précharge la définition.",
+      "interactions": [
+        "Choix du type",
+        "Suggestions à la saisie",
+        "Créer / Mettre à jour"
+      ],
+      "messages": {
+        "success": "Propriété « <nom> » créée. / Propriété « <nom> » mise à jour — répercutée partout où elle est affectée.",
+        "error": "Choisis (ou crée) une liste de valeurs pour ce type. / Indique la grandeur physique et son unité.",
+        "warning": "Cette propriété existe déjà — valider met à jour sa définition partout où elle est affectée."
+      },
+      "states": [
+        "Création",
+        "Modification"
+      ],
+      "accessibility": {
+        "keyboard": true,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-004"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-005": {
+      "id": "UX-005",
+      "screen": "Saisie — Listes de valeurs",
+      "description": "Choisir une liste existante ou taper un nom nouveau ; tableau de ses valeurs (code, libellé, ordre) avec le nombre de propriétés qui l'utilisent ; ajout et suppression de valeurs ; suppression de la liste.",
+      "interactions": [
+        "Ajouter la valeur",
+        "Supprimer une valeur",
+        "Supprimer cette liste"
+      ],
+      "messages": {
+        "success": "Valeur ajoutée à « <liste> ».",
+        "error": "Cette valeur existe déjà dans cette liste. / Impossible : cette liste est utilisée par <n> propriété(s).",
+        "warning": ""
+      },
+      "states": [
+        "Aucune liste choisie",
+        "Liste nouvelle (sans valeur)",
+        "Liste avec valeurs"
+      ],
+      "accessibility": {
+        "keyboard": true,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-005"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-006": {
+      "id": "UX-006",
+      "screen": "Saisie — Affectation",
+      "description": "Choisir un objet puis une propriété (seules les propriétés pas encore affectées à cet objet sont suggérées), cocher « obligatoire », indiquer la discipline éventuelle.",
+      "interactions": [
+        "Suggestions filtrées",
+        "Affecter la propriété"
+      ],
+      "messages": {
+        "success": "Propriété affectée à l'objet. / Affectation mise à jour.",
+        "error": "Objet inconnu — choisis un nom existant dans la liste.",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": true,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-006"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-007": {
+      "id": "UX-007",
+      "screen": "Saisie — Relation",
+      "description": "Objet source, objet cible, cardinalités, type de lien et nom (verbe). Un aperçu lisible de la relation se met à jour pendant la saisie : « source [1] ── contient ──▶ [0..*] cible ».",
+      "interactions": [
+        "Suggestions à la saisie",
+        "Aperçu en direct",
+        "Ajouter la relation"
+      ],
+      "messages": {
+        "success": "Relation ajoutée.",
+        "error": "Choisis deux objets existants (noms exacts). / Une généralisation ne peut pas relier un objet à lui-même.",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-007"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-008": {
+      "id": "UX-008",
+      "screen": "Saisie — Lien externe",
+      "description": "Adresse de l'élément externe, système externe, cible (objet ou propriété, le champ correspondant apparaît selon le choix), commentaire.",
+      "interactions": [
+        "Choix objet / propriété",
+        "Enregistrer le lien"
+      ],
+      "messages": {
+        "success": "Lien enregistré.",
+        "error": "Donne l'IRI de l'élément externe. / Indique le système externe.",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-013"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-009": {
+      "id": "UX-009",
+      "screen": "Listes (Fiches)",
+      "description": "Listes cherchables des objets, propriétés, relations, liens externes et référentiels (domaines, natures, disciplines, grandeurs, verbes). Recherche texte et filtres cumulables (nature, domaine, discipline, type, statut). Chaque liste affiche le nombre de résultats. Une ligne d'objet se déplie sur ses propriétés affectées (avec action « Retirer »), une ligne de propriété sur les objets qui l'utilisent. Le statut s'affiche en pastille colorée et libellée (brouillon or, validé vert, obsolète gris) et se modifie sur place.",
+      "interactions": [
+        "Recherche",
+        "Filtres",
+        "Déplier une ligne",
+        "Éditer",
+        "Supprimer",
+        "Changer le statut"
+      ],
+      "messages": {
+        "success": "",
+        "error": "Impossible : encore utilisé(e) par <n> <usages>.",
+        "warning": "300 affichés sur <n> — affine la recherche pour voir le reste."
+      },
+      "states": [
+        "Vide",
+        "Résultats",
+        "Résultats tronqués"
+      ],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-006",
+        "CU-008",
+        "CU-009",
+        "CU-010",
+        "CU-013"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-010": {
+      "id": "UX-010",
+      "screen": "Diagramme",
+      "description": "Graphe interactif des objets et de leurs relations. Chaque objet affiche son nom, sa nature et son domaine en texte ; la couleur de bordure indique la nature (teintes distinctes même au-delà de 8 natures). Flèches : ▷ généralisation, ◆ composition, ◇ agrégation, → association ; ✱ propriété obligatoire. Panneau de détail de l'objet sélectionné.",
+      "interactions": [
+        "Rechercher et centrer un objet",
+        "Dispositions : force dirigée, hiérarchique, concentrique, cercle, grille",
+        "Réorganiser, ajuster",
+        "Afficher les propriétés (vue détaillée) ou les noms seuls, sans perdre la disposition",
+        "Afficher les noms des relations",
+        "Focus au clic : estomper tout sauf le voisinage de l'objet",
+        "Filtres nature / domaine / statut avec « Tout » et « Aucun »",
+        "Configurations de filtres enregistrées et favorites",
+        "Plein écran"
+      ],
+      "messages": {
+        "success": "",
+        "error": "Plein écran indisponible : <raison>.",
+        "warning": ""
+      },
+      "states": [
+        "Modèle vide",
+        "Graphe complet",
+        "Graphe filtré",
+        "Focus sur un objet"
+      ],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": "Nature et domaine lisibles sans la couleur (daltonisme)"
+      },
+      "relatedUseCases": [
+        "CU-009",
+        "CU-011",
+        "CU-015"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-011": {
+      "id": "UX-011",
+      "screen": "Impact",
+      "description": "Graphe objets ↔ propriétés : un trait relie une propriété à chaque objet qui la porte (plein = obligatoire, pointillé = facultative). Les propriétés affectées à aucun objet sont repérées (contour pointillé). Cliquer un objet ou une propriété met en évidence son voisinage jusqu'à la profondeur choisie (1 à 5) et affiche son détail (propriétés de l'objet, ou objets qui utilisent la propriété).",
+      "interactions": [
+        "Rechercher",
+        "Profondeur 1 à 5",
+        "Focus au clic",
+        "Dispositions",
+        "Plein écran"
+      ],
+      "messages": {
+        "success": "",
+        "error": "",
+        "warning": ""
+      },
+      "states": [
+        "Aucune sélection",
+        "Sélection avec voisinage"
+      ],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": "Obligatoire / facultatif distingués par le trait, pas seulement la couleur"
+      },
+      "relatedUseCases": [
+        "CU-012"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-012": {
+      "id": "UX-012",
+      "screen": "Consultation en lecture",
+      "description": "Pour un lecteur : navigation dans le modèle avec recherche, filtres nature / domaine, panneau de détail d'un objet, sans aucune action de modification.",
+      "interactions": [
+        "Rechercher",
+        "Filtrer",
+        "Voir le détail"
+      ],
+      "messages": {
+        "success": "",
+        "error": "",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-015"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "Dans le proto : export d'une page autonome « à partager sans donner accès à l'outil ». Arbitrage A-02.",
+      "images": []
+    },
+    "UX-013": {
+      "id": "UX-013",
+      "screen": "Arbitrage des conflits",
+      "description": "Fenêtre listant les seuls vrais conflits. Pour chacun : l'élément concerné, la nature du conflit, et les deux valeurs (« Ma version » / « Version de <collègue> ») à choisir. Raccourcis « Tout : ma version » et « Tout : l'autre version ».",
+      "interactions": [
+        "Choisir par conflit",
+        "Tout : ma version",
+        "Tout : l'autre version",
+        "Fusionner",
+        "Annuler (ne rien enregistrer)"
+      ],
+      "messages": {
+        "success": "Modifications de <collègue> intégrées à votre travail (<n> conflit(s) arbitré(s)). Pensez à enregistrer.",
+        "error": "",
+        "warning": "<n> point(s) non repris lors de la fusion : <détail>."
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-017",
+        "CU-018"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-014": {
+      "id": "UX-014",
+      "screen": "Bandeau de nouvelle version",
+      "description": "Bandeau signalant qu'un collègue a enregistré une nouvelle version du modèle ouvert (vérification régulière, environ chaque minute), avec son nom.",
+      "interactions": [
+        "Intégrer ses modifications",
+        "Télécharger ma version",
+        "Recharger la dernière version"
+      ],
+      "messages": {
+        "success": "",
+        "error": "",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-018"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-015": {
+      "id": "UX-015",
+      "screen": "Versions enregistrées",
+      "description": "Liste des versions du modèle : date, auteur, résumé des changements, jalons. Consulter une version (sans rien modifier), la restaurer, poser un jalon sur la version enregistrée.",
+      "interactions": [
+        "Consulter",
+        "Restaurer",
+        "Poser le jalon"
+      ],
+      "messages": {
+        "success": "",
+        "error": "Un jalon de ce nom existe déjà.",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-019",
+        "CU-020",
+        "CU-022"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-016": {
+      "id": "UX-016",
+      "screen": "Confirmations et messages",
+      "description": "Toute suppression est confirmée, avec ses conséquences chiffrées. Les erreurs sont exprimées en langage courant (« Ce nom existe déjà. », « Impossible : cet élément est encore utilisé ailleurs dans le modèle. »), jamais en message technique. Les messages longs restent affichés le temps d'être lus.",
+      "interactions": [
+        "Confirmer",
+        "Annuler"
+      ],
+      "messages": {
+        "success": "",
+        "error": "",
+        "warning": ""
+      },
+      "states": [
+        "Succès",
+        "Erreur"
+      ],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-008",
+        "CU-016",
+        "CU-023"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-017": {
+      "id": "UX-017",
+      "screen": "Aide et notes de version",
+      "description": "Manuel intégré (concepts, saisie, consultation, travail à plusieurs, astuces) et notes de version de l'outil, accessibles depuis l'en-tête ; Échap ferme les fenêtres.",
+      "interactions": [],
+      "messages": {
+        "success": "",
+        "error": "",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": true,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-001"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "",
+      "images": []
+    },
+    "UX-018": {
+      "id": "UX-018",
+      "screen": "Comparaison de versions",
+      "description": "Vue des différences entre deux versions choisies : éléments ajoutés, supprimés, modifiés, et pour chaque modification l'ancienne et la nouvelle valeur.",
+      "interactions": [],
+      "messages": {
+        "success": "",
+        "error": "",
+        "warning": ""
+      },
+      "states": [],
+      "accessibility": {
+        "keyboard": false,
+        "screenReader": false,
+        "contrast": ""
+      },
+      "relatedUseCases": [
+        "CU-022"
+      ],
+      "relatedRules": [],
+      "status": "draft",
+      "notes": "Besoin non prototypé, exprimé lors du cadrage : à confirmer.",
+      "images": []
+    }
+  },
+  "questions": {
+    "Q-001": {
+      "id": "Q-001",
+      "question": "Les noms doivent-ils être distingués selon les majuscules et minuscules ?",
+      "context": "Le prototype considère « Vue » et « vue » comme deux noms différents : deux objets peuvent donc coexister sous ces deux graphies. Une unicité insensible à la casse éviterait les doublons involontaires.",
+      "relatedItems": [
+        "RB-001"
+      ],
+      "status": "open",
+      "answer": "",
+      "notes": ""
+    },
+    "Q-002": {
+      "id": "Q-002",
+      "question": "Quelle volumétrie viser ?",
+      "context": "Nombre de modèles, d'objets par modèle, de contributeurs travaillant en même temps. Le prototype est conçu pour quelques milliers d'éléments par modèle.",
+      "relatedItems": [
+        "RB-029",
+        "CU-017"
+      ],
+      "status": "open",
+      "answer": "",
+      "notes": ""
+    },
+    "Q-003": {
+      "id": "Q-003",
+      "question": "Faut-il un message et une sévérité propres à chaque contrainte de valeur ?",
+      "context": "Le modèle de données du prototype prévoit, pour chaque contrainte, un message d'erreur et une sévérité (violation ou simple avertissement), mais l'interface ne permet pas de les saisir.",
+      "relatedItems": [
+        "RB-007"
+      ],
+      "status": "open",
+      "answer": "",
+      "notes": ""
+    }
+  },
+  "glossary": [
+    {
+      "term": "Modèle",
+      "definition": "Description d'un domaine : ses objets, leurs propriétés et leurs relations."
+    },
+    {
+      "term": "Objet",
+      "definition": "Entité du domaine (Produit, Fiche, Document…). Ce n'est pas une donnée : c'est la description d'un type de données."
+    },
+    {
+      "term": "Propriété",
+      "definition": "Définition d'une caractéristique (nom, type, contraintes), partagée entre les objets qui la portent."
+    },
+    {
+      "term": "Affectation",
+      "definition": "Fait qu'un objet porte une propriété ; précise si elle est obligatoire et dans quelle discipline."
+    },
+    {
+      "term": "Relation",
+      "definition": "Lien orienté entre deux objets : association, composition, agrégation ou généralisation."
+    },
+    {
+      "term": "Nature",
+      "definition": "Forme d'un objet (Produit, Fiche…), servant au classement ; ne transmet aucune propriété."
+    },
+    {
+      "term": "Domaine",
+      "definition": "Regroupement fonctionnel des objets dans l'organisation."
+    },
+    {
+      "term": "Discipline",
+      "definition": "Métier technique concerné, identifié par un code."
+    },
+    {
+      "term": "Liste de valeurs",
+      "definition": "Ensemble fermé de valeurs admises pour une propriété."
+    },
+    {
+      "term": "Grandeur physique",
+      "definition": "Famille d’unités (Pression : bar, Pa…)."
+    },
+    {
+      "term": "Verbe de relation",
+      "definition": "Nom partagé d’une relation (« contient »)."
+    },
+    {
+      "term": "Lien externe",
+      "definition": "Référence à un élément d'un système extérieur qui impose une exigence sur le modèle."
+    },
+    {
+      "term": "Curation",
+      "definition": "Relecture et validation progressive du modèle par les experts du domaine."
+    },
+    {
+      "term": "Jalon",
+      "definition": "Nom donné à une version du modèle (« v1.0 »)."
+    }
+  ],
+  "revisions": [
+    {
+      "version": "1.0",
+      "date": "2026-11-18",
+      "author": "",
+      "summary": "Première version, établie à partir du prototype Modea v0.8.1."
+    }
+  ],
+  "assets": {},
+  "metadata": {
+    "proto": {
+      "name": "Modea",
+      "version": "0.8.1",
+      "tag": "v0.8.1"
+    }
+  }
+}

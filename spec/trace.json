@@ -1,0 +1,277 @@
+{
+  "proto": "Modea",
+  "version": "0.8.1",
+  "ref": "v0.8.1",
+  "items": {
+    "RB-001": [
+      "metamodele.sql : contraintes UNIQUE",
+      "checkObjetEdit, checkPropEdit",
+      "manuel : Astuces"
+    ],
+    "RB-002": [
+      "metamodele.sql : propriete, applicabilite",
+      "addOrUpdateProp",
+      "manuel : Concepts clés"
+    ],
+    "RB-003": [
+      "metamodele.sql : applicabilite UNIQUE(objet, propriete)",
+      "addOrUpdateAffect"
+    ],
+    "RB-004": [
+      "metamodele.sql : propriete.type, multivalue"
+    ],
+    "RB-005": [
+      "metamodele.sql : CHECK enum",
+      "addOrUpdateProp"
+    ],
+    "RB-006": [
+      "metamodele.sql : grandeur_physique, unite",
+      "ensureUnite, addOrUpdateProp"
+    ],
+    "RB-007": [
+      "metamodele.sql : contrainte + triggers",
+      "updatePropTypeUI, saveContraintes"
+    ],
+    "RB-008": [
+      "metamodele.sql : type_enumere, valeur_enumeree",
+      "addValeur, deleteListeEnum"
+    ],
+    "RB-009": [
+      "metamodele.sql : discipline",
+      "resolveOrCreateDiscipline"
+    ],
+    "RB-010": [
+      "ensureDomaine, ensureClasse, ensureVerbeRelation, ensureTypeEnumere, ensureGrandeur, ensureUnite"
+    ],
+    "RB-011": [
+      "brief §4",
+      "metamodele.sql : classe_objet",
+      "manuel : Concepts clés"
+    ],
+    "RB-012": [
+      "metamodele.sql : relation, verbe_relation",
+      "manuel : Relations"
+    ],
+    "RB-013": [
+      "metamodele.sql : card_source, card_cible, role_*",
+      "addRel"
+    ],
+    "RB-014": [
+      "metamodele.sql : CHECK relation",
+      "friendly()"
+    ],
+    "RB-015": [
+      "deleteObjet",
+      "metamodele.sql : ON DELETE CASCADE",
+      "CHANGELOG v0.6.7"
+    ],
+    "RB-016": [
+      "deleteProp",
+      "metamodele.sql : ON DELETE CASCADE"
+    ],
+    "RB-017": [
+      "deleteRefRow, REF_CONFIGS"
+    ],
+    "RB-018": [
+      "metamodele.sql : statut",
+      "statutSelectHtml",
+      "manuel : Listes"
+    ],
+    "RB-019": [
+      "arbitrage A-03"
+    ],
+    "RB-020": [
+      "brief §5",
+      "addOrUpdateAffect, addRel, addLienExigence"
+    ],
+    "RB-021": [
+      "promptBaseIri, defaultBaseIri, exportTurtle, exportShacl, exportLiens",
+      "README : Interopérabilité"
+    ],
+    "RB-022": [
+      "buildTurtle, buildShacl",
+      "README : Interopérabilité",
+      "scripts/test_exports.py"
+    ],
+    "RB-023": [
+      "metamodele.sql : lien_exigence",
+      "addLienExigence, exportLiens"
+    ],
+    "RB-024": [
+      "mergeModels, glAskConflicts",
+      "scripts/test_gitlab.cjs : scénarios de conflit"
+    ],
+    "RB-025": [
+      "mergeModels : restoreDependents",
+      "scripts/test_gitlab.cjs"
+    ],
+    "RB-026": [
+      "glChanges, glSave"
+    ],
+    "RB-027": [
+      "glView, glRestore, glTag",
+      "scripts/test_gitlab.cjs"
+    ],
+    "RB-028": [
+      "saveAutosave, checkAutosaveOnStartup, beforeunload"
+    ],
+    "RB-029": [
+      "MG_MAX_ROWS",
+      "manuel : Listes",
+      "CHANGELOG v0.3"
+    ],
+    "RB-030": [
+      "metamodele.sql : filtre_diagramme",
+      "saveCurrentFilterConfig"
+    ],
+    "RB-031": [
+      "arbitrage A-04",
+      "brief §6 : diff entre versions"
+    ],
+    "RB-032": [
+      "saisie.sql : vues de saisie et garde-fous",
+      "manuel : Astuces"
+    ],
+    "UX-001": [
+      "section#empty",
+      "checkAutosaveOnStartup"
+    ],
+    "UX-002": [
+      "header",
+      "refreshAll"
+    ],
+    "UX-003": [
+      "#pObjet",
+      "addOrUpdateObjet, checkObjetEdit"
+    ],
+    "UX-004": [
+      "#pProp",
+      "updatePropTypeUI, addOrUpdateProp"
+    ],
+    "UX-005": [
+      "#pValeurs",
+      "renderValuesFor, addValeur"
+    ],
+    "UX-006": [
+      "#pAffect",
+      "updateAffectPropList, addOrUpdateAffect"
+    ],
+    "UX-007": [
+      "#pRel",
+      "updateRelPreview, addRel"
+    ],
+    "UX-008": [
+      "#pExig",
+      "addLienExigence"
+    ],
+    "UX-009": [
+      "#viewFiches",
+      "renderMg*",
+      "renderRef*"
+    ],
+    "UX-010": [
+      "#viewDiag",
+      "buildCyElements, cyStyle, applyCyFilters"
+    ],
+    "UX-011": [
+      "#viewImpact",
+      "buildCyImpactElements, closedNeighborhoodAtDepth"
+    ],
+    "UX-012": [
+      "renderStaticDiagramHtml, exportDiagramHtml",
+      "arbitrage A-02"
+    ],
+    "UX-013": [
+      "#glMerge",
+      "glAskConflicts"
+    ],
+    "UX-014": [
+      "glShowBanner, glPoll"
+    ],
+    "UX-015": [
+      "glRenderHistory, glView, glRestore, glTag"
+    ],
+    "UX-016": [
+      "friendly(), toast, confirm",
+      "CHANGELOG v0.6.7"
+    ],
+    "UX-017": [
+      "#helpOverlay, #changelogOverlay"
+    ],
+    "UX-018": [
+      "arbitrage A-04"
+    ],
+    "CU-001": [
+      "newModel"
+    ],
+    "CU-002": [
+      "openBytes, glOpen"
+    ],
+    "CU-003": [
+      "addOrUpdateObjet"
+    ],
+    "CU-004": [
+      "addOrUpdateProp"
+    ],
+    "CU-005": [
+      "addValeur, deleteValeurEnum, deleteListeEnum"
+    ],
+    "CU-006": [
+      "addOrUpdateAffect, deleteApplicabilite"
+    ],
+    "CU-007": [
+      "addRel"
+    ],
+    "CU-008": [
+      "deleteObjet, deleteProp, deleteRelation, deleteRefRow"
+    ],
+    "CU-009": [
+      "statutSelectHtml",
+      "manuel : Astuces"
+    ],
+    "CU-010": [
+      "renderMg*"
+    ],
+    "CU-011": [
+      "renderDiagram"
+    ],
+    "CU-012": [
+      "renderImpact"
+    ],
+    "CU-013": [
+      "addLienExigence, deleteLienExigence"
+    ],
+    "CU-014": [
+      "exportTurtle, exportShacl, exportLiens"
+    ],
+    "CU-015": [
+      "exportDiagramHtml",
+      "arbitrages A-02, A-03"
+    ],
+    "CU-016": [
+      "glSave"
+    ],
+    "CU-017": [
+      "glSave, glIntegrate, mergeModels"
+    ],
+    "CU-018": [
+      "glPoll, glShowBanner, glPull"
+    ],
+    "CU-019": [
+      "glLoadHistory, glView, glRestore"
+    ],
+    "CU-020": [
+      "glTag"
+    ],
+    "CU-021": [
+      "restoreAutosave, dismissAutosave"
+    ],
+    "CU-022": [
+      "arbitrage A-04"
+    ],
+    "CU-023": [
+      "saisie.sql",
+      "arbitrage A-04"
+    ]
+  }
+}
