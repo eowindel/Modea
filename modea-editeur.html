@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.11.0">
+<meta name="version" content="0.11.1">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -622,7 +622,7 @@
     <div class="tabpane active" id="pObjet">
       <div class="field"><label><span class="lab">Nom de l'objet</span>
         <input type="text" id="o_nom" list="dl_objet_all" placeholder="Produit" autocomplete="off"></label>
-        <p class="hint" id="o_editHint" style="display:none">Cet objet existe déjà — valider met à jour sa fiche.</p>
+        <p class="hint" id="o_editHint" style="display:none"></p>
       </div>
       <div class="field"><label><span class="lab">Nature</span>
         <input type="text" id="o_classe" list="dl_classe" placeholder="Produit, Fiche…" autocomplete="off"></label>
@@ -638,7 +638,8 @@
       </div>
       <div class="field"><label><span class="lab">Définition métier</span>
         <textarea id="o_def" placeholder="Le sens de l'objet, en langage courant"></textarea></label></div>
-      <div class="actions"><button class="btn primary" id="addObjet">Ajouter l'objet</button></div>
+      <div class="actions"><button class="btn primary" id="addObjet">Ajouter l'objet</button>
+        <button class="btn ghost" id="cancelObjetEdit" style="display:none">Annuler la modification</button></div>
     </div>
 
     <!-- Propriété (définition partagée) -->
@@ -646,7 +647,7 @@
       <div class="field"><label><span class="lab">Nom de la propriété</span>
         <input type="text" id="p_nom" list="dl_propriete" placeholder="ex : Statut, Reference, Poids" autocomplete="off"></label>
         <datalist id="dl_propriete"></datalist>
-        <p class="hint" id="p_editHint" style="display:none">Cette propriété existe déjà — valider met à jour sa définition partout où elle est affectée.</p>
+        <p class="hint" id="p_editHint" style="display:none"></p>
       </div>
       <div class="row2">
         <div class="field"><label><span class="lab">Type</span><select id="p_type"></select></label></div>
@@ -686,7 +687,8 @@
       </div>
       <div class="field"><label><span class="lab">Description</span>
         <input type="text" id="p_desc" placeholder="facultatif" autocomplete="off"></label></div>
-      <div class="actions"><button class="btn primary" id="addProp">Créer la propriété</button></div>
+      <div class="actions"><button class="btn primary" id="addProp">Créer la propriété</button>
+        <button class="btn ghost" id="cancelPropEdit" style="display:none">Annuler la modification</button></div>
     </div>
 
     <!-- Listes de valeurs (enum) — definition partagee, independante de toute propriete -->
@@ -1061,10 +1063,15 @@ const REL_TYPES = ['association','composition','agregation','generalisation'];
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 8; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.11'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.11.1'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.11.1', date:'2026-11-19', items:[
+    "Corrigé : changer le nom d'un objet ou d'une propriété depuis sa fiche créait un second élément au lieu de renommer le premier. Le renommage se fait désormais sur place, en gardant ses propriétés, ses relations et ses affectations.",
+    "Si le nouveau nom est déjà pris par un autre objet (ou une autre propriété), la modification est refusée avec un message.",
+    "Les fiches Objet et Propriété ont maintenant un bouton « Annuler la modification », comme la fiche Relation."
+  ]},
   { version:'v0.11', date:'2026-11-18', items:[
     "Travail à plusieurs aussi avec GitHub (github.com) : dans la fenêtre « GitLab / GitHub… », collez l'adresse du dépôt (ex : https://github.com/equipe/modeles) et un jeton GitHub. Ouvrir, enregistrer, fusion automatique des enregistrements concurrents, historique, restauration et jalons fonctionnent comme avec GitLab.",
     "Le jeton GitHub à créer est un jeton « fine-grained » limité au dépôt, avec la permission « Contents : Read and write ». Le dépôt ne doit pas être complètement vide (un README suffit)."
@@ -1654,24 +1661,37 @@ function ensureUnite(grandeurNom, symbole, libelle){
 }
 
 /* ---------- actions de saisie ---------- */
+// En modification, la fiche est suivie par son uid (et non par son nom) : on peut ainsi
+// renommer l'objet sans en créer un second (issue #20).
+let objEditUid=null;
 function checkObjetEdit(){
+  if(objEditUid!=null) return; // en modification, changer le nom = renommer
   const nom=v('o_nom').trim();
-  const row = nom ? exec(`SELECT o.*, d.nom AS domaine, c.nom AS classe, disc.code AS disc_code FROM objet o
+  const row = nom ? exec("SELECT uid FROM objet WHERE nom=?",[nom])[0] : null;
+  if(row) loadObjetForm(row.uid);
+}
+function loadObjetForm(uid){
+  const row = exec(`SELECT o.*, d.nom AS domaine, c.nom AS classe, disc.code AS disc_code FROM objet o
                           LEFT JOIN domaine d ON d.id=o.domaine_id
                           LEFT JOIN classe_objet c ON c.id=o.classe_id
                           LEFT JOIN discipline disc ON disc.id=o.discipline_id
-                          WHERE o.nom=?`,[nom])[0] : null;
-  if(row){
-    el('o_classe').value=row.classe||""; el('o_domaine').value=row.domaine||""; el('o_def').value=row.definition||"";
-    el('o_disc_code').value=row.disc_code||""; el('o_disc_nom').value="";
-    setObjetEditMode(true);
-  }else{
-    setObjetEditMode(false);
-  }
+                          WHERE o.uid=?`,[uid])[0];
+  if(!row) return;
+  el('o_nom').value=row.nom;
+  el('o_classe').value=row.classe||""; el('o_domaine').value=row.domaine||""; el('o_def').value=row.definition||"";
+  el('o_disc_code').value=row.disc_code||""; el('o_disc_nom').value="";
+  setObjetEditMode(row.uid, row.nom);
 }
-function setObjetEditMode(on){
+function setObjetEditMode(uid, nom){
+  objEditUid=uid;
+  const on = uid!=null;
   el('o_editHint').style.display = on ? '' : 'none';
+  el('o_editHint').textContent = on ? "Modification de « "+nom+" » : valider met à jour sa fiche (le nom peut être changé)." : '';
+  el('cancelObjetEdit').style.display = on ? '' : 'none';
   el('addObjet').textContent = on ? "Mettre à jour l'objet" : "Ajouter l'objet";
+}
+function resetObjetForm(){
+  clear(['o_nom','o_domaine','o_classe','o_disc_code','o_disc_nom','o_def']); setObjetEditMode(null);
 }
 function resolveOrCreateDiscipline(code, nom){
   code=(code||"").trim(); if(!code) return null;
@@ -1690,21 +1710,26 @@ function addOrUpdateObjet(){
     const cid=ensureClasse(v('o_classe'));
     const discId=resolveOrCreateDiscipline(v('o_disc_code'), v('o_disc_nom'));
     const def=v('o_def').trim()||null;
-    const existing=exec("SELECT id FROM objet WHERE nom=?",[nom])[0];
+    // en modification : la fiche suivie ; sinon (Entrée tapée avant de quitter le champ) : celle qui porte ce nom
+    const existing = objEditUid!=null ? exec("SELECT id,nom FROM objet WHERE uid=?",[objEditUid])[0]
+                                      : exec("SELECT id,nom FROM objet WHERE nom=?",[nom])[0];
+    if(objEditUid!=null && !existing){ resetObjetForm(); return toast("Cet objet n'existe plus (supprimé entre-temps)","err"); }
     if(existing){
-      run("UPDATE objet SET domaine_id=?,classe_id=?,discipline_id=?,definition=? WHERE id=?",[did,cid,discId,def,existing.id]);
-      toast("Objet « "+nom+" » mis à jour","ok");
+      if(exec("SELECT 1 FROM objet WHERE nom=? AND id<>?",[nom,existing.id]).length)
+        return toast("Un autre objet s'appelle déjà « "+nom+" »","err");
+      run("UPDATE objet SET nom=?,domaine_id=?,classe_id=?,discipline_id=?,definition=? WHERE id=?",[nom,did,cid,discId,def,existing.id]);
+      toast(existing.nom!==nom ? "Objet « "+existing.nom+" » renommé en « "+nom+" » et mis à jour" : "Objet « "+nom+" » mis à jour","ok");
     }else{
       run("INSERT INTO objet(nom,domaine_id,classe_id,discipline_id,definition) VALUES (?,?,?,?,?)",[nom,did,cid,discId,def]);
       toast("Objet « "+nom+" » ajouté","ok");
     }
-    clear(['o_nom','o_domaine','o_classe','o_disc_code','o_disc_nom','o_def']); setObjetEditMode(false);
+    resetObjetForm();
     refreshAll(); focus('o_nom');
   }catch(e){ toast(friendly(e),"err"); }
 }
 function editObjetRow(id){
-  const row=exec("SELECT nom FROM objet WHERE id=?",[id])[0]; if(!row) return;
-  el('o_nom').value=row.nom; checkObjetEdit(); switchToTab('pObjet'); focus('o_classe');
+  const row=exec("SELECT uid FROM objet WHERE id=?",[id])[0]; if(!row) return;
+  loadObjetForm(row.uid); switchToTab('pObjet'); focus('o_nom');
 }
 function deleteObjet(id){
   const row=exec("SELECT nom FROM objet WHERE id=?",[id])[0]; if(!row) return;
@@ -1713,7 +1738,9 @@ function deleteObjet(id){
   const detail=[na?na+" affectation(s) de propriété":null, nr?nr+" relation(s)":null].filter(Boolean).join(" et ");
   const msg="Supprimer « "+row.nom+" » ?"+(detail?" Cela retirera aussi "+detail+".":"");
   if(!confirm(msg)) return;
+  const uid=(exec("SELECT uid FROM objet WHERE id=?",[id])[0]||{}).uid;
   run("DELETE FROM objet WHERE id=?",[id]);
+  if(uid!=null && objEditUid===uid) resetObjetForm();
   toast("Objet « "+row.nom+" » supprimé","ok"); refreshAll();
 }
 function deleteProp(id){
@@ -1721,7 +1748,9 @@ function deleteProp(id){
   const n=exec("SELECT COUNT(*) n FROM applicabilite WHERE propriete_id=?",[id])[0].n;
   const msg="Supprimer « "+row.nom+" » ?"+(n?" Elle sera retirée des "+n+" objet(s) qui l'utilisent.":"");
   if(!confirm(msg)) return;
+  const uid=(exec("SELECT uid FROM propriete WHERE id=?",[id])[0]||{}).uid;
   run("DELETE FROM propriete WHERE id=?",[id]);
+  if(uid!=null && propEditUid===uid) resetPropForm();
   toast("Propriété « "+row.nom+" » supprimée","ok"); refreshAll();
 }
 function deleteRelation(id){
@@ -1764,33 +1793,46 @@ function updatePropTypeUI(){
   el('p_minmaxBlock').classList.toggle('hidden', !CONTRAINTE_MINMAX_TYPES.includes(t));
   if(t==='grandeur') renderUnitesFor(v('p_grandeur'));
 }
+// Même principe que pour les objets : en modification, la propriété est suivie par son uid (issue #20).
+let propEditUid=null;
 function checkPropEdit(){
+  if(propEditUid!=null) return; // en modification, changer le nom = renommer
   const nom=v('p_nom').trim();
-  const row = nom ? exec(`SELECT p.*, t.nom AS type_enumere, gp.nom AS grandeur, u.symbole AS unite_symbole
+  const row = nom ? exec("SELECT uid FROM propriete WHERE nom=?",[nom])[0] : null;
+  if(row) loadPropForm(row.uid);
+}
+function loadPropForm(uid){
+  const row = exec(`SELECT p.*, t.nom AS type_enumere, gp.nom AS grandeur, u.symbole AS unite_symbole
                           FROM propriete p
                           LEFT JOIN type_enumere t ON t.id=p.type_enumere_id
                           LEFT JOIN unite u ON u.id=p.unite_id
                           LEFT JOIN grandeur_physique gp ON gp.id=u.grandeur_id
-                          WHERE p.nom=?`,[nom])[0] : null;
-  if(row){
-    el('p_type').value=row.type; el('p_mv').checked=!!row.multivalue;
-    el('p_enum').value=row.type_enumere||""; el('p_desc').value=row.description||"";
-    el('p_grandeur').value=row.grandeur||""; el('p_unite').value=row.unite_symbole||""; el('p_unite_libelle').value="";
-    const cons=exec("SELECT type,valeur FROM contrainte WHERE propriete_id=?",[row.id]);
-    const consVal=t=>{const c=cons.find(x=>x.type===t); return c?c.valeur:"";};
-    el('p_regex').value=consVal('regex'); el('p_min').value=consVal('min'); el('p_max').value=consVal('max');
-    updatePropTypeUI(); setPropEditMode(true);
-  }else{
-    setPropEditMode(false);
-  }
+                          WHERE p.uid=?`,[uid])[0];
+  if(!row) return;
+  el('p_nom').value=row.nom;
+  el('p_type').value=row.type; el('p_mv').checked=!!row.multivalue;
+  el('p_enum').value=row.type_enumere||""; el('p_desc').value=row.description||"";
+  el('p_grandeur').value=row.grandeur||""; el('p_unite').value=row.unite_symbole||""; el('p_unite_libelle').value="";
+  const cons=exec("SELECT type,valeur FROM contrainte WHERE propriete_id=?",[row.id]);
+  const consVal=t=>{const c=cons.find(x=>x.type===t); return c?c.valeur:"";};
+  el('p_regex').value=consVal('regex'); el('p_min').value=consVal('min'); el('p_max').value=consVal('max');
+  updatePropTypeUI(); setPropEditMode(row.uid, row.nom);
 }
-function setPropEditMode(on){
+function setPropEditMode(uid, nom){
+  propEditUid=uid;
+  const on = uid!=null;
   el('p_editHint').style.display = on ? '' : 'none';
+  el('p_editHint').textContent = on ? "Modification de « "+nom+" » : valider met à jour sa définition partout où elle est affectée (le nom peut être changé)." : '';
+  el('cancelPropEdit').style.display = on ? '' : 'none';
   el('addProp').textContent = on ? "Mettre à jour la propriété" : "Créer la propriété";
 }
+function resetPropForm(){
+  clear(['p_nom','p_enum','p_grandeur','p_unite','p_unite_libelle','p_desc','p_regex','p_min','p_max']); el('p_mv').checked=false;
+  setPropEditMode(null); updatePropTypeUI();
+}
 function editPropRow(id){
-  const row=exec("SELECT nom FROM propriete WHERE id=?",[id])[0]; if(!row) return;
-  el('p_nom').value=row.nom; checkPropEdit(); switchToTab('pProp'); focus('p_type');
+  const row=exec("SELECT uid FROM propriete WHERE id=?",[id])[0]; if(!row) return;
+  loadPropForm(row.uid); switchToTab('pProp'); focus('p_nom');
 }
 function addOrUpdateProp(){
   const nom=v('p_nom').trim();
@@ -1806,11 +1848,15 @@ function addOrUpdateProp(){
     const uid = type==='grandeur' ? ensureUnite(grandeurName, uniteSymbole, v('p_unite_libelle').trim()) : null;
     const mv = el('p_mv').checked?1:0;
     const desc = v('p_desc').trim()||null;
-    const existing = exec("SELECT id FROM propriete WHERE nom=?",[nom])[0];
+    const existing = propEditUid!=null ? exec("SELECT id,nom FROM propriete WHERE uid=?",[propEditUid])[0]
+                                       : exec("SELECT id,nom FROM propriete WHERE nom=?",[nom])[0];
+    if(propEditUid!=null && !existing){ resetPropForm(); return toast("Cette propriété n'existe plus (supprimée entre-temps)","err"); }
     if(existing){
-      run("UPDATE propriete SET type=?,multivalue=?,type_enumere_id=?,unite_id=?,description=? WHERE id=?",
-          [type,mv,teid,uid,desc,existing.id]);
-      toast("Propriété « "+nom+" » mise à jour — répercutée partout où elle est affectée","ok");
+      if(exec("SELECT 1 FROM propriete WHERE nom=? AND id<>?",[nom,existing.id]).length)
+        return toast("Une autre propriété s'appelle déjà « "+nom+" »","err");
+      run("UPDATE propriete SET nom=?,type=?,multivalue=?,type_enumere_id=?,unite_id=?,description=? WHERE id=?",
+          [nom,type,mv,teid,uid,desc,existing.id]);
+      toast((existing.nom!==nom ? "Propriété « "+existing.nom+" » renommée en « "+nom+" »" : "Propriété « "+nom+" » mise à jour")+" — répercutée partout où elle est affectée","ok");
     }else{
       run("INSERT INTO propriete(nom,type,multivalue,type_enumere_id,unite_id,description) VALUES (?,?,?,?,?,?)",
           [nom,type,mv,teid,uid,desc]);
@@ -1818,7 +1864,7 @@ function addOrUpdateProp(){
     }
     const pid=exec("SELECT id FROM propriete WHERE nom=?",[nom])[0].id;
     saveContraintes(pid);
-    clear(['p_nom','p_enum','p_grandeur','p_unite','p_unite_libelle','p_desc','p_regex','p_min','p_max']); el('p_mv').checked=false; setPropEditMode(false);
+    resetPropForm();
     refreshAll(); focus('p_nom');
   }catch(e){ toast(friendly(e),"err"); }
 }
@@ -4412,6 +4458,8 @@ function dismissAutosave(){
 function enterEditor(){
   el('empty').classList.add('hidden');
   if(relEditUid!=null) resetRelForm(); // un autre modèle s'ouvre : on quitte la modification en cours
+  if(objEditUid!=null) resetObjetForm();
+  if(propEditUid!=null) resetPropForm();
   el('editor').classList.remove('hidden'); el('readout').classList.remove('hidden');
   el('btnSave').disabled=false; el('btnDownload').disabled=false; el('btnExportTtl').disabled=false; el('btnExportShacl').disabled=false; el('btnExportLiens').disabled=false;
   startAutosaveTimer();
@@ -4446,6 +4494,8 @@ function wire(){
   el('addAffect').onclick=addOrUpdateAffect;
   el('addRel').onclick=addRel;
   el('cancelRelEdit').onclick=resetRelForm;
+  el('cancelObjetEdit').onclick=()=>{ resetObjetForm(); focus('o_nom'); };
+  el('cancelPropEdit').onclick=()=>{ resetPropForm(); focus('p_nom'); };
   el('addExigence').onclick=addLienExigence;
   el('ex_type').addEventListener('change', updateExigenceTypeUI);
   // tabs
