@@ -17,7 +17,7 @@ PRAGMA foreign_keys = ON;   -- OFF par défaut sous SQLite : à réactiver à CH
 -- Version de schéma : à incrémenter à chaque migration (nouvelle table/colonne),
 -- ici et dans SCHEMA_BASE (modea-editeur.html) en parallèle. Sert à openBytes() côté
 -- éditeur pour détecter un fichier trop ancien plutôt que de planter en silence.
-PRAGMA user_version = 8;
+PRAGMA user_version = 9;
 
 -- -----------------------------------------------------------------------------
 --  Domaine fonctionnel — regroupement métier des objets (facultatif mais utile)
@@ -534,3 +534,7 @@ BEGIN UPDATE filtre_diagramme SET uid = lower(hex(randomblob(16))) WHERE rowid =
 -- v8 : nom technique d'une relation (identifiant libre pour les outils en aval). Ajouté par
 -- ALTER TABLE, comme uid, pour que bases neuves et migrées aient les colonnes dans le même ordre.
 ALTER TABLE relation ADD COLUMN nom_technique TEXT;
+
+-- v9 : disposition des objets mémorisée avec une configuration du diagramme (JSON
+-- { uid d'objet : [x, y] }). Ajoutée par ALTER TABLE, comme les colonnes précédentes.
+ALTER TABLE filtre_diagramme ADD COLUMN disposition TEXT;

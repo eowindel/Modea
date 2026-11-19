@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.12.0">
+<meta name="version" content="0.13.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -865,7 +865,10 @@
         </div>
 
         <div id="subViewRef" class="hidden">
-          <p class="hint">Suppression bloquée tant qu'un élément est encore utilisé ailleurs dans le modèle.</p>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
+            <p class="hint" style="margin:0;flex:1">Suppression bloquée tant qu'un élément est encore utilisé ailleurs dans le modèle.</p>
+            <button class="btn ghost sm" id="refCleanUnused" title="Retire d'un coup les domaines, natures, disciplines, grandeurs et verbes de relation qui ne servent plus nulle part">Nettoyer les valeurs inutilisées</button>
+          </div>
           <div class="seg" style="margin-bottom:12px">
             <button class="segbtn" id="refTabDomaine" aria-selected="true">Domaines</button>
             <button class="segbtn" id="refTabClasse" aria-selected="false">Natures</button>
@@ -965,6 +968,7 @@
               <input type="text" id="cyFilterConfigName" placeholder="Nom de la configuration…" autocomplete="off">
               <button class="btn ghost sm" id="cyFilterConfigSave">Enregistrer la config actuelle</button>
             </div>
+            <p class="hint" style="margin:6px 0 0">Une configuration retient les filtres cochés et la place des objets. « Réorganiser » repart d'une mise en page automatique.</p>
             <div id="cyFilterConfigList" style="margin-top:8px"></div>
           </div>
         </details>
@@ -1080,11 +1084,17 @@ const REL_GLYPHS = {
 const relGlyph = t => REL_GLYPHS[t] || REL_GLYPHS.association;
 const CARDS = ['0..1','1','0..*','1..*'];
 
-const SCHEMA_VERSION = 8; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.12'; // à incrémenter à chaque commit taggé
+const SCHEMA_VERSION = 9; // à incrémenter ici ET dans metamodele.sql à chaque migration
+const APP_VERSION = 'v0.13'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.13', date:'2026-11-19', items:[
+    "Diagramme : une configuration enregistrée retient désormais la place de chaque objet, en plus des filtres. En l'appliquant, on retrouve la disposition telle qu'on l'avait arrangée, même après avoir renommé des objets. Les objets créés depuis restent à la place que leur donne la mise en page automatique.",
+    "La configuration appliquée est indiquée dans la liste et reste en place quand on revient au diagramme après avoir modifié des fiches. « Réorganiser » ou un changement de mise en page repart d'une disposition automatique.",
+    "Référentiel : nouveau bouton « Nettoyer les valeurs inutilisées ». Il retire en une fois les domaines, natures, disciplines, grandeurs et verbes de relation que plus rien n'utilise, après avoir montré la liste de ce qui va disparaître. Les listes de choix des formulaires restent ainsi propres.",
+    "Les modèles existants sont mis à jour automatiquement à l'ouverture, sans perte."
+  ]},
   { version:'v0.12', date:'2026-11-19', items:[
     "Diagramme : un nouveau réglage « voisins » à côté de « focus au clic » choisit jusqu'où s'allume l'entourage de l'objet sélectionné : ses voisins directs (comme avant), ou aussi les voisins de ses voisins, jusqu'à 5 niveaux. Le même réglage est disponible dans l'export HTML.",
     "Les relations d'un objet vers lui-même (par exemple une application liée à d'autres applications) apparaissent enfin dans le diagramme, sous forme de boucle au-dessus de la boîte. Elles étaient jusqu'ici cachées derrière l'objet.",
@@ -1532,6 +1542,10 @@ BEGIN UPDATE filtre_diagramme SET uid = lower(hex(randomblob(16))) WHERE rowid =
 -- v8 : nom technique d'une relation (identifiant libre pour les outils en aval). Ajouté par
 -- ALTER TABLE, comme uid, pour que bases neuves et migrées aient les colonnes dans le même ordre.
 ALTER TABLE relation ADD COLUMN nom_technique TEXT;
+
+-- v9 : disposition des objets mémorisée avec une configuration du diagramme (JSON
+-- { uid d'objet : [x, y] }). Ajoutée par ALTER TABLE, comme les colonnes précédentes.
+ALTER TABLE filtre_diagramme ADD COLUMN disposition TEXT;
 `;
 
 let SQL=null, db=null, fileHandle=null, dbName="modele.db", viewMode='fiches';
@@ -1605,8 +1619,13 @@ function migrateV8(d){
   const cols=(d.exec("PRAGMA table_info(relation)")[0]||{values:[]}).values.map(v=>v[1]);
   if(cols.length && !cols.includes('nom_technique')) d.run("ALTER TABLE relation ADD COLUMN nom_technique TEXT");
 }
+/* v8 -> v9 (idempotent) : disposition des objets enregistrée avec une configuration du diagramme. */
+function migrateV9(d){
+  const cols=(d.exec("PRAGMA table_info(filtre_diagramme)")[0]||{values:[]}).values.map(v=>v[1]);
+  if(cols.length && !cols.includes('disposition')) d.run("ALTER TABLE filtre_diagramme ADD COLUMN disposition TEXT");
+}
 // Met une base (ouverte, ou version GitLab à comparer/fusionner) au schéma courant
-function migrateSchema(d){ migrateV7(d); migrateV8(d); }
+function migrateSchema(d){ migrateV7(d); migrateV8(d); migrateV9(d); }
 async function openBytes(bytes,name){
   await ensureSql();
   glDetach(); // un modèle ouvert depuis le disque n'est relié à GitLab que si glOpen le relie ensuite
@@ -1629,11 +1648,11 @@ async function openBytes(bytes,name){
     // passés par ce garde-fou avant l'introduction du filtre par statut dans le diagramme)
     const filtreCols = exec("PRAGMA table_info(filtre_diagramme)").map(c=>c.name);
     if(!filtreCols.includes('statuts')){ run("ALTER TABLE filtre_diagramme ADD COLUMN statuts TEXT"); }
-    migrateSchema(db); // v6 -> v7 : table meta + uid ; v7 -> v8 : nom technique des relations
+    migrateSchema(db); // v6 -> v7 : table meta + uid ; v7 -> v8 : nom technique des relations ; v8 -> v9 : disposition des configurations
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
   const rep=repairOrphans();
-  dbName=name||"modele.db"; dirty=rep.fixed>0; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
+  dbName=name||"modele.db"; dirty=rep.fixed>0; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true; cyActiveConfigId=null;
   enterEditor(); refreshAll();
   if(rep.fixed) toast("Modèle réparé : "+rep.fixed+" élément(s) orphelin(s) nettoyé(s) (affectations, relations… d'éléments déjà supprimés). Enregistrez pour conserver la correction.","ok");
   else toast("Modèle chargé","ok");
@@ -1646,7 +1665,7 @@ async function newModel(){
   db=new SQL.Database();
   db.run(SCHEMA_BASE);
   glDetach();
-  dbName="nouveau-modele.db"; fileHandle=null; dirty=false; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true;
+  dbName="nouveau-modele.db"; fileHandle=null; dirty=false; clearAutosave(); cyLayoutAuto=true; cyImpactLayoutAuto=true; cyActiveConfigId=null;
   enterEditor(); refreshAll(); toast("Nouveau modèle prêt","ok");
 }
 
@@ -2347,6 +2366,37 @@ function renderRefGrandeur(){
       <td class="mgactions"><button class="btn xs danger" data-ref="grandeur" data-id="${g.id}" ${np?'disabled':''}>Supprimer</button></td></tr>`;
   }).join('');
 }
+// Issue #21 : retire d'un coup les valeurs du référentiel que plus rien n'utilise, pour que les
+// listes de choix des formulaires restent propres. Mêmes règles d'usage que les boutons
+// « Supprimer » ligne à ligne (une valeur utilisée n'est jamais touchée).
+const REF_UNUSED = [
+  { label:'domaine(s)', table:'domaine', nomSql:'t.nom', where:"NOT EXISTS (SELECT 1 FROM objet o WHERE o.domaine_id=t.id)" },
+  { label:'nature(s)', table:'classe_objet', nomSql:'t.nom', where:"NOT EXISTS (SELECT 1 FROM objet o WHERE o.classe_id=t.id)" },
+  { label:'discipline(s)', table:'discipline', nomSql:"t.code||' — '||t.nom",
+    where:"NOT EXISTS (SELECT 1 FROM objet o WHERE o.discipline_id=t.id) AND NOT EXISTS (SELECT 1 FROM applicabilite a WHERE a.discipline_id=t.id)" },
+  { label:'grandeur(s) (avec leurs unités)', table:'grandeur_physique', nomSql:'t.nom',
+    where:"NOT EXISTS (SELECT 1 FROM propriete p JOIN unite u ON u.id=p.unite_id WHERE u.grandeur_id=t.id)" },
+  { label:'verbe(s) de relation', table:'verbe_relation', nomSql:'t.nom', where:"NOT EXISTS (SELECT 1 FROM relation r WHERE r.verbe_id=t.id)" }
+];
+function findUnusedRef(){
+  return REF_UNUSED.map(c=>({ ...c, rows:exec(`SELECT t.id, ${c.nomSql} AS nom FROM ${c.table} t WHERE ${c.where} ORDER BY 2`) }))
+                   .filter(c=>c.rows.length);
+}
+function cleanUnusedRef(){
+  const found=findUnusedRef();
+  if(!found.length) return toast("Rien à nettoyer : toutes les valeurs du référentiel sont utilisées","ok");
+  const total=found.reduce((n,c)=>n+c.rows.length,0);
+  const apercu=c=>c.rows.slice(0,8).map(r=>r.nom).join(', ')+(c.rows.length>8?', … (+'+(c.rows.length-8)+')':'');
+  const msg="Supprimer "+total+" valeur(s) que plus rien n'utilise ?\n\n"
+    +found.map(c=>"• "+c.rows.length+" "+c.label+" : "+apercu(c)).join("\n");
+  if(!confirm(msg)) return;
+  try{
+    db.run("BEGIN");
+    found.forEach(c=>c.rows.forEach(r=>db.run("DELETE FROM "+c.table+" WHERE id=?",[r.id])));
+    db.run("COMMIT"); dirty=true;
+  }catch(e){ try{ db.run("ROLLBACK"); }catch(_){} return toast(friendly(e),"err"); }
+  toast(total+" valeur(s) inutilisée(s) supprimée(s) du référentiel","ok"); refreshAll();
+}
 function renderRefTables(){
   renderRefSimple('domaine'); renderRefSimple('classe'); renderRefSimple('verbe');
   renderRefDisc(); renderRefGrandeur();
@@ -2426,7 +2476,7 @@ function decorateNodeLabel(nom, classe, domaine){
   return bits.length ? nom+'\n'+bits.join(' ') : nom;
 }
 function buildCyElements(){
-  const objs = exec(`SELECT o.id,o.nom,o.definition,o.statut,
+  const objs = exec(`SELECT o.id,o.uid,o.nom,o.definition,o.statut,
       COALESCE(d.nom,'— sans domaine') AS domaine, COALESCE(c.nom,'— sans nature') AS classe,
       disc.code AS disc_code, disc.nom AS disc_nom
       FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id
@@ -2449,7 +2499,7 @@ function buildCyElements(){
   const nodes = objs.map(o=>{
     const nomAffiche = decorateNodeLabel(o.nom, o.classe, o.domaine);
     const labelFull = buildCyNodeLabel(nomAffiche, byObj[o.id]||[]);
-    return { data:{ id:'n'+o.id, nom:o.nom, label:nomAffiche, labelCompact:nomAffiche, labelFull,
+    return { data:{ id:'n'+o.id, uid:o.uid, nom:o.nom, label:nomAffiche, labelCompact:nomAffiche, labelFull,
              classe:o.classe, domaine:o.domaine, statut:o.statut, discCode:o.disc_code||'', discNom:o.disc_nom||'',
              definition:o.definition||'', color:natureColor[o.classe], fill:domaineFill[o.domaine]||NO_DOMAIN_FILL },
       classes:'obj' };
@@ -2625,6 +2675,8 @@ async function renderDiagram(){
   applyCyRelLabelMode();
 
   renderCyLegendFilters();
+  if(cyActiveConfigId!=null && !exec("SELECT 1 FROM filtre_diagramme WHERE id=?",[cyActiveConfigId]).length) cyActiveConfigId=null;
+  if(cyActiveConfigId!=null) applyFilterConfig(cyActiveConfigId, true);
   renderCyFilterConfigs();
   fillCySearch();
   updateCyStats();
@@ -2684,7 +2736,7 @@ function renderCyFilterConfigs(){
   rows.forEach(r=>{
     const row=document.createElement('div'); row.className='cyfiltersaved-row';
     row.innerHTML=`<button class="cyfiltersaved-fav" data-act="fav" data-id="${r.id}" title="${r.favori?'Retirer des favoris':'Ajouter aux favoris'}">${r.favori?'★':'☆'}</button>
-      <span class="cyfiltersaved-name" data-act="apply" data-id="${r.id}">${esc(r.nom)}</span>
+      <span class="cyfiltersaved-name" data-act="apply" data-id="${r.id}"${r.id===cyActiveConfigId?' style="font-weight:700"':''}>${esc(r.nom)}${r.id===cyActiveConfigId?' <span class="mgdef">(appliquée)</span>':''}</span>
       <button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button>`;
     host.appendChild(row);
   });
@@ -2695,20 +2747,39 @@ function saveCurrentFilterConfig(){
   const natures=[...document.querySelectorAll('#cyFilterNature input:checked')].map(i=>i.dataset.nature);
   const domaines=[...document.querySelectorAll('#cyFilterDomaine input:checked')].map(i=>i.dataset.domaine);
   const statuts=[...document.querySelectorAll('#cyFilterStatut input:checked')].map(i=>i.dataset.statut);
+  const disposition=JSON.stringify(currentCyDisposition());
   try{
     const existing=exec("SELECT id FROM filtre_diagramme WHERE nom=?",[nom])[0];
     if(existing){
-      run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=? WHERE id=?",[JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),existing.id]);
-      toast("Configuration « "+nom+" » mise à jour","ok");
+      run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=?,disposition=? WHERE id=?",[JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),disposition,existing.id]);
+      toast("Configuration « "+nom+" » mise à jour (filtres et disposition des objets)","ok");
     }else{
-      run("INSERT INTO filtre_diagramme(nom,natures,domaines,statuts) VALUES (?,?,?,?)",[nom,JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts)]);
-      toast("Configuration « "+nom+" » enregistrée","ok");
+      run("INSERT INTO filtre_diagramme(nom,natures,domaines,statuts,disposition) VALUES (?,?,?,?,?)",[nom,JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),disposition]);
+      toast("Configuration « "+nom+" » enregistrée (filtres et disposition des objets)","ok");
     }
+    cyActiveConfigId=(existing||exec("SELECT id FROM filtre_diagramme WHERE nom=?",[nom])[0]).id;
     clear(['cyFilterConfigName']); renderCyFilterConfigs();
   }catch(e){ toast(friendly(e),"err"); }
 }
-function applyFilterConfig(id){
-  const row=exec("SELECT nom,natures,domaines,statuts FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
+// Issue #22 : une configuration mémorise aussi la place de chaque objet (par uid, stable même
+// après renommage ou fusion GitLab/GitHub). La configuration appliquée reste « active » : si le
+// diagramme est redessiné (retour depuis les fiches, modification du modèle), sa disposition est
+// remise en place. « Réorganiser » ou un changement de mise en page la désactive.
+let cyActiveConfigId=null;
+function currentCyDisposition(){
+  const pos={};
+  if(cy) cy.nodes('.obj').forEach(n=>{ const p=n.position(); pos[n.data('uid')]=[Math.round(p.x),Math.round(p.y)]; });
+  return pos;
+}
+function applyCyDisposition(pos){
+  if(!cy || !pos) return 0;
+  let n=0;
+  cy.batch(()=>{ cy.nodes('.obj').forEach(nd=>{ const p=pos[nd.data('uid')]; if(p){ nd.position({x:p[0],y:p[1]}); n++; } }); });
+  if(n) cy.fit(cy.nodes('.obj').filter(x=>!x.hasClass('flt-hidden')), 36);
+  return n;
+}
+function applyFilterConfig(id, silent){
+  const row=exec("SELECT nom,natures,domaines,statuts,disposition FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
   const natures=JSON.parse(row.natures||'[]'), domaines=JSON.parse(row.domaines||'[]');
   // statuts : absent (JSON null) sur une config enregistree avant l'ajout de ce filtre —
   // on considere alors tous les statuts coches, pour ne pas masquer silencieusement des
@@ -2718,7 +2789,10 @@ function applyFilterConfig(id){
   document.querySelectorAll('#cyFilterDomaine input').forEach(i=>{ i.checked=domaines.includes(i.dataset.domaine); });
   document.querySelectorAll('#cyFilterStatut input').forEach(i=>{ i.checked=statuts.includes(i.dataset.statut); });
   applyCyFilters();
-  toast("Configuration « "+row.nom+" » appliquée","ok");
+  let disp=null; try{ disp=row.disposition ? JSON.parse(row.disposition) : null; }catch(e){ disp=null; }
+  applyCyDisposition(disp);
+  cyActiveConfigId=id; renderCyFilterConfigs();
+  if(!silent) toast("Configuration « "+row.nom+" » appliquée"+(disp?" avec sa disposition":""),"ok");
 }
 function toggleFavoriFilterConfig(id){
   const row=exec("SELECT favori FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
@@ -2729,6 +2803,7 @@ function deleteFilterConfig(id){
   const row=exec("SELECT nom FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
   if(!confirm("Supprimer la configuration « "+row.nom+" » ?")) return;
   run("DELETE FROM filtre_diagramme WHERE id=?",[id]);
+  if(cyActiveConfigId===id) cyActiveConfigId=null;
   toast("Configuration supprimée","ok"); renderCyFilterConfigs();
 }
 
@@ -4039,7 +4114,7 @@ const MERGE_COLS = { nom:'nom', definition:'définition', description:'descripti
   classe_id:'nature', discipline_id:'discipline', origine:'origine', type:'type', multivalue:'multivaluée',
   type_enumere_id:'liste de valeurs', unite_id:'unité', obligatoire:'obligatoire', ordre:'ordre', verbe_id:'verbe',
   source_id:'objet source', cible_id:'objet cible', card_source:'cardinalité source', card_cible:'cardinalité cible',
-  role_source:'rôle source', role_cible:'rôle cible', nom_technique:'nom technique', valeur:'valeur', libelle:'libellé', message:'message',
+  role_source:'rôle source', role_cible:'rôle cible', nom_technique:'nom technique', disposition:'disposition des objets', valeur:'valeur', libelle:'libellé', message:'message',
   severite:'sévérité', code:'code', symbole:'symbole', iri_externe:'IRI externe', systeme_externe:'système externe',
   objet_id:'objet', propriete_id:'propriété', relation_id:'relation', grandeur_id:'grandeur', commentaire:'commentaire',
   favori:'favori', natures:'natures', domaines:'domaines', statuts:'statuts' };
@@ -4098,7 +4173,7 @@ function mergeModels(baseBytes, mineDb, theirsBytes, choices, who){
         default: return r.nom!=null ? String(r.nom) : r.uid;
       } };
     const what=(t,r)=>{ const l=label(t,r); return ['applicabilite','relation','valeur_enumeree','contrainte','lien_exigence'].includes(t) ? l : GL_LABELS[t][0]+' « '+l+' »'; };
-    const val=(s,c,v)=> v==null||v==='' ? '(vide)' : s.fks[c] ? label(s.fks[c], find(s.fks[c],v)) : String(v);
+    const val=(s,c,v)=> v==null||v==='' ? '(vide)' : c==='disposition' ? '(modifiée)' : s.fks[c] ? label(s.fks[c], find(s.fks[c],v)) : String(v);
     const diffTxt=(s,a,b)=>s.cmp.filter(c=>a[c]!==b[c]).map(c=>(MERGE_COLS[c]||c)+' : '+val(s,c,b[c])).join(' ; ');
     const changed=(s,a,b)=>s.cmp.filter(c=>a[c]!==b[c]);
     const conflicts=[], warnings=[];
@@ -4581,6 +4656,7 @@ function wire(){
   el('refTabDisc').onclick=()=>setRefSubView('disc');
   el('refTabGrandeur').onclick=()=>setRefSubView('grandeur');
   el('refTabVerbe').onclick=()=>setRefSubView('verbe');
+  el('refCleanUnused').onclick=cleanUnusedRef;
   ['ref_domaine_body','ref_classe_body','ref_disc_body','ref_grandeur_body','ref_verbe_body'].forEach(id=>{
     el(id).addEventListener('click', e=>{
       const btn=e.target.closest('button[data-ref]'); if(!btn || btn.disabled) return;
@@ -4683,8 +4759,8 @@ function wire(){
     });
   });
   el('cySearch').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doCySearch(); } });
-  el('cyLayout').addEventListener('change', ()=>{ cyLayoutAuto=false; });
-  el('cyRelayout').onclick=()=>{ if(cy) cy.layout({name:v('cyLayout'),animate:true,padding:36}).run(); };
+  el('cyLayout').addEventListener('change', ()=>{ cyLayoutAuto=false; cyActiveConfigId=null; renderCyFilterConfigs(); });
+  el('cyRelayout').onclick=()=>{ if(!cy) return; cyActiveConfigId=null; renderCyFilterConfigs(); cy.layout({name:v('cyLayout'),animate:true,padding:36}).run(); };
   el('cyFit').onclick=()=>{ if(cy) cy.fit(undefined,30); };
   el('cyClearFocus').onclick=clearCyFocus;
   el('cyDepth').addEventListener('change', ()=>{ if(cySelectedNode && cySelectedNode.inside()) onCyNodeSelected(cySelectedNode); });
