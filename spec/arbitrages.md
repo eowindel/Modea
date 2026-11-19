@@ -6,7 +6,8 @@ sous-jacent) ou **écarté** (choix d'implémentation propre au proto). Il sert 
 - à la mise à jour de la spec pour une nouvelle version du proto, on ne repose pas les questions déjà tranchées ;
 - il explique à la DSI pourquoi un comportement du proto n'apparaît pas dans la spec.
 
-Spec établie sur le proto **v0.8.1** (tag `v0.8.1`), le 2026-11-18. Destinataire : la DSI.
+Spec établie sur le proto **v0.8.1** (tag `v0.8.1`), le 2026-11-18, mise à jour pour le proto **v0.11**
+(commit `97e8ee2`) le même jour (révision 1.1, voir `rapport-maj.md`). Destinataire : la DSI.
 
 ## Décisions de l'auteur du proto
 
@@ -17,6 +18,7 @@ Spec établie sur le proto **v0.8.1** (tag `v0.8.1`), le 2026-11-18. Destinatair
 | A-02 | Exports | Retenus : RDF/OWL et SHACL (normes d'échange), consultation sans modification, liens vers un référentiel externe. **Écarté : export du diagramme en image (PNG, SVG)** | RB-021 à RB-023, CU-013 à CU-015, UX-012 |
 | A-03 | Droits | Deux rôles : lecteur, contributeur (tout contributeur peut changer les statuts) | RB-019 |
 | A-04 | Besoins du cadrage absents du proto | Retenus, marqués « non prototypé » : import en masse, comparaison de deux versions. **Écartés : import d'un modèle applicatif, export UML / ArchiMate** | CU-022, CU-023, RB-031, RB-032, UX-018 |
+| A-05 | Nom technique d'une relation (proto v0.9), « destiné aux outils en aval » | Besoin réel, exigence d'interface (2026-11-18) | RB-033 |
 
 ## Décisions prises par Claude (à valider)
 
@@ -32,7 +34,13 @@ Spec établie sur le proto **v0.8.1** (tag `v0.8.1`), le 2026-11-18. Destinatair
 | C-08 | Message et sévérité des contraintes (modèle de données, sans interface) | Non spécifiés ; signalés en note interne de RB-007 | — |
 | C-09 | Champ « origine » d'un objet (trace de la reprise), sans interface | Mentionné seulement dans l'export (annotation) | RB-022 |
 | C-10 | Pied de page, logo, notes de version de l'outil | Identité du proto, sauf l'accès à l'aide et aux notes de version | UX-017 |
-| C-11 | Relation non modifiable (supprimer puis recréer) | Limite du proto, pas un besoin : non écrite. *La v0.9 du proto ajoute la modification d'une relation.* | — |
+| C-11 | Relation non modifiable (supprimer puis recréer) | Limite du proto, pas un besoin : non écrite. **Levée en v0.9** : la modification d'une relation est spécifiée | CU-024, RB-034 |
+| C-12 | Couleur de fond par domaine (proto v0.10) | Repère d'interface, gardé comme tel ; nature et domaine restent lisibles sans la couleur | UX-009 à UX-012 |
+
+## Arbitrages réutilisés lors de la mise à jour v0.8.1 → v0.11
+
+- **A-01** couvre le partage par GitHub ajouté en v0.11 : même contournement que GitLab, rien à ajouter à la spec.
+- **C-03** couvre la migration automatique des modèles existants annoncée en v0.9 (implémentation).
 
 ## Questions ouvertes pour la DSI
 

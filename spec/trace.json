@@ -1,7 +1,7 @@
 {
   "proto": "Modea",
-  "version": "0.8.1",
-  "ref": "v0.8.1",
+  "version": "0.11",
+  "ref": "97e8ee2",
   "items": {
     "RB-001": [
       "metamodele.sql : contraintes UNIQUE",
@@ -91,7 +91,8 @@
     "RB-022": [
       "buildTurtle, buildShacl",
       "README : Interopérabilité",
-      "scripts/test_exports.py"
+      "scripts/test_exports.py",
+      "v0.9 : modea:nomTechnique"
     ],
     "RB-023": [
       "metamodele.sql : lien_exigence",
@@ -158,7 +159,8 @@
     ],
     "UX-007": [
       "#pRel",
-      "updateRelPreview, addRel"
+      "updateRelPreview, addRel",
+      "v0.9 : modification et nom technique des relations"
     ],
     "UX-008": [
       "#pExig",
@@ -167,19 +169,24 @@
     "UX-009": [
       "#viewFiches",
       "renderMg*",
-      "renderRef*"
+      "renderRef*",
+      "v0.9 : modification et nom technique des relations",
+      "v0.10 : domaineFills (fond pastel par domaine)"
     ],
     "UX-010": [
       "#viewDiag",
-      "buildCyElements, cyStyle, applyCyFilters"
+      "buildCyElements, cyStyle, applyCyFilters",
+      "v0.10 : domaineFills (fond pastel par domaine)"
     ],
     "UX-011": [
       "#viewImpact",
-      "buildCyImpactElements, closedNeighborhoodAtDepth"
+      "buildCyImpactElements, closedNeighborhoodAtDepth",
+      "v0.10 : domaineFills (fond pastel par domaine)"
     ],
     "UX-012": [
       "renderStaticDiagramHtml, exportDiagramHtml",
-      "arbitrage A-02"
+      "arbitrage A-02",
+      "v0.10 : domaineFills (fond pastel par domaine)"
     ],
     "UX-013": [
       "#glMerge",
@@ -220,7 +227,8 @@
       "addOrUpdateAffect, deleteApplicabilite"
     ],
     "CU-007": [
-      "addRel"
+      "addRel",
+      "v0.9 : modification et nom technique des relations"
     ],
     "CU-008": [
       "deleteObjet, deleteProp, deleteRelation, deleteRefRow"
@@ -272,6 +280,30 @@
     "CU-023": [
       "saisie.sql",
       "arbitrage A-04"
+    ],
+    "CU-024": [
+      "editRelRow, setRelEditMode, addRel (v0.9)",
+      "scripts/test_relations.cjs"
+    ],
+    "RB-033": [
+      "#r_tech, nom_technique (v0.9)",
+      "metamodele.sql v8",
+      "buildTurtle : modea:nomTechnique",
+      "scripts/test_relations.cjs"
+    ],
+    "RB-034": [
+      "addRel en modification, relEditUid (v0.9)",
+      "scripts/test_relations.cjs : relation supprimée entre-temps"
     ]
-  }
+  },
+  "history": [
+    {
+      "version": "0.8.1",
+      "ref": "v0.8.1"
+    },
+    {
+      "version": "0.11",
+      "ref": "97e8ee2"
+    }
+  ]
 }

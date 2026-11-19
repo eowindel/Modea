@@ -3,7 +3,7 @@
   "formatVersion": 2,
   "project": {
     "name": "Modea — modélisation de domaine",
-    "version": "1.0",
+    "version": "1.1",
     "productManager": "",
     "status": "draft"
   },
@@ -199,7 +199,7 @@
       "happyPath": [
         "Choisir l’objet source et l’objet cible",
         "Choisir le type de lien et les cardinalités",
-        "Nommer la relation (verbe)",
+        "Nommer la relation (verbe) et lui donner, si besoin, un nom technique",
         "Vérifier l’aperçu, valider"
       ],
       "alternatives": [],
@@ -212,7 +212,8 @@
         "RB-013",
         "RB-014",
         "RB-010",
-        "RB-020"
+        "RB-020",
+        "RB-033"
       ],
       "relatedUX": [
         "UX-007"
@@ -408,7 +409,8 @@
       "relatedRules": [
         "RB-021",
         "RB-022",
-        "RB-023"
+        "RB-023",
+        "RB-033"
       ],
       "relatedUX": [
         "UX-002"
@@ -651,6 +653,40 @@
       "status": "draft",
       "notes": "",
       "images": []
+    },
+    "CU-024": {
+      "id": "CU-024",
+      "title": "Modifier une relation",
+      "actor": "Contributeur",
+      "trigger": "« Éditer » sur une relation, dans la liste des relations",
+      "preconditions": "",
+      "happyPath": [
+        "Le contributeur choisit la relation à modifier",
+        "Le formulaire de relation se remplit avec ses valeurs actuelles",
+        "Il change les objets, le type, les cardinalités, le verbe ou le nom technique",
+        "Il valide : la relation est mise à jour"
+      ],
+      "alternatives": [
+        "« Annuler la modification » : rien ne change, le formulaire revient en création"
+      ],
+      "errorHandling": [
+        "La relation a été supprimée entre-temps : modification refusée, rien n’est recréé",
+        "Objet inconnu ou généralisation d’un objet vers lui-même : refusé, comme en création"
+      ],
+      "relatedRules": [
+        "RB-034",
+        "RB-012",
+        "RB-013",
+        "RB-014",
+        "RB-033"
+      ],
+      "relatedUX": [
+        "UX-007",
+        "UX-009"
+      ],
+      "status": "draft",
+      "notes": "",
+      "images": []
     }
   },
   "businessRules": {
@@ -851,7 +887,8 @@
       "priority": "essential",
       "relatedUseCases": [
         "CU-007",
-        "CU-011"
+        "CU-011",
+        "CU-024"
       ],
       "relatedUX": [],
       "status": "draft",
@@ -867,7 +904,8 @@
       "validation": "",
       "priority": "important",
       "relatedUseCases": [
-        "CU-007"
+        "CU-007",
+        "CU-024"
       ],
       "relatedUX": [],
       "status": "draft",
@@ -883,7 +921,8 @@
       "validation": "Créer une généralisation d'un objet vers lui-même : refusé avec un message explicite.",
       "priority": "important",
       "relatedUseCases": [
-        "CU-007"
+        "CU-007",
+        "CU-024"
       ],
       "relatedUX": [],
       "status": "draft",
@@ -1012,7 +1051,7 @@
     "RB-022": {
       "id": "RB-022",
       "title": "Correspondance du modèle avec les standards RDF/OWL et SHACL",
-      "statement": "L'export ontologique (RDF/OWL) traduit : un objet en classe ; une propriété en propriété de données partagée, restreinte sur chaque objet par son affectation (cardinalité selon obligatoire et multivalué) ; une généralisation en sous-classe ; association, composition et agrégation en propriété d'objet avec restriction de cardinalité ; une liste de valeurs en type de données énuméré ; nature, domaine et discipline en schémas de concepts (la nature reste un classement, jamais une sous-classe) ; statut, origine et unité en annotations. L'export de règles de validation (SHACL) produit une forme par objet avec les cardinalités des affectations et des relations, et les contraintes de valeur (motif, bornes, valeurs énumérées). Quand un même verbe relie un objet à plusieurs types d'objets, les cardinalités sont comptées séparément pour chaque type visé.",
+      "statement": "L'export ontologique (RDF/OWL) traduit : un objet en classe ; une propriété en propriété de données partagée, restreinte sur chaque objet par son affectation (cardinalité selon obligatoire et multivalué) ; une généralisation en sous-classe ; association, composition et agrégation en propriété d'objet avec restriction de cardinalité ; une liste de valeurs en type de données énuméré ; nature, domaine et discipline en schémas de concepts (la nature reste un classement, jamais une sous-classe) ; statut, origine, unité et nom technique des relations en annotations. L'export de règles de validation (SHACL) produit une forme par objet avec les cardinalités des affectations et des relations, et les contraintes de valeur (motif, bornes, valeurs énumérées). Quand un même verbe relie un objet à plusieurs types d'objets, les cardinalités sont comptées séparément pour chaque type visé.",
       "context": "Interopérabilité avec les outils d'ontologie, sans dépendre de l'outil de modélisation.",
       "example": "",
       "validation": "Les fichiers produits se chargent sans erreur dans un outil standard ; les règles de validation sont valides ; sur des données d'exemple, les données correctes sont acceptées et les incomplètes rejetées.",
@@ -1190,6 +1229,46 @@
       "relatedUX": [],
       "status": "draft",
       "notes": "Arbitrage A-04. Non prototypé dans l’interface (le proto le permet hors interface).",
+      "images": []
+    },
+    "RB-033": {
+      "id": "RB-033",
+      "title": "Nom technique d'une relation",
+      "statement": "Chaque relation peut porter un nom technique facultatif : un identifiant libre, propre à cette relation (contrairement au verbe, partagé), destiné aux outils qui exploitent le modèle en aval. Les espaces de début et de fin sont retirés ; un nom technique vidé est considéré comme absent. Il est repris dans l'export ontologique et la recherche dans la liste des relations en tient compte.",
+      "context": "Exigence d'interface : les outils en aval identifient les relations par ce nom.",
+      "example": "Local ◆— contient → Équipement, nom technique « REL_EQUIPEMENT_LOCAL ».",
+      "validation": "Saisir un nom technique, exporter le modèle : il figure sur la relation exportée. Le vider : il n'apparaît plus.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-007",
+        "CU-014",
+        "CU-024"
+      ],
+      "relatedUX": [
+        "UX-007",
+        "UX-009"
+      ],
+      "status": "draft",
+      "notes": "Arbitrage A-05.",
+      "images": []
+    },
+    "RB-034": {
+      "id": "RB-034",
+      "title": "Modification d'une relation",
+      "statement": "Une relation existante se modifie sur place : objets source et cible, type, cardinalités, verbe et nom technique. Elle garde son identité (elle n'est ni dupliquée ni recréée), ce qui préserve l'historique et la comparaison des versions. Si la relation a été supprimée pendant qu'on la modifiait, la modification est refusée et rien n'est recréé. Les règles de création s'appliquent (généralisation non réflexive, objets existants).",
+      "context": "",
+      "example": "",
+      "validation": "Modifier une relation : le nombre de relations ne change pas. Supprimer une relation en cours de modification, puis valider : refusé, aucune relation recréée.",
+      "priority": "important",
+      "relatedUseCases": [
+        "CU-024"
+      ],
+      "relatedUX": [
+        "UX-007",
+        "UX-009"
+      ],
+      "status": "draft",
+      "notes": "",
       "images": []
     }
   },
@@ -1388,27 +1467,36 @@
     "UX-007": {
       "id": "UX-007",
       "screen": "Saisie — Relation",
-      "description": "Objet source, objet cible, cardinalités, type de lien et nom (verbe). Un aperçu lisible de la relation se met à jour pendant la saisie : « source [1] ── contient ──▶ [0..*] cible ».",
+      "description": "Objet source, objet cible, cardinalités, type de lien, nom (verbe) et nom technique facultatif. Un aperçu lisible de la relation se met à jour pendant la saisie : « source [1] ── contient ──▶ [0..*] cible ». En modification d'une relation existante, un message l'indique, le bouton devient « Mettre à jour la relation » et « Annuler la modification » apparaît.",
       "interactions": [
         "Suggestions à la saisie",
         "Aperçu en direct",
-        "Ajouter la relation"
+        "Ajouter la relation",
+        "Mettre à jour la relation (en modification)",
+        "Annuler la modification"
       ],
       "messages": {
-        "success": "Relation ajoutée.",
-        "error": "Choisis deux objets existants (noms exacts). / Une généralisation ne peut pas relier un objet à lui-même.",
-        "warning": ""
+        "success": "Relation ajoutée. / Relation mise à jour.",
+        "error": "Choisis deux objets existants (noms exacts). / Une généralisation ne peut pas relier un objet à lui-même. / Cette relation n'existe plus (supprimée entre-temps).",
+        "warning": "Modification d’une relation existante — valider met à jour cette relation."
       },
-      "states": [],
+      "states": [
+        "Création",
+        "Modification"
+      ],
       "accessibility": {
         "keyboard": false,
         "screenReader": false,
         "contrast": ""
       },
       "relatedUseCases": [
-        "CU-007"
+        "CU-007",
+        "CU-024"
       ],
-      "relatedRules": [],
+      "relatedRules": [
+        "RB-033",
+        "RB-034"
+      ],
       "status": "draft",
       "notes": "",
       "images": []
@@ -1443,7 +1531,7 @@
     "UX-009": {
       "id": "UX-009",
       "screen": "Listes (Fiches)",
-      "description": "Listes cherchables des objets, propriétés, relations, liens externes et référentiels (domaines, natures, disciplines, grandeurs, verbes). Recherche texte et filtres cumulables (nature, domaine, discipline, type, statut). Chaque liste affiche le nombre de résultats. Une ligne d'objet se déplie sur ses propriétés affectées (avec action « Retirer »), une ligne de propriété sur les objets qui l'utilisent. Le statut s'affiche en pastille colorée et libellée (brouillon or, validé vert, obsolète gris) et se modifie sur place.",
+      "description": "Listes cherchables des objets, propriétés, relations, liens externes et référentiels (domaines, natures, disciplines, grandeurs, verbes). Recherche texte (pour les relations : objets, verbe et nom technique) et filtres cumulables (nature, domaine, discipline, type, statut). Chaque liste affiche le nombre de résultats. Dans la liste des objets, le domaine s'affiche sur sa couleur de domaine. Une ligne d'objet se déplie sur ses propriétés affectées (avec action « Retirer »), une ligne de propriété sur les objets qui l'utilisent. Le statut s'affiche en pastille colorée et libellée (brouillon or, validé vert, obsolète gris) et se modifie sur place. Une relation se modifie depuis sa ligne (« Éditer »).",
       "interactions": [
         "Recherche",
         "Filtres",
@@ -1472,9 +1560,13 @@
         "CU-008",
         "CU-009",
         "CU-010",
-        "CU-013"
+        "CU-013",
+        "CU-024"
       ],
-      "relatedRules": [],
+      "relatedRules": [
+        "RB-033",
+        "RB-034"
+      ],
       "status": "draft",
       "notes": "",
       "images": []
@@ -1482,7 +1574,7 @@
     "UX-010": {
       "id": "UX-010",
       "screen": "Diagramme",
-      "description": "Graphe interactif des objets et de leurs relations. Chaque objet affiche son nom, sa nature et son domaine en texte ; la couleur de bordure indique la nature (teintes distinctes même au-delà de 8 natures). Flèches : ▷ généralisation, ◆ composition, ◇ agrégation, → association ; ✱ propriété obligatoire. Panneau de détail de l'objet sélectionné.",
+      "description": "Graphe interactif des objets et de leurs relations. Chaque objet affiche son nom, sa nature et son domaine en texte ; la couleur de bordure indique la nature (teintes distinctes même au-delà de 8 natures), le fond pastel le domaine (un objet sans domaine reste sur fond blanc). Chaque domaine garde la même teinte quels que soient les filtres et la vue ; le filtre par domaine montre cette couleur. Flèches : ▷ généralisation, ◆ composition, ◇ agrégation, → association ; ✱ propriété obligatoire. Panneau de détail de l'objet sélectionné.",
       "interactions": [
         "Rechercher et centrer un objet",
         "Dispositions : force dirigée, hiérarchique, concentrique, cercle, grille",
@@ -1508,7 +1600,7 @@
       "accessibility": {
         "keyboard": false,
         "screenReader": false,
-        "contrast": "Nature et domaine lisibles sans la couleur (daltonisme)"
+        "contrast": "Nature et domaine lisibles sans la couleur (texte sous le nom) ; fonds pastel assez clairs pour garder le texte lisible"
       },
       "relatedUseCases": [
         "CU-009",
@@ -1523,7 +1615,7 @@
     "UX-011": {
       "id": "UX-011",
       "screen": "Impact",
-      "description": "Graphe objets ↔ propriétés : un trait relie une propriété à chaque objet qui la porte (plein = obligatoire, pointillé = facultative). Les propriétés affectées à aucun objet sont repérées (contour pointillé). Cliquer un objet ou une propriété met en évidence son voisinage jusqu'à la profondeur choisie (1 à 5) et affiche son détail (propriétés de l'objet, ou objets qui utilisent la propriété).",
+      "description": "Graphe objets ↔ propriétés : un trait relie une propriété à chaque objet qui la porte (plein = obligatoire, pointillé = facultative). Les propriétés affectées à aucun objet sont repérées (contour pointillé). Cliquer un objet ou une propriété met en évidence son voisinage jusqu'à la profondeur choisie (1 à 5) et affiche son détail (propriétés de l'objet, ou objets qui utilisent la propriété). Comme dans le diagramme, la bordure d'un objet indique sa nature et son fond son domaine.",
       "interactions": [
         "Rechercher",
         "Profondeur 1 à 5",
@@ -1543,7 +1635,7 @@
       "accessibility": {
         "keyboard": false,
         "screenReader": false,
-        "contrast": "Obligatoire / facultatif distingués par le trait, pas seulement la couleur"
+        "contrast": "Nature et domaine lisibles sans la couleur (texte sous le nom) ; fonds pastel assez clairs pour garder le texte lisible"
       },
       "relatedUseCases": [
         "CU-012"
@@ -1556,7 +1648,7 @@
     "UX-012": {
       "id": "UX-012",
       "screen": "Consultation en lecture",
-      "description": "Pour un lecteur : navigation dans le modèle avec recherche, filtres nature / domaine, panneau de détail d'un objet, sans aucune action de modification.",
+      "description": "Pour un lecteur : navigation dans le modèle avec recherche, filtres nature / domaine, panneau de détail d'un objet, sans aucune action de modification. Mêmes repères de couleur que le diagramme (bordure : nature, fond : domaine).",
       "interactions": [
         "Rechercher",
         "Filtrer",
@@ -1571,7 +1663,7 @@
       "accessibility": {
         "keyboard": false,
         "screenReader": false,
-        "contrast": ""
+        "contrast": "Nature et domaine lisibles sans la couleur (texte sous le nom) ; fonds pastel assez clairs pour garder le texte lisible"
       },
       "relatedUseCases": [
         "CU-015"
@@ -1843,6 +1935,10 @@
     {
       "term": "Jalon",
       "definition": "Nom donné à une version du modèle (« v1.0 »)."
+    },
+    {
+      "term": "Nom technique",
+      "definition": "Identifiant facultatif d'une relation, propre à elle, utilisé par les outils qui exploitent le modèle."
     }
   ],
   "revisions": [
@@ -1851,14 +1947,20 @@
       "date": "2026-11-18",
       "author": "",
       "summary": "Première version, établie à partir du prototype Modea v0.8.1."
+    },
+    {
+      "version": "1.1",
+      "date": "2026-11-18",
+      "author": "",
+      "summary": "Prise en compte du prototype Modea v0.11 : modification des relations, nom technique des relations, couleur des domaines."
     }
   ],
   "assets": {},
   "metadata": {
     "proto": {
       "name": "Modea",
-      "version": "0.8.1",
-      "tag": "v0.8.1"
+      "version": "0.11",
+      "tag": "97e8ee2"
     }
   }
 }

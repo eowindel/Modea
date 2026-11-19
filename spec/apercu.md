@@ -4,7 +4,7 @@
 
 | Version | Date | Product Manager | Statut |
 | --- | --- | --- | --- |
-| 1.0 | 18/11/2026 | — | Brouillon |
+| 1.1 | 18/11/2026 | — | Brouillon |
 
 *Ce document décrit les règles métier et l'expérience utilisateur attendue. Il ne prescrit aucun choix de technologie.*
 
@@ -13,6 +13,7 @@
 | Version | Date | Auteur | Modifications |
 | --- | --- | --- | --- |
 | 1.0 | 18/11/2026 | — | Première version, établie à partir du prototype Modea v0.8.1. |
+| 1.1 | 18/11/2026 | — | Prise en compte du prototype Modea v0.11 : modification des relations, nom technique des relations, couleur des domaines. |
 
 ## Sommaire
 
@@ -40,6 +41,7 @@
   - [CU-021 — Reprendre un travail interrompu](#cu-021--reprendre-un-travail-interrompu)
   - [CU-022 — Comparer deux versions du modèle](#cu-022--comparer-deux-versions-du-modèle)
   - [CU-023 — Importer des éléments en masse](#cu-023--importer-des-éléments-en-masse)
+  - [CU-024 — Modifier une relation](#cu-024--modifier-une-relation)
 - [2. Règles métier](#2-règles-métier)
   - [RB-001 — Unicité des noms](#rb-001--unicité-des-noms)
   - [RB-002 — Une propriété est une définition partagée](#rb-002--une-propriété-est-une-définition-partagée)
@@ -73,6 +75,8 @@
   - [RB-030 — Configurations de filtres partagées](#rb-030--configurations-de-filtres-partagées)
   - [RB-031 — Comparaison de deux versions](#rb-031--comparaison-de-deux-versions)
   - [RB-032 — Import en masse par noms](#rb-032--import-en-masse-par-noms)
+  - [RB-033 — Nom technique d'une relation](#rb-033--nom-technique-dune-relation)
+  - [RB-034 — Modification d'une relation](#rb-034--modification-dune-relation)
 - [3. Expérience utilisateur](#3-expérience-utilisateur)
   - [UX-001 — Accueil](#ux-001--accueil)
   - [UX-002 — En-tête](#ux-002--en-tête)
@@ -99,7 +103,7 @@
   - [Q-003 — Faut-il un message et une sévérité propres à chaque contrainte de valeur ?](#q-003--faut-il-un-message-et-une-sévérité-propres-à-chaque-contrainte-de-valeur-)
 - [6. Glossaire](#6-glossaire)
 
-*23 cas d'usage, 32 règles métier, 18 points UX, 3 questions en suspens.*
+*24 cas d'usage, 34 règles métier, 18 points UX, 3 questions en suspens.*
 
 ## 1. Cas d'usage
 
@@ -254,13 +258,13 @@
 
 **Acteur** : Contributeur  
 **Déclencheur** : Onglet Relation  
-**Statut** : Brouillon
+**Statut** : À revoir
 
 #### Flux nominal
 
 1. Choisir l’objet source et l’objet cible
 2. Choisir le type de lien et les cardinalités
-3. Nommer la relation (verbe)
+3. Nommer la relation (verbe) et lui donner, si besoin, un nom technique
 4. Vérifier l’aperçu, valider
 
 #### Gestion des erreurs
@@ -270,7 +274,7 @@
 
 #### Éléments liés
 
-- Règles métier : [RB-012](#rb-012--types-de-relation-et-sens-de-lecture), [RB-013](#rb-013--cardinalités), [RB-014](#rb-014--généralisation-non-réflexive), [RB-010](#rb-010--création-à-la-volée-des-référentiels), [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées)
+- Règles métier : [RB-010](#rb-010--création-à-la-volée-des-référentiels), [RB-012](#rb-012--types-de-relation-et-sens-de-lecture), [RB-013](#rb-013--cardinalités), [RB-014](#rb-014--généralisation-non-réflexive), [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées), [RB-033](#rb-033--nom-technique-dune-relation)
 - Points UX : [UX-007](#ux-007--saisie--relation)
 
 ### CU-008 — Supprimer un élément du modèle
@@ -296,7 +300,7 @@
 
 #### Éléments liés
 
-- Règles métier : [RB-015](#rb-015--suppression-dun-objet), [RB-016](#rb-016--suppression-dune-propriété), [RB-017](#rb-017--suppression-dun-élément-de-référentiel), [RB-008](#rb-008--listes-de-valeurs)
+- Règles métier : [RB-008](#rb-008--listes-de-valeurs), [RB-015](#rb-015--suppression-dun-objet), [RB-016](#rb-016--suppression-dune-propriété), [RB-017](#rb-017--suppression-dun-élément-de-référentiel)
 - Points UX : [UX-009](#ux-009--listes-fiches), [UX-016](#ux-016--confirmations-et-messages)
 
 ### CU-009 — Curer le modèle
@@ -404,7 +408,7 @@
 
 #### Éléments liés
 
-- Règles métier : [RB-023](#rb-023--liens-vers-un-référentiel-externe), [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées)
+- Règles métier : [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées), [RB-023](#rb-023--liens-vers-un-référentiel-externe)
 - Points UX : [UX-008](#ux-008--saisie--lien-externe), [UX-009](#ux-009--listes-fiches)
 
 ### CU-014 — Exporter le modèle aux standards du web sémantique
@@ -426,7 +430,7 @@
 
 #### Éléments liés
 
-- Règles métier : [RB-021](#rb-021--paramètres-des-exports-sémantiques), [RB-022](#rb-022--correspondance-du-modèle-avec-les-standards-rdfowl-et-shacl), [RB-023](#rb-023--liens-vers-un-référentiel-externe)
+- Règles métier : [RB-021](#rb-021--paramètres-des-exports-sémantiques), [RB-022](#rb-022--correspondance-du-modèle-avec-les-standards-rdfowl-et-shacl), [RB-023](#rb-023--liens-vers-un-référentiel-externe), [RB-033](#rb-033--nom-technique-dune-relation)
 - Points UX : [UX-002](#ux-002--en-tête)
 
 ### CU-015 — Consulter le modèle sans le modifier
@@ -444,7 +448,7 @@
 #### Éléments liés
 
 - Règles métier : [RB-019](#rb-019--rôles--lecteur-et-contributeur)
-- Points UX : [UX-012](#ux-012--consultation-en-lecture), [UX-010](#ux-010--diagramme)
+- Points UX : [UX-010](#ux-010--diagramme), [UX-012](#ux-012--consultation-en-lecture)
 
 ### CU-016 — Enregistrer une version du modèle
 
@@ -465,7 +469,7 @@
 
 #### Éléments liés
 
-- Règles métier : [RB-026](#rb-026--versions-identifiées--auteur-date-résumé), [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-019](#rb-019--rôles--lecteur-et-contributeur)
+- Règles métier : [RB-019](#rb-019--rôles--lecteur-et-contributeur), [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-026](#rb-026--versions-identifiées--auteur-date-résumé)
 - Points UX : [UX-002](#ux-002--en-tête), [UX-016](#ux-016--confirmations-et-messages)
 
 ### CU-017 — Travailler en même temps qu'un collègue
@@ -520,7 +524,7 @@ Deux contributeurs ont modifié le même modèle depuis la même version.
 #### Éléments liés
 
 - Règles métier : [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-025](#rb-025--élément-conservé-lors-dun-conflit-de-suppression)
-- Points UX : [UX-014](#ux-014--bandeau-de-nouvelle-version), [UX-013](#ux-013--arbitrage-des-conflits)
+- Points UX : [UX-013](#ux-013--arbitrage-des-conflits), [UX-014](#ux-014--bandeau-de-nouvelle-version)
 
 ### CU-019 — Consulter l'historique et restaurer une version
 
@@ -540,7 +544,7 @@ Deux contributeurs ont modifié le même modèle depuis la même version.
 
 #### Éléments liés
 
-- Règles métier : [RB-027](#rb-027--historique-restauration-et-jalons), [RB-026](#rb-026--versions-identifiées--auteur-date-résumé)
+- Règles métier : [RB-026](#rb-026--versions-identifiées--auteur-date-résumé), [RB-027](#rb-027--historique-restauration-et-jalons)
 - Points UX : [UX-015](#ux-015--versions-enregistrées)
 
 ### CU-020 — Poser un jalon
@@ -603,7 +607,7 @@ Besoin non prototypé, exprimé lors du cadrage : à confirmer.
 #### Éléments liés
 
 - Règles métier : [RB-031](#rb-031--comparaison-de-deux-versions)
-- Points UX : [UX-018](#ux-018--comparaison-de-versions), [UX-015](#ux-015--versions-enregistrées)
+- Points UX : [UX-015](#ux-015--versions-enregistrées), [UX-018](#ux-018--comparaison-de-versions)
 
 ### CU-023 — Importer des éléments en masse
 
@@ -623,8 +627,35 @@ Besoin non prototypé, exprimé lors du cadrage : à confirmer.
 
 #### Éléments liés
 
-- Règles métier : [RB-032](#rb-032--import-en-masse-par-noms), [RB-018](#rb-018--statut-de-curation), [RB-010](#rb-010--création-à-la-volée-des-référentiels)
+- Règles métier : [RB-010](#rb-010--création-à-la-volée-des-référentiels), [RB-018](#rb-018--statut-de-curation), [RB-032](#rb-032--import-en-masse-par-noms)
 - Points UX : [UX-016](#ux-016--confirmations-et-messages)
+
+### CU-024 — Modifier une relation
+
+**Acteur** : Contributeur  
+**Déclencheur** : « Éditer » sur une relation, dans la liste des relations  
+**Statut** : Brouillon
+
+#### Flux nominal
+
+1. Le contributeur choisit la relation à modifier
+2. Le formulaire de relation se remplit avec ses valeurs actuelles
+3. Il change les objets, le type, les cardinalités, le verbe ou le nom technique
+4. Il valide : la relation est mise à jour
+
+#### Flux alternatifs
+
+- « Annuler la modification » : rien ne change, le formulaire revient en création
+
+#### Gestion des erreurs
+
+- La relation a été supprimée entre-temps : modification refusée, rien n’est recréé
+- Objet inconnu ou généralisation d’un objet vers lui-même : refusé, comme en création
+
+#### Éléments liés
+
+- Règles métier : [RB-034](#rb-034--modification-dune-relation), [RB-012](#rb-012--types-de-relation-et-sens-de-lecture), [RB-013](#rb-013--cardinalités), [RB-014](#rb-014--généralisation-non-réflexive), [RB-033](#rb-033--nom-technique-dune-relation)
+- Points UX : [UX-007](#ux-007--saisie--relation), [UX-009](#ux-009--listes-fiches)
 
 ## 2. Règles métier
 
@@ -864,7 +895,7 @@ Moto ◆— contient → Moteur (composition). Moto électrique ▷ Moto (géné
 
 #### Éléments liés
 
-- Cas d'usage : [CU-007](#cu-007--relier-deux-objets), [CU-011](#cu-011--explorer-le-modèle-en-diagramme)
+- Cas d'usage : [CU-007](#cu-007--relier-deux-objets), [CU-011](#cu-011--explorer-le-modèle-en-diagramme), [CU-024](#cu-024--modifier-une-relation)
 
 ### RB-013 — Cardinalités
 
@@ -877,7 +908,7 @@ Chaque extrémité d'une relation porte une cardinalité parmi 0..1, 1, 0..\* et
 
 #### Éléments liés
 
-- Cas d'usage : [CU-007](#cu-007--relier-deux-objets)
+- Cas d'usage : [CU-007](#cu-007--relier-deux-objets), [CU-024](#cu-024--modifier-une-relation)
 
 ### RB-014 — Généralisation non réflexive
 
@@ -894,7 +925,7 @@ Créer une généralisation d'un objet vers lui-même : refusé avec un message 
 
 #### Éléments liés
 
-- Cas d'usage : [CU-007](#cu-007--relier-deux-objets)
+- Cas d'usage : [CU-007](#cu-007--relier-deux-objets), [CU-024](#cu-024--modifier-une-relation)
 
 ### RB-015 — Suppression d'un objet
 
@@ -1026,11 +1057,11 @@ Saisir une adresse sans http(s) : refusé avec un message.
 ### RB-022 — Correspondance du modèle avec les standards RDF/OWL et SHACL
 
 **Priorité** : Essentielle  
-**Statut** : Brouillon
+**Statut** : À revoir
 
 #### Énoncé
 
-L'export ontologique (RDF/OWL) traduit : un objet en classe ; une propriété en propriété de données partagée, restreinte sur chaque objet par son affectation (cardinalité selon obligatoire et multivalué) ; une généralisation en sous-classe ; association, composition et agrégation en propriété d'objet avec restriction de cardinalité ; une liste de valeurs en type de données énuméré ; nature, domaine et discipline en schémas de concepts (la nature reste un classement, jamais une sous-classe) ; statut, origine et unité en annotations. L'export de règles de validation (SHACL) produit une forme par objet avec les cardinalités des affectations et des relations, et les contraintes de valeur (motif, bornes, valeurs énumérées). Quand un même verbe relie un objet à plusieurs types d'objets, les cardinalités sont comptées séparément pour chaque type visé.
+L'export ontologique (RDF/OWL) traduit : un objet en classe ; une propriété en propriété de données partagée, restreinte sur chaque objet par son affectation (cardinalité selon obligatoire et multivalué) ; une généralisation en sous-classe ; association, composition et agrégation en propriété d'objet avec restriction de cardinalité ; une liste de valeurs en type de données énuméré ; nature, domaine et discipline en schémas de concepts (la nature reste un classement, jamais une sous-classe) ; statut, origine, unité et nom technique des relations en annotations. L'export de règles de validation (SHACL) produit une forme par objet avec les cardinalités des affectations et des relations, et les contraintes de valeur (motif, bornes, valeurs énumérées). Quand un même verbe relie un objet à plusieurs types d'objets, les cardinalités sont comptées séparément pour chaque type visé.
 
 #### Contexte
 
@@ -1206,6 +1237,50 @@ L'import en masse désigne les éléments par leur nom, comme la saisie : objets
 #### Éléments liés
 
 - Cas d'usage : [CU-023](#cu-023--importer-des-éléments-en-masse)
+
+### RB-033 — Nom technique d'une relation
+
+**Priorité** : Importante  
+**Statut** : Brouillon
+
+#### Énoncé
+
+Chaque relation peut porter un nom technique facultatif : un identifiant libre, propre à cette relation (contrairement au verbe, partagé), destiné aux outils qui exploitent le modèle en aval. Les espaces de début et de fin sont retirés ; un nom technique vidé est considéré comme absent. Il est repris dans l'export ontologique et la recherche dans la liste des relations en tient compte.
+
+#### Contexte
+
+Exigence d'interface : les outils en aval identifient les relations par ce nom.
+
+#### Exemple
+
+Local ◆— contient → Équipement, nom technique « REL\_EQUIPEMENT\_LOCAL ».
+
+#### Validation
+
+Saisir un nom technique, exporter le modèle : il figure sur la relation exportée. Le vider : il n'apparaît plus.
+
+#### Éléments liés
+
+- Cas d'usage : [CU-007](#cu-007--relier-deux-objets), [CU-014](#cu-014--exporter-le-modèle-aux-standards-du-web-sémantique), [CU-024](#cu-024--modifier-une-relation)
+- Points UX : [UX-007](#ux-007--saisie--relation), [UX-009](#ux-009--listes-fiches)
+
+### RB-034 — Modification d'une relation
+
+**Priorité** : Importante  
+**Statut** : Brouillon
+
+#### Énoncé
+
+Une relation existante se modifie sur place : objets source et cible, type, cardinalités, verbe et nom technique. Elle garde son identité (elle n'est ni dupliquée ni recréée), ce qui préserve l'historique et la comparaison des versions. Si la relation a été supprimée pendant qu'on la modifiait, la modification est refusée et rien n'est recréé. Les règles de création s'appliquent (généralisation non réflexive, objets existants).
+
+#### Validation
+
+Modifier une relation : le nombre de relations ne change pas. Supprimer une relation en cours de modification, puis valider : refusé, aucune relation recréée.
+
+#### Éléments liés
+
+- Cas d'usage : [CU-024](#cu-024--modifier-une-relation)
+- Points UX : [UX-007](#ux-007--saisie--relation), [UX-009](#ux-009--listes-fiches)
 
 ## 3. Expérience utilisateur
 
@@ -1388,26 +1463,35 @@ Choisir un objet puis une propriété (seules les propriétés pas encore affect
 
 ### UX-007 — Saisie — Relation
 
-**Statut** : Brouillon
+**Statut** : À revoir
 
-Objet source, objet cible, cardinalités, type de lien et nom (verbe). Un aperçu lisible de la relation se met à jour pendant la saisie : « source \[1\] ── contient ──▶ \[0..\*\] cible ».
+Objet source, objet cible, cardinalités, type de lien, nom (verbe) et nom technique facultatif. Un aperçu lisible de la relation se met à jour pendant la saisie : « source \[1\] ── contient ──▶ \[0..\*\] cible ». En modification d'une relation existante, un message l'indique, le bouton devient « Mettre à jour la relation » et « Annuler la modification » apparaît.
 
 #### Interactions
 
 - Suggestions à la saisie
 - Aperçu en direct
 - Ajouter la relation
+- Mettre à jour la relation (en modification)
+- Annuler la modification
 
 #### Messages
 
 | Type | Message |
 | --- | --- |
-| Succès | Relation ajoutée. |
-| Erreur | Choisis deux objets existants (noms exacts). / Une généralisation ne peut pas relier un objet à lui-même. |
+| Succès | Relation ajoutée. / Relation mise à jour. |
+| Erreur | Choisis deux objets existants (noms exacts). / Une généralisation ne peut pas relier un objet à lui-même. / Cette relation n'existe plus (supprimée entre-temps). |
+| Avertissement | Modification d’une relation existante — valider met à jour cette relation. |
+
+#### États de l'écran
+
+- Création
+- Modification
 
 #### Éléments liés
 
-- Cas d'usage : [CU-007](#cu-007--relier-deux-objets)
+- Cas d'usage : [CU-007](#cu-007--relier-deux-objets), [CU-024](#cu-024--modifier-une-relation)
+- Règles métier : [RB-033](#rb-033--nom-technique-dune-relation), [RB-034](#rb-034--modification-dune-relation)
 
 ### UX-008 — Saisie — Lien externe
 
@@ -1433,9 +1517,9 @@ Adresse de l'élément externe, système externe, cible (objet ou propriété, l
 
 ### UX-009 — Listes (Fiches)
 
-**Statut** : Brouillon
+**Statut** : À revoir
 
-Listes cherchables des objets, propriétés, relations, liens externes et référentiels (domaines, natures, disciplines, grandeurs, verbes). Recherche texte et filtres cumulables (nature, domaine, discipline, type, statut). Chaque liste affiche le nombre de résultats. Une ligne d'objet se déplie sur ses propriétés affectées (avec action « Retirer »), une ligne de propriété sur les objets qui l'utilisent. Le statut s'affiche en pastille colorée et libellée (brouillon or, validé vert, obsolète gris) et se modifie sur place.
+Listes cherchables des objets, propriétés, relations, liens externes et référentiels (domaines, natures, disciplines, grandeurs, verbes). Recherche texte (pour les relations : objets, verbe et nom technique) et filtres cumulables (nature, domaine, discipline, type, statut). Chaque liste affiche le nombre de résultats. Dans la liste des objets, le domaine s'affiche sur sa couleur de domaine. Une ligne d'objet se déplie sur ses propriétés affectées (avec action « Retirer »), une ligne de propriété sur les objets qui l'utilisent. Le statut s'affiche en pastille colorée et libellée (brouillon or, validé vert, obsolète gris) et se modifie sur place. Une relation se modifie depuis sa ligne (« Éditer »).
 
 #### Interactions
 
@@ -1461,13 +1545,14 @@ Listes cherchables des objets, propriétés, relations, liens externes et réfé
 
 #### Éléments liés
 
-- Cas d'usage : [CU-006](#cu-006--affecter-une-propriété-à-un-objet), [CU-008](#cu-008--supprimer-un-élément-du-modèle), [CU-009](#cu-009--curer-le-modèle), [CU-010](#cu-010--rechercher-et-filtrer-dans-les-listes), [CU-013](#cu-013--tracer-une-exigence-externe)
+- Cas d'usage : [CU-006](#cu-006--affecter-une-propriété-à-un-objet), [CU-008](#cu-008--supprimer-un-élément-du-modèle), [CU-009](#cu-009--curer-le-modèle), [CU-010](#cu-010--rechercher-et-filtrer-dans-les-listes), [CU-013](#cu-013--tracer-une-exigence-externe), [CU-024](#cu-024--modifier-une-relation)
+- Règles métier : [RB-033](#rb-033--nom-technique-dune-relation), [RB-034](#rb-034--modification-dune-relation)
 
 ### UX-010 — Diagramme
 
-**Statut** : Brouillon
+**Statut** : À revoir
 
-Graphe interactif des objets et de leurs relations. Chaque objet affiche son nom, sa nature et son domaine en texte ; la couleur de bordure indique la nature (teintes distinctes même au-delà de 8 natures). Flèches : ▷ généralisation, ◆ composition, ◇ agrégation, → association ; ✱ propriété obligatoire. Panneau de détail de l'objet sélectionné.
+Graphe interactif des objets et de leurs relations. Chaque objet affiche son nom, sa nature et son domaine en texte ; la couleur de bordure indique la nature (teintes distinctes même au-delà de 8 natures), le fond pastel le domaine (un objet sans domaine reste sur fond blanc). Chaque domaine garde la même teinte quels que soient les filtres et la vue ; le filtre par domaine montre cette couleur. Flèches : ▷ généralisation, ◆ composition, ◇ agrégation, → association ; ✱ propriété obligatoire. Panneau de détail de l'objet sélectionné.
 
 #### Interactions
 
@@ -1496,7 +1581,7 @@ Graphe interactif des objets et de leurs relations. Chaque objet affiche son nom
 
 #### Accessibilité
 
-- Contraste : Nature et domaine lisibles sans la couleur (daltonisme)
+- Contraste : Nature et domaine lisibles sans la couleur (texte sous le nom) ; fonds pastel assez clairs pour garder le texte lisible
 
 #### Éléments liés
 
@@ -1504,9 +1589,9 @@ Graphe interactif des objets et de leurs relations. Chaque objet affiche son nom
 
 ### UX-011 — Impact
 
-**Statut** : Brouillon
+**Statut** : À revoir
 
-Graphe objets ↔ propriétés : un trait relie une propriété à chaque objet qui la porte (plein = obligatoire, pointillé = facultative). Les propriétés affectées à aucun objet sont repérées (contour pointillé). Cliquer un objet ou une propriété met en évidence son voisinage jusqu'à la profondeur choisie (1 à 5) et affiche son détail (propriétés de l'objet, ou objets qui utilisent la propriété).
+Graphe objets ↔ propriétés : un trait relie une propriété à chaque objet qui la porte (plein = obligatoire, pointillé = facultative). Les propriétés affectées à aucun objet sont repérées (contour pointillé). Cliquer un objet ou une propriété met en évidence son voisinage jusqu'à la profondeur choisie (1 à 5) et affiche son détail (propriétés de l'objet, ou objets qui utilisent la propriété). Comme dans le diagramme, la bordure d'un objet indique sa nature et son fond son domaine.
 
 #### Interactions
 
@@ -1523,7 +1608,7 @@ Graphe objets ↔ propriétés : un trait relie une propriété à chaque objet 
 
 #### Accessibilité
 
-- Contraste : Obligatoire / facultatif distingués par le trait, pas seulement la couleur
+- Contraste : Nature et domaine lisibles sans la couleur (texte sous le nom) ; fonds pastel assez clairs pour garder le texte lisible
 
 #### Éléments liés
 
@@ -1531,15 +1616,19 @@ Graphe objets ↔ propriétés : un trait relie une propriété à chaque objet 
 
 ### UX-012 — Consultation en lecture
 
-**Statut** : Brouillon
+**Statut** : À revoir
 
-Pour un lecteur : navigation dans le modèle avec recherche, filtres nature / domaine, panneau de détail d'un objet, sans aucune action de modification.
+Pour un lecteur : navigation dans le modèle avec recherche, filtres nature / domaine, panneau de détail d'un objet, sans aucune action de modification. Mêmes repères de couleur que le diagramme (bordure : nature, fond : domaine).
 
 #### Interactions
 
 - Rechercher
 - Filtrer
 - Voir le détail
+
+#### Accessibilité
+
+- Contraste : Nature et domaine lisibles sans la couleur (texte sous le nom) ; fonds pastel assez clairs pour garder le texte lisible
 
 #### Éléments liés
 
@@ -1662,23 +1751,24 @@ Vue des différences entre deux versions choisies : éléments ajoutés, supprim
 | [CU-004](#cu-004--définir-une-propriété-partagée) | Définir une propriété partagée | [RB-001](#rb-001--unicité-des-noms), [RB-002](#rb-002--une-propriété-est-une-définition-partagée), [RB-004](#rb-004--types-de-propriété), [RB-005](#rb-005--propriété-de-type-liste-de-valeurs), [RB-006](#rb-006--propriété-de-type-grandeur-physique), [RB-007](#rb-007--contraintes-de-valeur), [RB-010](#rb-010--création-à-la-volée-des-référentiels) | [UX-004](#ux-004--saisie--propriété) | Brouillon |
 | [CU-005](#cu-005--gérer-une-liste-de-valeurs) | Gérer une liste de valeurs | [RB-008](#rb-008--listes-de-valeurs), [RB-010](#rb-010--création-à-la-volée-des-référentiels) | [UX-005](#ux-005--saisie--listes-de-valeurs) | Brouillon |
 | [CU-006](#cu-006--affecter-une-propriété-à-un-objet) | Affecter une propriété à un objet | [RB-003](#rb-003--ce-qui-dépend-de-lusage-est-porté-par-laffectation), [RB-009](#rb-009--disciplines), [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées) | [UX-006](#ux-006--saisie--affectation), [UX-009](#ux-009--listes-fiches) | Brouillon |
-| [CU-007](#cu-007--relier-deux-objets) | Relier deux objets | [RB-012](#rb-012--types-de-relation-et-sens-de-lecture), [RB-013](#rb-013--cardinalités), [RB-014](#rb-014--généralisation-non-réflexive), [RB-010](#rb-010--création-à-la-volée-des-référentiels), [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées) | [UX-007](#ux-007--saisie--relation) | Brouillon |
-| [CU-008](#cu-008--supprimer-un-élément-du-modèle) | Supprimer un élément du modèle | [RB-015](#rb-015--suppression-dun-objet), [RB-016](#rb-016--suppression-dune-propriété), [RB-017](#rb-017--suppression-dun-élément-de-référentiel), [RB-008](#rb-008--listes-de-valeurs) | [UX-009](#ux-009--listes-fiches), [UX-016](#ux-016--confirmations-et-messages) | Brouillon |
+| [CU-007](#cu-007--relier-deux-objets) | Relier deux objets | [RB-010](#rb-010--création-à-la-volée-des-référentiels), [RB-012](#rb-012--types-de-relation-et-sens-de-lecture), [RB-013](#rb-013--cardinalités), [RB-014](#rb-014--généralisation-non-réflexive), [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées), [RB-033](#rb-033--nom-technique-dune-relation) | [UX-007](#ux-007--saisie--relation) | À revoir |
+| [CU-008](#cu-008--supprimer-un-élément-du-modèle) | Supprimer un élément du modèle | [RB-008](#rb-008--listes-de-valeurs), [RB-015](#rb-015--suppression-dun-objet), [RB-016](#rb-016--suppression-dune-propriété), [RB-017](#rb-017--suppression-dun-élément-de-référentiel) | [UX-009](#ux-009--listes-fiches), [UX-016](#ux-016--confirmations-et-messages) | Brouillon |
 | [CU-009](#cu-009--curer-le-modèle) | Curer le modèle | [RB-018](#rb-018--statut-de-curation), [RB-019](#rb-019--rôles--lecteur-et-contributeur) | [UX-009](#ux-009--listes-fiches), [UX-010](#ux-010--diagramme) | Brouillon |
 | [CU-010](#cu-010--rechercher-et-filtrer-dans-les-listes) | Rechercher et filtrer dans les listes | [RB-029](#rb-029--volumétrie-et-fluidité) | [UX-009](#ux-009--listes-fiches) | Brouillon |
 | [CU-011](#cu-011--explorer-le-modèle-en-diagramme) | Explorer le modèle en diagramme | [RB-011](#rb-011--trois-axes-de-classement-dun-objet), [RB-012](#rb-012--types-de-relation-et-sens-de-lecture), [RB-029](#rb-029--volumétrie-et-fluidité), [RB-030](#rb-030--configurations-de-filtres-partagées) | [UX-010](#ux-010--diagramme) | Brouillon |
 | [CU-012](#cu-012--analyser-limpact-dune-propriété-ou-dun-objet) | Analyser l'impact d'une propriété ou d'un objet | [RB-002](#rb-002--une-propriété-est-une-définition-partagée), [RB-003](#rb-003--ce-qui-dépend-de-lusage-est-porté-par-laffectation) | [UX-011](#ux-011--impact) | Brouillon |
-| [CU-013](#cu-013--tracer-une-exigence-externe) | Tracer une exigence externe | [RB-023](#rb-023--liens-vers-un-référentiel-externe), [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées) | [UX-008](#ux-008--saisie--lien-externe), [UX-009](#ux-009--listes-fiches) | Brouillon |
-| [CU-014](#cu-014--exporter-le-modèle-aux-standards-du-web-sémantique) | Exporter le modèle aux standards du web sémantique | [RB-021](#rb-021--paramètres-des-exports-sémantiques), [RB-022](#rb-022--correspondance-du-modèle-avec-les-standards-rdfowl-et-shacl), [RB-023](#rb-023--liens-vers-un-référentiel-externe) | [UX-002](#ux-002--en-tête) | Brouillon |
-| [CU-015](#cu-015--consulter-le-modèle-sans-le-modifier) | Consulter le modèle sans le modifier | [RB-019](#rb-019--rôles--lecteur-et-contributeur) | [UX-012](#ux-012--consultation-en-lecture), [UX-010](#ux-010--diagramme) | Brouillon |
-| [CU-016](#cu-016--enregistrer-une-version-du-modèle) | Enregistrer une version du modèle | [RB-026](#rb-026--versions-identifiées--auteur-date-résumé), [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-019](#rb-019--rôles--lecteur-et-contributeur) | [UX-002](#ux-002--en-tête), [UX-016](#ux-016--confirmations-et-messages) | Brouillon |
+| [CU-013](#cu-013--tracer-une-exigence-externe) | Tracer une exigence externe | [RB-020](#rb-020--saisie-guidée-par-noms-et-valeurs-autorisées), [RB-023](#rb-023--liens-vers-un-référentiel-externe) | [UX-008](#ux-008--saisie--lien-externe), [UX-009](#ux-009--listes-fiches) | Brouillon |
+| [CU-014](#cu-014--exporter-le-modèle-aux-standards-du-web-sémantique) | Exporter le modèle aux standards du web sémantique | [RB-021](#rb-021--paramètres-des-exports-sémantiques), [RB-022](#rb-022--correspondance-du-modèle-avec-les-standards-rdfowl-et-shacl), [RB-023](#rb-023--liens-vers-un-référentiel-externe), [RB-033](#rb-033--nom-technique-dune-relation) | [UX-002](#ux-002--en-tête) | Brouillon |
+| [CU-015](#cu-015--consulter-le-modèle-sans-le-modifier) | Consulter le modèle sans le modifier | [RB-019](#rb-019--rôles--lecteur-et-contributeur) | [UX-010](#ux-010--diagramme), [UX-012](#ux-012--consultation-en-lecture) | Brouillon |
+| [CU-016](#cu-016--enregistrer-une-version-du-modèle) | Enregistrer une version du modèle | [RB-019](#rb-019--rôles--lecteur-et-contributeur), [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-026](#rb-026--versions-identifiées--auteur-date-résumé) | [UX-002](#ux-002--en-tête), [UX-016](#ux-016--confirmations-et-messages) | Brouillon |
 | [CU-017](#cu-017--travailler-en-même-temps-quun-collègue) | Travailler en même temps qu'un collègue | [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-025](#rb-025--élément-conservé-lors-dun-conflit-de-suppression) | [UX-013](#ux-013--arbitrage-des-conflits) | Brouillon |
-| [CU-018](#cu-018--être-averti-dune-nouvelle-version-et-lintégrer) | Être averti d'une nouvelle version et l'intégrer | [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-025](#rb-025--élément-conservé-lors-dun-conflit-de-suppression) | [UX-014](#ux-014--bandeau-de-nouvelle-version), [UX-013](#ux-013--arbitrage-des-conflits) | Brouillon |
-| [CU-019](#cu-019--consulter-lhistorique-et-restaurer-une-version) | Consulter l'historique et restaurer une version | [RB-027](#rb-027--historique-restauration-et-jalons), [RB-026](#rb-026--versions-identifiées--auteur-date-résumé) | [UX-015](#ux-015--versions-enregistrées) | Brouillon |
+| [CU-018](#cu-018--être-averti-dune-nouvelle-version-et-lintégrer) | Être averti d'une nouvelle version et l'intégrer | [RB-024](#rb-024--aucune-modification-concurrente-perdue), [RB-025](#rb-025--élément-conservé-lors-dun-conflit-de-suppression) | [UX-013](#ux-013--arbitrage-des-conflits), [UX-014](#ux-014--bandeau-de-nouvelle-version) | Brouillon |
+| [CU-019](#cu-019--consulter-lhistorique-et-restaurer-une-version) | Consulter l'historique et restaurer une version | [RB-026](#rb-026--versions-identifiées--auteur-date-résumé), [RB-027](#rb-027--historique-restauration-et-jalons) | [UX-015](#ux-015--versions-enregistrées) | Brouillon |
 | [CU-020](#cu-020--poser-un-jalon) | Poser un jalon | [RB-027](#rb-027--historique-restauration-et-jalons) | [UX-015](#ux-015--versions-enregistrées) | Brouillon |
 | [CU-021](#cu-021--reprendre-un-travail-interrompu) | Reprendre un travail interrompu | [RB-028](#rb-028--aucune-saisie-perdue-en-cas-dinterruption) | [UX-001](#ux-001--accueil) | Brouillon |
-| [CU-022](#cu-022--comparer-deux-versions-du-modèle) | Comparer deux versions du modèle | [RB-031](#rb-031--comparaison-de-deux-versions) | [UX-018](#ux-018--comparaison-de-versions), [UX-015](#ux-015--versions-enregistrées) | Brouillon |
-| [CU-023](#cu-023--importer-des-éléments-en-masse) | Importer des éléments en masse | [RB-032](#rb-032--import-en-masse-par-noms), [RB-018](#rb-018--statut-de-curation), [RB-010](#rb-010--création-à-la-volée-des-référentiels) | [UX-016](#ux-016--confirmations-et-messages) | Brouillon |
+| [CU-022](#cu-022--comparer-deux-versions-du-modèle) | Comparer deux versions du modèle | [RB-031](#rb-031--comparaison-de-deux-versions) | [UX-015](#ux-015--versions-enregistrées), [UX-018](#ux-018--comparaison-de-versions) | Brouillon |
+| [CU-023](#cu-023--importer-des-éléments-en-masse) | Importer des éléments en masse | [RB-010](#rb-010--création-à-la-volée-des-référentiels), [RB-018](#rb-018--statut-de-curation), [RB-032](#rb-032--import-en-masse-par-noms) | [UX-016](#ux-016--confirmations-et-messages) | Brouillon |
+| [CU-024](#cu-024--modifier-une-relation) | Modifier une relation | [RB-034](#rb-034--modification-dune-relation), [RB-012](#rb-012--types-de-relation-et-sens-de-lecture), [RB-013](#rb-013--cardinalités), [RB-014](#rb-014--généralisation-non-réflexive), [RB-033](#rb-033--nom-technique-dune-relation) | [UX-007](#ux-007--saisie--relation), [UX-009](#ux-009--listes-fiches) | Brouillon |
 
 ### Points à compléter
 
@@ -1700,7 +1790,7 @@ Le prototype considère « Vue » et « vue » comme deux noms différents : deu
 ### Q-002 — Quelle volumétrie viser ?
 
 **Statut** : En suspens  
-**Concerne** : [RB-029](#rb-029--volumétrie-et-fluidité), [CU-017](#cu-017--travailler-en-même-temps-quun-collègue)
+**Concerne** : [CU-017](#cu-017--travailler-en-même-temps-quun-collègue), [RB-029](#rb-029--volumétrie-et-fluidité)
 
 #### Contexte
 
@@ -1729,6 +1819,7 @@ Le modèle de données du prototype prévoit, pour chaque contrainte, un message
 | **Liste de valeurs** | Ensemble fermé de valeurs admises pour une propriété. |
 | **Modèle** | Description d'un domaine : ses objets, leurs propriétés et leurs relations. |
 | **Nature** | Forme d'un objet (Produit, Fiche…), servant au classement ; ne transmet aucune propriété. |
+| **Nom technique** | Identifiant facultatif d'une relation, propre à elle, utilisé par les outils qui exploitent le modèle. |
 | **Objet** | Entité du domaine (Produit, Fiche, Document…). Ce n'est pas une donnée : c'est la description d'un type de données. |
 | **Propriété** | Définition d'une caractéristique (nom, type, contraintes), partagée entre les objets qui la portent. |
 | **Relation** | Lien orienté entre deux objets : association, composition, agrégation ou généralisation. |
@@ -1736,4 +1827,4 @@ Le modèle de données du prototype prévoit, pour chaque contrainte, un message
 
 ---
 
-*Document généré le 18/11/2026 à 12:00 par SpecForm.*
+*Document généré le 18/11/2026 à 19:33 par SpecForm.*
