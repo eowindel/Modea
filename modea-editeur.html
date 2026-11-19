@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.11.1">
+<meta name="version" content="0.12.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -213,6 +213,7 @@
   .rel .arw{color:var(--accent);font-weight:600}
   .rel .card{color:var(--muted)}
   .rel .typ{color:var(--muted);font-size:10.5px}
+  .mgtable td.relglyph{font-family:var(--mono);font-size:14px;color:var(--accent-deep);white-space:nowrap;letter-spacing:-1px}
 
   /* ---- Chips / catalogue ---- */
   .chip{display:inline-block;background:#EEF2F5;color:var(--muted);border-radius:20px;padding:1px 8px;font-size:10px;font-family:var(--mono);margin-left:4px}
@@ -468,7 +469,7 @@
             <li><b>Afficher les propriétés</b> : bascule chaque boîte entre nom seul (compact) et détail façon UML (nom, type, obligatoire ✱) — sans perdre la disposition en cours.</li>
             <li><b>Plein écran</b> pour explorer un gros modèle sur tout l'écran, avec tous les contrôles.</li>
             <li><b>PNG</b>/<b>SVG</b> pour exporter une image du graphe tel qu'affiché.</li>
-            <li>Légende des flèches : ▷ héritage · ◆ composition · ◇ agrégation · → association.</li>
+            <li>Légende des flèches : ──▷ généralisation · ◆── composition · ◇── agrégation · ╌╌▸ association.</li>
           </ul>
         </section>
 
@@ -922,6 +923,14 @@
           <label class="check" style="margin:0"><input type="checkbox" id="cyShowProps"> afficher les propriétés</label>
           <label class="check" style="margin:0"><input type="checkbox" id="cyShowRel"> afficher les relations</label>
           <label class="check" style="margin:0"><input type="checkbox" id="cyFocus" checked> focus au clic</label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)" title="Jusqu'où s'allument les voisins de l'objet sélectionné">voisins
+            <select id="cyDepth">
+              <option value="1" selected>niveau 1</option>
+              <option value="2">jusqu'au niveau 2</option>
+              <option value="3">jusqu'au niveau 3</option>
+              <option value="4">jusqu'au niveau 4</option>
+              <option value="5">jusqu'au niveau 5</option>
+            </select></label>
           <button class="btn ghost sm" id="cyClearFocus">Réinitialiser</button>
           <button class="btn ghost sm" id="cyPng">PNG</button>
           <button class="btn ghost sm" id="cySvgBtn">SVG</button>
@@ -959,7 +968,7 @@
             <div id="cyFilterConfigList" style="margin-top:8px"></div>
           </div>
         </details>
-        <div class="legend" style="margin:0 0 8px">▷ héritage · ◆ composition · ◇ agrégation · → association · ✱ obligatoire</div>
+        <div class="legend" style="margin:0 0 8px">──▷ généralisation · ◆── composition · ◇── agrégation · ╌╌▸ association · ✱ obligatoire</div>
         <div id="cyWrap">
           <div id="cy"></div>
           <div id="cyDetail" class="hidden"></div>
@@ -1060,13 +1069,27 @@ function domaineFills(){
 
 const TYPES = ['texte','entier','decimal','booleen','date','datetime','enum','identifiant','grandeur'];
 const REL_TYPES = ['association','composition','agregation','generalisation'];
+// Symbole de chaque type de relation, cohérent avec le diagramme (issue #23) : losange côté source
+// pour composition/agrégation, triangle creux côté cible pour la généralisation, pointillés pour l'association.
+const REL_GLYPHS = {
+  association:   { lib:'association',    gauche:'╌╌', droite:'╌╌▸', court:'╌╌▸' },
+  composition:   { lib:'composition',    gauche:'◆──', droite:'──',  court:'◆──' },
+  agregation:    { lib:'agrégation',     gauche:'◇──', droite:'──',  court:'◇──' },
+  generalisation:{ lib:'généralisation', gauche:'──',  droite:'──▷', court:'──▷' }
+};
+const relGlyph = t => REL_GLYPHS[t] || REL_GLYPHS.association;
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 8; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.11.1'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.12'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.12', date:'2026-11-19', items:[
+    "Diagramme : un nouveau réglage « voisins » à côté de « focus au clic » choisit jusqu'où s'allume l'entourage de l'objet sélectionné : ses voisins directs (comme avant), ou aussi les voisins de ses voisins, jusqu'à 5 niveaux. Le même réglage est disponible dans l'export HTML.",
+    "Les relations d'un objet vers lui-même (par exemple une application liée à d'autres applications) apparaissent enfin dans le diagramme, sous forme de boucle au-dessus de la boîte. Elles étaient jusqu'ici cachées derrière l'objet.",
+    "Le type de chaque relation se lit désormais hors du diagramme, avec le même symbole : ◆── composition, ◇── agrégation, ──▷ généralisation, ╌╌▸ association. On le retrouve dans la liste Relations, dans le choix du type et dans l'aperçu du formulaire, qui se met à jour quand on change de type."
+  ]},
   { version:'v0.11.1', date:'2026-11-19', items:[
     "Corrigé : changer le nom d'un objet ou d'une propriété depuis sa fiche créait un second élément au lieu de renommer le premier. Le renommage se fait désormais sur place, en gardant ses propriétés, ses relations et ses affectations.",
     "Si le nouveau nom est déjà pris par un autre objet (ou une autre propriété), la modification est refusée avec un message.",
@@ -2094,6 +2117,7 @@ function refreshAll(){
     if(cur && discs.some(d=>d.code===cur)) sel.value=cur; }
   fillFilterSelect('mgPropType', TYPES, 'Tous types');
   fillFilterSelect('mgRelType', REL_TYPES, 'Tous types');
+  [...el('mgRelType').options].forEach(o=>{ if(o.value) o.textContent=relGlyph(o.value).court+'  '+relGlyph(o.value).lib; });
 
   renderMgObjets(); renderMgProps(); renderMgRels(); renderMgLiens(); renderRefTables(); updateRelPreview();
   renderValuesFor(v('pv_nom'));
@@ -2245,8 +2269,8 @@ function renderMgRels(){
   if(!rows.length) body.innerHTML='<tr><td colspan="7" class="noprops">Aucune relation.</td></tr>';
   rows.forEach(r=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${esc(r.src)} <span class="mgdef">[${r.cs}]</span></td><td class="typ">──▶</td>
-      <td>${esc(r.tgt)} <span class="mgdef">[${r.cc}]</span></td><td>${r.type}</td><td>${r.rel?esc(r.rel):''}${r.tech?` <span class="mgdef">${esc(r.tech)}</span>`:''}</td>
+    tr.innerHTML=`<td>${esc(r.src)} <span class="mgdef">[${r.cs}]</span></td><td class="typ relglyph" title="${esc(relGlyph(r.type).lib)}">${relGlyph(r.type).court}</td>
+      <td>${esc(r.tgt)} <span class="mgdef">[${r.cc}]</span></td><td>${esc(relGlyph(r.type).lib)}</td><td>${r.rel?esc(r.rel):''}${r.tech?` <span class="mgdef">${esc(r.tech)}</span>`:''}</td>
       <td>${statutSelectHtml('relation',r.id,r.statut)}</td>
       <td class="mgactions"><button class="btn xs ghost" data-act="edit" data-id="${r.id}">Éditer</button>
         <button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button></td>`;
@@ -2371,7 +2395,8 @@ function setFichesSubView(name){
 }
 function updateRelPreview(){
   const s=v('r_src'), t=v('r_tgt');
-  el('r_preview').textContent=`${s||'source'}  [${v('r_cs')||'1'}] ──${v('r_nom')||''}──▶ [${v('r_cc')||'0..*'}]  ${t||'cible'}`;
+  const g=relGlyph(v('r_type')), nom=v('r_nom');
+  el('r_preview').textContent=`${s||'source'}  [${v('r_cs')||'1'}] ${g.gauche}${nom?' '+nom+' ':''}${g.droite} [${v('r_cc')||'0..*'}]  ${t||'cible'}`;
 }
 
 /* ---------- Diagramme : graphe interactif Cytoscape ---------- */
@@ -2431,7 +2456,7 @@ function buildCyElements(){
   });
   const edges = rels.map(r=>({
     data:{ id:'e'+r.id, source:'n'+r.source_id, target:'n'+r.cible_id, type:r.type, label:r.nom||'',
-           cs:r.card_source, cc:r.card_cible },
+           cs:r.card_source, cc:r.card_cible, ...(r.source_id===r.cible_id ? {loopDist:40} : {}) },
     classes:'rel-'+r.type
   }));
   return { nodes, edges };
@@ -2480,6 +2505,12 @@ function applyCyLabelMode(){
   if(!cy) return;
   const full = el('cyShowProps').checked;
   cy.batch(()=>{ cy.nodes('.obj').forEach(n=>n.data('label', full ? n.data('labelFull') : n.data('labelCompact'))); });
+  cySetLoopSizes(cy);
+}
+// la boucle part du centre de la boîte : elle doit dépasser la demi-hauteur pour se voir
+// (recalculé quand les propriétés sont affichées/masquées, ce qui change la hauteur)
+function cySetLoopSizes(c){
+  c.edges(':loop').forEach(e=>e.data('loopDist', Math.round(e.source().outerHeight()/2/1.05+34)));
 }
 function applyCyRelLabelMode(){
   if(!cy) return;
@@ -2522,6 +2553,11 @@ function cyStyle(isLarge){
   // bezier est couteux a calculer/redessiner sur un gros graphe ; une courbe droite est bien
   // moins chere et invisible a l'oeil une fois qu'il y a des centaines d'aretes a l'ecran
   if(isLarge) rules.push({ selector:'edge', style:{ 'curve-style':'straight' } });
+  // relation d'un objet vers lui-même (issue #25) : boucle au-dessus de la boîte, toujours en
+  // courbe (une ligne droite ne sait pas dessiner une boucle). Sa taille (loopDist) suit la
+  // hauteur de la boîte, sinon la boucle reste cachée derrière : voir cySetLoopSizes().
+  rules.push({ selector:'edge:loop', style:{ 'curve-style':'bezier', 'loop-direction':'0deg', 'loop-sweep':'-70deg',
+    'control-point-step-size':'data(loopDist)' } });
   return rules;
 }
 function cyImpactStyle(isLarge){
@@ -2569,6 +2605,7 @@ async function renderDiagram(){
 
   const elements = buildCyElements();
   if(cy) cy.destroy();
+  cySelectedNode = null;
   el('cy').innerHTML=''; // Cytoscape n'efface pas le conteneur lui-meme, il ajoute juste ses canevas
   const cyIsLarge = elements.nodes.length>CY_LARGE_GRAPH_THRESHOLD;
   cy = cytoscape({
@@ -2708,18 +2745,22 @@ function doCySearch(){
   cy.animate({ center:{eles:node}, zoom:1.4 }, {duration:300});
   onCyNodeSelected(node);
 }
+let cySelectedNode=null;
 function onCyNodeSelected(node){
+  cySelectedNode = node;
   renderCyDetail(node);
   if(!el('cyFocus').checked) return;
-  let acc = node.closedNeighborhood();
+  // niveau choisi (issue #26) : 1 = voisins directs, 2 = voisins des voisins, etc.
+  const acc = closedNeighborhoodAtDepth(node, Math.max(1, +v('cyDepth')||1));
   cy.batch(()=>{
     cy.elements().addClass('dim');
     acc.removeClass('dim');
     cy.edges().removeClass('show-label');
-    node.connectedEdges().addClass('show-label');
+    acc.edges().addClass('show-label');
   });
 }
 function clearCyFocus(){
+  cySelectedNode = null;
   if(!cy) return;
   cy.batch(()=>{ cy.elements().removeClass('dim'); cy.edges().removeClass('show-label'); });
 }
@@ -2796,6 +2837,7 @@ function renderStaticDiagramHtml(o){
     <button id="resetBtn">Réinitialiser</button>
     <label><input type="checkbox" id="showProps"${o.propsOn?' checked':''}> propriétés</label>
     <label><input type="checkbox" id="showRels"${o.relsOn?' checked':''}> relations</label>
+    <label>voisins <select id="depth">${[1,2,3,4,5].map(d=>`<option value="${d}"${d===o.depth?' selected':''}>${d===1?'niveau 1':"jusqu'au niveau "+d}</option>`).join('')}</select></label>
     <span class="stats" id="stats">${o.visibleCount} / ${o.totalCount} objets · généré le ${esc(o.generatedAt)}</span>
   </div>
   <details id="filters">
@@ -2805,7 +2847,7 @@ function renderStaticDiagramHtml(o){
       <div><span class="flab">Domaine</span><div id="filterDomaine"></div></div>
     </div>
   </details>
-  <div id="legend">▷ héritage · ◆ composition · ◇ agrégation · → association · ✱ obligatoire</div>
+  <div id="legend">──▷ généralisation · ◆── composition · ◇── agrégation · ╌╌▸ association · ✱ obligatoire</div>
   <div id="wrap">
     <div id="cy"></div>
     <div id="detail" class="hidden"></div>
@@ -2819,18 +2861,22 @@ function renderStaticDiagramHtml(o){
     var DOMAINES = ${jsonForScript(o.domaines)};
     var TOTAL = ${o.totalCount}, GENERATED_AT = ${jsonForScript(o.generatedAt)};
     var IS_LARGE = ${o.isLarge ? 'true' : 'false'};
-    var cy;
+    var cy, selected=null;
     function onSelect(node){
+      selected = node;
       var host=document.getElementById('detail'); host.classList.remove('hidden');
       host.innerHTML = DETAILS[node.id()] || '';
+      var depth = +document.getElementById('depth').value || 1, acc = node.closedNeighborhood(), frontier = acc;
+      for(var i=1; i<depth; i++){ frontier = frontier.closedNeighborhood(); acc = acc.union(frontier); }
       cy.batch(function(){
         cy.elements().addClass('dim');
-        node.closedNeighborhood().removeClass('dim');
+        acc.removeClass('dim');
         cy.edges().removeClass('show-label');
-        node.connectedEdges().addClass('show-label');
+        acc.edges().addClass('show-label');
       });
     }
     function clearFocus(){
+      selected = null;
       if(!cy) return;
       cy.batch(function(){
         cy.elements().removeClass('dim');
@@ -2841,6 +2887,7 @@ function renderStaticDiagramHtml(o){
     function applyLabelMode(){
       var full = document.getElementById('showProps').checked;
       cy.batch(function(){ cy.nodes().forEach(function(n){ n.data('label', full ? n.data('labelFull') : n.data('labelCompact')); }); });
+      cy.edges(':loop').forEach(function(e){ e.data('loopDist', Math.round(e.source().outerHeight()/2/1.05+34)); });
     }
     function applyRelLabelMode(){
       var on = document.getElementById('showRels').checked;
@@ -2904,6 +2951,7 @@ function renderStaticDiagramHtml(o){
       document.getElementById('searchBtn').onclick=doSearch;
       document.getElementById('search').addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); doSearch(); } });
       document.getElementById('resetBtn').onclick=clearFocus;
+      document.getElementById('depth').addEventListener('change', function(){ if(selected) onSelect(selected); });
       document.getElementById('showProps').addEventListener('change', applyLabelMode);
       document.getElementById('showRels').addEventListener('change', applyRelLabelMode);
     }else{
@@ -2947,7 +2995,8 @@ function buildDiagramHtmlExport(){
     style: cyStyle(true),
     isLarge,
     propsOn: el('cyShowProps').checked,
-    relsOn: el('cyShowRel').checked
+    relsOn: el('cyShowRel').checked,
+    depth: Math.max(1, +v('cyDepth')||1)
   });
 }
 function exportDiagramHtml(){
@@ -4467,6 +4516,7 @@ function enterEditor(){
 function fillStaticSelects(){
   const set=(id,vals,def)=>{const s=el(id);s.innerHTML="";vals.forEach(x=>{const o=document.createElement('option');o.value=x;o.textContent=x;if(x===def)o.selected=true;s.appendChild(o);});};
   set('p_type',TYPES,'texte'); set('r_type',REL_TYPES,'association');
+  [...el('r_type').options].forEach(o=>{ o.textContent=relGlyph(o.value).court+'  '+relGlyph(o.value).lib; });
   set('r_cs',CARDS,'1'); set('r_cc',CARDS,'0..*');
 }
 function wire(){
@@ -4509,7 +4559,7 @@ function wire(){
   el('p_type').addEventListener('change',updatePropTypeUI);
   el('p_grandeur').addEventListener('input',()=>{ if(v('p_type')==='grandeur') renderUnitesFor(v('p_grandeur')); });
   // aperçu relation en direct
-  ['r_src','r_tgt','r_cs','r_cc','r_nom'].forEach(id=>{const e=el(id); if(e){e.addEventListener('input',updateRelPreview);e.addEventListener('change',updateRelPreview);}});
+  ['r_src','r_tgt','r_type','r_cs','r_cc','r_nom'].forEach(id=>{const e=el(id); if(e){e.addEventListener('input',updateRelPreview);e.addEventListener('change',updateRelPreview);}});
   // Entrée = ajouter dans l'onglet courant
   ['o_nom','o_domaine','o_disc_code','o_disc_nom','o_def'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&id!=='o_def'){e.preventDefault();addOrUpdateObjet();}}));
   ['p_nom','p_desc','p_grandeur','p_unite','p_unite_libelle'].forEach(id=>el(id).addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addOrUpdateProp();}}));
@@ -4637,6 +4687,7 @@ function wire(){
   el('cyRelayout').onclick=()=>{ if(cy) cy.layout({name:v('cyLayout'),animate:true,padding:36}).run(); };
   el('cyFit').onclick=()=>{ if(cy) cy.fit(undefined,30); };
   el('cyClearFocus').onclick=clearCyFocus;
+  el('cyDepth').addEventListener('change', ()=>{ if(cySelectedNode && cySelectedNode.inside()) onCyNodeSelected(cySelectedNode); });
   el('cyShowProps').addEventListener('change', applyCyLabelMode);
   el('cyShowRel').addEventListener('change', applyCyRelLabelMode);
   // Manuel utilisateur
