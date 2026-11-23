@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.13.0">
+<meta name="version" content="0.14.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -406,6 +406,7 @@
           <ul>
             <li>Nature et domaine se créent à la volée si le nom tapé n'existe pas encore.</li>
             <li>Retaper le nom d'un objet existant précharge sa fiche et le bouton devient « Mettre à jour l'objet ».</li>
+            <li>« Dupliquer » (liste des objets, onglet Fiches) crée un objet identique sous un autre nom : mêmes nature, domaine, discipline, définition et mêmes propriétés affectées. Les relations ne sont pas copiées.</li>
             <li>Suppression possible depuis la liste (onglet Fiches) — un message indique combien d'affectations et de relations seront aussi retirées.</li>
           </ul>
         </section>
@@ -429,6 +430,7 @@
             <li><b>Obligatoire</b> et <b>discipline</b> sont propres à cette affectation précise : la même propriété peut être obligatoire sur un objet et facultative sur un autre.</li>
             <li>Si la discipline tapée n'existe pas, indique aussi son nom pour la créer.</li>
             <li>Affecter une propriété déjà liée à cet objet met simplement à jour l'obligation/la discipline.</li>
+            <li>L'objet reste saisi après chaque affectation pour enchaîner les propriétés ; « Tout vider » remet tous les champs à zéro, objet compris.</li>
             <li>Pour retirer une propriété d'un objet : dans la liste Objets, clique la ligne de l'objet pour la déplier, puis « Retirer » sur la propriété concernée.</li>
           </ul>
         </section>
@@ -734,7 +736,8 @@
         <div class="field"><label><span class="lab">Discipline — nom (si code inconnu)</span>
           <input type="text" id="a_disc_nom" placeholder="ex : Electricité" autocomplete="off"></label></div>
       </div>
-      <div class="actions"><button class="btn primary" id="addAffect">Affecter la propriété</button></div>
+      <div class="actions"><button class="btn primary" id="addAffect">Affecter la propriété</button>
+        <button class="btn ghost" id="resetAffect" title="Vider tous les champs, y compris l'objet">Tout vider</button></div>
       <p class="hint">Si cette propriété est déjà affectée à cet objet, valider met simplement à jour l'obligation et la discipline.</p>
     </div>
 
@@ -1085,10 +1088,14 @@ const relGlyph = t => REL_GLYPHS[t] || REL_GLYPHS.association;
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 9; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.13'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.14'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.14', date:'2026-11-23', items:[
+    "Fiches : nouveau bouton « Dupliquer » sur chaque objet. Il crée un objet identique (nature, domaine, discipline, définition et propriétés affectées, avec leur caractère obligatoire) sous le nom que vous choisissez. Pratique pour créer vite plusieurs objets qui ne diffèrent que par leur nom. Les relations ne sont pas copiées.",
+    "Affectation : nouveau bouton « Tout vider » qui remet à zéro tous les champs du formulaire, y compris l'objet. L'objet reste toujours mémorisé après chaque affectation pour enchaîner les propriétés."
+  ]},
   { version:'v0.13', date:'2026-11-19', items:[
     "Diagramme : une configuration enregistrée retient désormais la place de chaque objet, en plus des filtres. En l'appliquant, on retrouve la disposition telle qu'on l'avait arrangée, même après avoir renommé des objets. Les objets créés depuis restent à la place que leur donne la mise en page automatique.",
     "La configuration appliquée est indiquée dans la liste et reste en place quand on revient au diagramme après avoir modifié des fiches. « Réorganiser » ou un changement de mise en page repart d'une disposition automatique.",
@@ -1773,6 +1780,25 @@ function editObjetRow(id){
   const row=exec("SELECT uid FROM objet WHERE id=?",[id])[0]; if(!row) return;
   loadObjetForm(row.uid); switchToTab('pObjet'); focus('o_nom');
 }
+// Issue #27 : copie d'un objet (fiche + propriétés affectées, avec leur caractère obligatoire et leur
+// discipline) sous un nouveau nom. Les relations ne sont pas copiées : elles dépendent du sens métier.
+function duplicateObjet(id){
+  const src=exec("SELECT * FROM objet WHERE id=?",[id])[0]; if(!src) return;
+  const saisie=prompt("Nom du nouvel objet (copie de « "+src.nom+" ») :", src.nom+" (copie)");
+  if(saisie==null) return;
+  const nom=saisie.trim();
+  if(!nom) return toast("Donne un nom au nouvel objet","err");
+  if(exec("SELECT 1 FROM objet WHERE nom=?",[nom]).length) return toast("Un objet s'appelle déjà « "+nom+" »","err");
+  try{
+    run("INSERT INTO objet(nom,domaine_id,classe_id,discipline_id,definition) VALUES (?,?,?,?,?)",
+        [nom,src.domaine_id,src.classe_id,src.discipline_id,src.definition]);
+    const nid=exec("SELECT id FROM objet WHERE nom=?",[nom])[0].id;
+    run("INSERT INTO applicabilite(objet_id,propriete_id,obligatoire,discipline_id,ordre) SELECT ?,propriete_id,obligatoire,discipline_id,ordre FROM applicabilite WHERE objet_id=?",[nid,id]);
+    const n=exec("SELECT COUNT(*) n FROM applicabilite WHERE objet_id=?",[nid])[0].n;
+    toast("Objet « "+nom+" » créé d'après « "+src.nom+" »"+(n?" avec "+n+" propriété(s) affectée(s)":""),"ok");
+    refreshAll();
+  }catch(e){ toast(friendly(e),"err"); }
+}
 function deleteObjet(id){
   const row=exec("SELECT nom FROM objet WHERE id=?",[id])[0]; if(!row) return;
   const na=exec("SELECT COUNT(*) n FROM applicabilite WHERE objet_id=?",[id])[0].n;
@@ -2002,6 +2028,10 @@ function addOrUpdateAffect(){
     refreshAll(); focus('a_propriete');
   }catch(e){ toast(friendly(e),"err"); }
 }
+function resetAffectForm(){
+  clear(['a_objet','a_propriete','a_disc_code','a_disc_nom']); el('a_req').checked=false;
+  updateAffectPropList(); focus('a_objet');
+}
 function updateAffectPropList(){
   const oid=findIdByName('objet', v('a_objet'));
   const rows = oid
@@ -2196,6 +2226,7 @@ function renderMgObjets(){
       <td>${o.disc_code?esc(o.disc_code)+' — '+esc(o.disc_nom):'—'}</td><td>${o.nprop}</td>
       <td>${statutSelectHtml('objet',o.id,o.statut)}</td>
       <td class="mgactions"><button class="btn xs ghost" data-act="edit">Éditer</button>
+        <button class="btn xs ghost" data-act="dup" title="Créer un objet identique (nature, domaine, discipline, définition et propriétés affectées) sous un autre nom">Dupliquer</button>
         <button class="btn xs danger" data-act="del">Supprimer</button></td>`;
     body.appendChild(tr);
     if(mgExpandedObjId===o.id){
@@ -4619,6 +4650,7 @@ function wire(){
   el('addAffect').onclick=addOrUpdateAffect;
   el('addRel').onclick=addRel;
   el('cancelRelEdit').onclick=resetRelForm;
+  el('resetAffect').onclick=resetAffectForm;
   el('cancelObjetEdit').onclick=()=>{ resetObjetForm(); focus('o_nom'); };
   el('cancelPropEdit').onclick=()=>{ resetPropForm(); focus('p_nom'); };
   el('addExigence').onclick=addLienExigence;
@@ -4686,6 +4718,7 @@ function wire(){
       const tr=btn.closest('tr');
       const id=+tr.dataset.id;
       if(btn.dataset.act==='edit') editObjetRow(id);
+      else if(btn.dataset.act==='dup') duplicateObjet(id);
       else if(btn.dataset.act==='del') deleteObjet(id);
       else if(btn.dataset.act==='unaffect'){
         const objetNom=exec("SELECT nom FROM objet WHERE id=?",[mgExpandedObjId])[0].nom;
