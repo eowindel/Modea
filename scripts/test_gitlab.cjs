@@ -104,7 +104,7 @@ async function poste(server, token) {
   check('message de première publication', S.commits[0]?.title === 'Modea : première publication de moto.db', S.commits[0]?.title);
   check('le commit contient le .db et le .sql', S.commits[0] && 'modeles/moto.db' in S.commits[0].files && 'modeles/moto.sql' in S.commits[0].files);
   const dump = S.text('main', 'modeles/moto.sql').toString('utf8');
-  check('export texte lisible (INSERT par ligne, uid)', /INSERT INTO "objet" \("id", .*"uid"\) VALUES \(1, 'Moto'/.test(dump));
+  check('export texte lisible (INSERT par ligne, uid)', /INSERT INTO "objet" \("id", .*"uid".*\) VALUES \(1, 'Moto'/.test(dump));
   check('Alice est reliée à GitLab', alice.ev('gl.link && gl.link.lastCommitId') === S.commits[0]?.id);
   check('bouton « Enregistrer dans GitLab »', alice.ev(`el('btnSave').textContent`) === 'Enregistrer dans GitLab');
   check('réglages GitLab écrits dans le modèle (sans jeton)',

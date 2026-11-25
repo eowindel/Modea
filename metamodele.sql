@@ -17,7 +17,7 @@ PRAGMA foreign_keys = ON;   -- OFF par défaut sous SQLite : à réactiver à CH
 -- Version de schéma : à incrémenter à chaque migration (nouvelle table/colonne),
 -- ici et dans SCHEMA_BASE (modea-editeur.html) en parallèle. Sert à openBytes() côté
 -- éditeur pour détecter un fichier trop ancien plutôt que de planter en silence.
-PRAGMA user_version = 9;
+PRAGMA user_version = 10;
 
 -- -----------------------------------------------------------------------------
 --  Domaine fonctionnel — regroupement métier des objets (facultatif mais utile)
@@ -538,3 +538,18 @@ ALTER TABLE relation ADD COLUMN nom_technique TEXT;
 -- v9 : disposition des objets mémorisée avec une configuration du diagramme (JSON
 -- { uid d'objet : [x, y] }). Ajoutée par ALTER TABLE, comme les colonnes précédentes.
 ALTER TABLE filtre_diagramme ADD COLUMN disposition TEXT;
+
+-- v10 : niveau de détail des objets (vision métier, métier applicative, applicative…). Référentiel
+-- libre comme domaine et nature ; les configurations du diagramme retiennent les niveaux cochés.
+CREATE TABLE niveau_detail (
+    id          INTEGER PRIMARY KEY,
+    nom         TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+ALTER TABLE niveau_detail ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_niveau_detail_uid ON niveau_detail(uid);
+CREATE TRIGGER trg_niveau_detail_uid AFTER INSERT ON niveau_detail FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE niveau_detail SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+ALTER TABLE objet ADD COLUMN niveau_id INTEGER REFERENCES niveau_detail(id) ON DELETE SET NULL;
+CREATE INDEX idx_objet_niveau ON objet(niveau_id);
+ALTER TABLE filtre_diagramme ADD COLUMN niveaux TEXT;

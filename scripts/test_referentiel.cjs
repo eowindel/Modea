@@ -2,6 +2,7 @@
 // (colonne disposition des configurations du diagramme, issue #22), avec les vraies fonctions de
 // modea-editeur.html dans jsdom.
 // Usage : node scripts/test_referentiel.cjs      Dépendance : jsdom (npm install --prefix scripts jsdom).
+const SCHEMA_V = 10;
 const fs = require('fs'), path = require('path'), os = require('os'), cp = require('child_process');
 const { JSDOM, VirtualConsole } = require('jsdom');
 const root = path.resolve(__dirname, '..');
@@ -29,7 +30,24 @@ const check = (label, ok, detail = '') => {
     d.run("ALTER TABLE filtre_diagramme DROP COLUMN disposition"); d.run("PRAGMA user_version=8");
     await openBytes(d.export(),'v8.db'); d.close(); })()`);
   check('migration v8 -> v9 : version et colonne disposition',
-    q('PRAGMA user_version')[0].user_version === 9 && q("SELECT 1 n FROM pragma_table_info('filtre_diagramme') WHERE name='disposition'").length === 1);
+    q('PRAGMA user_version')[0].user_version === SCHEMA_V && q("SELECT 1 n FROM pragma_table_info('filtre_diagramme') WHERE name='disposition'").length === 1);
+
+  // ---- migration v9 -> v10 (niveau de détail)
+  w.__b = new Uint8Array(fs.readFileSync(moto));
+  await w.eval(`(async()=>{ await ensureSql(); const d=new SQL.Database(__b);
+    d.run("DROP INDEX IF EXISTS idx_objet_niveau"); d.run("ALTER TABLE objet DROP COLUMN niveau_id");
+    d.run("DROP TABLE niveau_detail"); d.run("ALTER TABLE filtre_diagramme DROP COLUMN niveaux"); d.run("PRAGMA user_version=9");
+    await openBytes(d.export(),'v9.db'); d.close(); })()`);
+  check('migration v9 -> v10 : version, table, colonnes',
+    q('PRAGMA user_version')[0].user_version === SCHEMA_V
+    && q("SELECT 1 n FROM pragma_table_info('objet') WHERE name='niveau_id'").length === 1
+    && q("SELECT 1 n FROM pragma_table_info('filtre_diagramme') WHERE name='niveaux'").length === 1
+    && q("SELECT 1 n FROM pragma_table_info('niveau_detail') WHERE name='uid'").length === 1);
+  // un niveau utilisé survit au nettoyage, un niveau libre est retiré
+  await w.eval(`run("INSERT INTO niveau_detail(nom) VALUES ('Métier'),('Orphelin')"); run("UPDATE objet SET niveau_id=(SELECT id FROM niveau_detail WHERE nom='Métier') WHERE id=(SELECT MIN(id) FROM objet)")`);
+  await w.eval('cleanUnusedRef()');
+  check('nettoyage : le niveau utilisé reste, le niveau libre part',
+    q("SELECT nom FROM niveau_detail ORDER BY nom").map(r => r.nom).join() === 'Métier');
 
   // ---- nettoyage du référentiel
   w.eval(`run("INSERT INTO domaine(nom) VALUES ('ZZ inutile')"); run("INSERT INTO classe_objet(nom) VALUES ('Nature fantôme')");
