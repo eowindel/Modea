@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.14.0">
+<meta name="version" content="0.15.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -428,7 +428,7 @@
           <p>Relie une propriété <i>existante</i> à un objet <i>existant</i> (tape leur nom exact, une liste de suggestions apparaît).</p>
           <ul>
             <li><b>Obligatoire</b> et <b>discipline</b> sont propres à cette affectation précise : la même propriété peut être obligatoire sur un objet et facultative sur un autre.</li>
-            <li>Si la discipline tapée n'existe pas, indique aussi son nom pour la créer.</li>
+            <li>Si le code de discipline existe déjà, son nom se remplit tout seul. S'il n'existe pas, indique aussi son nom pour la créer.</li>
             <li>Affecter une propriété déjà liée à cet objet met simplement à jour l'obligation/la discipline.</li>
             <li>L'objet reste saisi après chaque affectation pour enchaîner les propriétés ; « Tout vider » remet tous les champs à zéro, objet compris.</li>
             <li>Pour retirer une propriété d'un objet : dans la liste Objets, clique la ligne de l'objet pour la déplier, puis « Retirer » sur la propriété concernée.</li>
@@ -636,7 +636,7 @@
       <div class="row2">
         <div class="field"><label><span class="lab">Discipline — code</span>
           <input type="text" id="o_disc_code" list="dl_disc_code" placeholder="ex : 99" autocomplete="off"></label></div>
-        <div class="field"><label><span class="lab">Discipline — nom (si code inconnu)</span>
+        <div class="field"><label><span class="lab">Discipline — nom (pré-rempli si le code existe)</span>
           <input type="text" id="o_disc_nom" placeholder="ex : Electricité" autocomplete="off"></label></div>
       </div>
       <div class="field"><label><span class="lab">Définition métier</span>
@@ -733,7 +733,7 @@
         <div class="field"><label><span class="lab">Discipline — code</span>
           <input type="text" id="a_disc_code" list="dl_disc_code" placeholder="ex : 99" autocomplete="off"></label>
           <datalist id="dl_disc_code"></datalist></div>
-        <div class="field"><label><span class="lab">Discipline — nom (si code inconnu)</span>
+        <div class="field"><label><span class="lab">Discipline — nom (pré-rempli si le code existe)</span>
           <input type="text" id="a_disc_nom" placeholder="ex : Electricité" autocomplete="off"></label></div>
       </div>
       <div class="actions"><button class="btn primary" id="addAffect">Affecter la propriété</button>
@@ -971,7 +971,7 @@
               <input type="text" id="cyFilterConfigName" placeholder="Nom de la configuration…" autocomplete="off">
               <button class="btn ghost sm" id="cyFilterConfigSave">Enregistrer la config actuelle</button>
             </div>
-            <p class="hint" style="margin:6px 0 0">Une configuration retient les filtres cochés et la place des objets. « Réorganiser » repart d'une mise en page automatique.</p>
+            <p class="hint" style="margin:6px 0 0">Une configuration retient les filtres cochés et la place des objets ; « Mettre à jour » (sur la configuration appliquée) la remplace par l'état actuel. « Réorganiser » repart d'une mise en page automatique.</p>
             <div id="cyFilterConfigList" style="margin-top:8px"></div>
           </div>
         </details>
@@ -1088,10 +1088,14 @@ const relGlyph = t => REL_GLYPHS[t] || REL_GLYPHS.association;
 const CARDS = ['0..1','1','0..*','1..*'];
 
 const SCHEMA_VERSION = 9; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.14'; // à incrémenter à chaque commit taggé
+const APP_VERSION = 'v0.15'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.15', date:'2026-11-25', items:[
+    "Diagramme : la configuration appliquée a maintenant un bouton « Mettre à jour ». Il remplace ses filtres et la disposition des objets par ceux du diagramme actuel, sans avoir à retaper le nom.",
+    "Fiches et Affectation : quand le code d'une discipline existe déjà, son nom se remplit tout seul dès que vous tapez le code."
+  ]},
   { version:'v0.14', date:'2026-11-23', items:[
     "Fiches : nouveau bouton « Dupliquer » sur chaque objet. Il crée un objet identique (nature, domaine, discipline, définition et propriétés affectées, avec leur caractère obligatoire) sous le nom que vous choisissez. Pratique pour créer vite plusieurs objets qui ne diffèrent que par leur nom. Les relations ne sont pas copiées.",
     "Affectation : nouveau bouton « Tout vider » qui remet à zéro tous les champs du formulaire, y compris l'objet. L'objet reste toujours mémorisé après chaque affectation pour enchaîner les propriétés."
@@ -1750,6 +1754,18 @@ function resolveOrCreateDiscipline(code, nom){
   if(!nom) throw new Error("Cette discipline n'existe pas — indique aussi son nom pour la créer");
   run("INSERT INTO discipline(code,nom) VALUES (?,?)",[code,nom]);
   return exec("SELECT id FROM discipline WHERE code=?",[code])[0].id;
+}
+// Issue #31 : un code de discipline déjà connu pré-remplit son nom ; un nom pré-rempli est
+// effacé si le code tapé devient inconnu (un nom saisi à la main n'est jamais écrasé).
+function bindDisciplineAutofill(codeId, nomId){
+  const codeEl=el(codeId), nomEl=el(nomId); let auto=false;
+  const sync=()=>{
+    const row=exec("SELECT nom FROM discipline WHERE code=?",[codeEl.value.trim()])[0];
+    if(row){ nomEl.value=row.nom; auto=true; }
+    else if(auto){ nomEl.value=""; auto=false; }
+  };
+  codeEl.addEventListener('input',sync); codeEl.addEventListener('change',sync);
+  nomEl.addEventListener('input',()=>{ auto=false; });
 }
 function addOrUpdateObjet(){
   const nom=v('o_nom').trim();
@@ -2768,9 +2784,21 @@ function renderCyFilterConfigs(){
     const row=document.createElement('div'); row.className='cyfiltersaved-row';
     row.innerHTML=`<button class="cyfiltersaved-fav" data-act="fav" data-id="${r.id}" title="${r.favori?'Retirer des favoris':'Ajouter aux favoris'}">${r.favori?'★':'☆'}</button>
       <span class="cyfiltersaved-name" data-act="apply" data-id="${r.id}"${r.id===cyActiveConfigId?' style="font-weight:700"':''}>${esc(r.nom)}${r.id===cyActiveConfigId?' <span class="mgdef">(appliquée)</span>':''}</span>
+      ${r.id===cyActiveConfigId?`<button class="btn xs ghost" data-act="upd" data-id="${r.id}" title="Remplace les filtres et la disposition enregistrés par ceux du diagramme actuel">Mettre à jour</button>`:''}
       <button class="btn xs danger" data-act="del" data-id="${r.id}">Supprimer</button>`;
     host.appendChild(row);
   });
+}
+// Issue #30 : met à jour la configuration appliquée avec l'état actuel du diagramme, sans retaper son nom.
+function updateActiveFilterConfig(id){
+  const row=exec("SELECT nom FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
+  const pick=(sel,key)=>JSON.stringify([...document.querySelectorAll(sel+' input:checked')].map(i=>i.dataset[key]));
+  try{
+    run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=?,disposition=? WHERE id=?",
+      [pick('#cyFilterNature','nature'),pick('#cyFilterDomaine','domaine'),pick('#cyFilterStatut','statut'),JSON.stringify(currentCyDisposition()),id]);
+    toast("Configuration « "+row.nom+" » mise à jour (filtres et disposition des objets)","ok");
+    renderCyFilterConfigs();
+  }catch(e){ toast(friendly(e),"err"); }
 }
 function saveCurrentFilterConfig(){
   const nom=v('cyFilterConfigName').trim();
@@ -4647,6 +4675,8 @@ function wire(){
     const btn=e.target.closest('button[data-act="del"]'); if(!btn) return;
     deleteValeurEnum(+btn.dataset.id, v('pv_nom').trim());
   });
+  bindDisciplineAutofill('o_disc_code','o_disc_nom');
+  bindDisciplineAutofill('a_disc_code','a_disc_nom');
   el('addAffect').onclick=addOrUpdateAffect;
   el('addRel').onclick=addRel;
   el('cancelRelEdit').onclick=resetRelForm;
@@ -4783,6 +4813,7 @@ function wire(){
     const id=+btn.dataset.id;
     if(btn.dataset.act==='apply') applyFilterConfig(id);
     else if(btn.dataset.act==='fav') toggleFavoriFilterConfig(id);
+    else if(btn.dataset.act==='upd') updateActiveFilterConfig(id);
     else if(btn.dataset.act==='del') deleteFilterConfig(id);
   });
   document.querySelectorAll('.cyfiltercolhead .cyfilterall').forEach(host=>{
