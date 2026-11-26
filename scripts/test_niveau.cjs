@@ -46,7 +46,7 @@ const check = (label, ok, detail = '') => {
   set('mgObjNiveau', '— sans niveau'); await w.eval('renderMgObjets()');
   check('filtre de la liste : sans niveau', noms().includes('Obj D') && !noms().includes('Obj A'));
   set('mgObjNiveau', ''); await w.eval('renderMgObjets()');
-  check('colonne Niveau affichée', [...w.document.querySelectorAll('#mgObjBody tr.mgrow')].every(tr => tr.children.length === 8));
+  check('colonne Niveau affichée', [...w.document.querySelectorAll('#mgObjBody tr.mgrow')].every(tr => tr.children.length === 9));
 
   // duplication
   w.prompt = () => 'Obj A bis';

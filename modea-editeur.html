@@ -8,7 +8,7 @@
 <meta name="description" content="Éditeur de modélisation de domaine : objets, propriétés et relations, diagramme et analyse d'impact, exports RDF/OWL.">
 <meta name="author" content="casarou">
 <!-- version : à garder alignée sur APP_VERSION (sans le « v », format x.y.z) -->
-<meta name="version" content="0.16.0">
+<meta name="version" content="0.17.0">
 <meta name="portal:repo" content="eowindel/Modea">
 <meta name="portal:category" content="Ingénierie">
 <meta name="portal:tags" content="modélisation de domaine, graphe, métamodèle, sqlite, rdf">
@@ -332,6 +332,10 @@
   #cyImpactDetail td{padding:2px 6px 2px 0;white-space:nowrap}
   #cyImpactStats{position:absolute;right:10px;top:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted);
     background:rgba(255,255,255,.85);border-radius:6px;padding:3px 8px;border:1px solid var(--line)}
+.taglist{display:flex;flex-wrap:wrap;gap:4px}
+#o_tags:not(:empty){margin-top:6px}
+.tagchip{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border:1px solid var(--muted);border-radius:10px;font-size:12px;white-space:nowrap}
+.tagchip button{border:0;background:none;color:inherit;cursor:pointer;padding:0;font-size:14px;line-height:1}
 </style>
 </head>
 <body>
@@ -402,11 +406,12 @@
         <section id="h-objets">
           <h2>Saisie</h2>
           <h3>Objets</h3>
-          <p>Onglet <b>Objet</b> : nom, nature, domaine, niveau de détail, discipline (code + nom si le code n'existe pas encore), définition métier.</p>
+          <p>Onglet <b>Objet</b> : nom, nature, domaine, niveau de détail, discipline (code + nom si le code n'existe pas encore), tags, définition métier.</p>
           <ul>
             <li>Nature, domaine et niveau de détail (ex : « Métier », « Métier applicatif », « Applicatif ») se créent à la volée si le nom tapé n'existe pas encore. Les niveaux se listent dans l'ordre où on les a créés.</li>
+            <li>Tags : étiquettes libres, plusieurs par objet. Taper un tag puis <b>Entrée</b> ou une virgule l'ajoute ; la croix le retire. Les tags existants sont proposés pendant la saisie (majuscules et minuscules ne créent pas de doublon). La liste des objets et le diagramme se filtrent par tag, et le Référentiel permet de supprimer ceux qui ne servent plus.</li>
             <li>Retaper le nom d'un objet existant précharge sa fiche et le bouton devient « Mettre à jour l'objet ».</li>
-            <li>« Dupliquer » (liste des objets, onglet Fiches) crée un objet identique sous un autre nom : mêmes nature, domaine, niveau de détail, discipline, définition et mêmes propriétés affectées. Les relations ne sont pas copiées.</li>
+            <li>« Dupliquer » (liste des objets, onglet Fiches) crée un objet identique sous un autre nom : mêmes nature, domaine, niveau de détail, discipline, tags, définition et mêmes propriétés affectées. Les relations ne sont pas copiées.</li>
             <li>Suppression possible depuis la liste (onglet Fiches) — un message indique combien d'affectations et de relations seront aussi retirées.</li>
           </ul>
         </section>
@@ -636,6 +641,10 @@
       <div class="field"><label><span class="lab">Niveau de détail</span>
         <input type="text" id="o_niveau" list="dl_niveau" placeholder="Métier, Métier applicatif, Applicatif… (créé s'il n'existe pas)" autocomplete="off"></label>
         <datalist id="dl_niveau"></datalist></div>
+      <div class="field"><label><span class="lab">Tags</span>
+        <input type="text" id="o_tag" list="dl_tag" placeholder="Taper un tag puis Entrée ou virgule" autocomplete="off"></label>
+        <datalist id="dl_tag"></datalist>
+        <div id="o_tags" class="taglist"></div></div>
       <div class="row2">
         <div class="field"><label><span class="lab">Discipline — code</span>
           <input type="text" id="o_disc_code" list="dl_disc_code" placeholder="ex : 99" autocomplete="off"></label></div>
@@ -820,12 +829,13 @@
             <select id="mgObjNature"><option value="">Toutes natures</option></select>
             <select id="mgObjDomaine"><option value="">Tous domaines</option></select>
             <select id="mgObjNiveau"><option value="">Tous niveaux</option></select>
+            <select id="mgObjTag"><option value="">Tous tags</option></select>
             <select id="mgObjDiscipline"><option value="">Toutes disciplines</option></select>
             <select id="mgObjStatut"><option value="">Tous statuts</option><option value="brouillon">Brouillon</option><option value="valide">Validé</option><option value="obsolete">Obsolète</option></select>
             <span class="mgcount" id="mgObjCount"></span>
           </div>
           <div class="mgtablewrap"><table class="mgtable">
-            <thead><tr><th>Nom</th><th>Nature</th><th>Domaine</th><th>Niveau</th><th>Discipline</th><th>Propriétés</th><th>Statut</th><th></th></tr></thead>
+            <thead><tr><th>Nom</th><th>Nature</th><th>Domaine</th><th>Niveau</th><th>Tags</th><th>Discipline</th><th>Propriétés</th><th>Statut</th><th></th></tr></thead>
             <tbody id="mgObjBody"></tbody>
           </table></div>
           <p class="mgmsg" id="mgObjMsg"></p>
@@ -874,12 +884,13 @@
         <div id="subViewRef" class="hidden">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">
             <p class="hint" style="margin:0;flex:1">Suppression bloquée tant qu'un élément est encore utilisé ailleurs dans le modèle.</p>
-            <button class="btn ghost sm" id="refCleanUnused" title="Retire d'un coup les domaines, natures, niveaux de détail, disciplines, grandeurs et verbes de relation qui ne servent plus nulle part">Nettoyer les valeurs inutilisées</button>
+            <button class="btn ghost sm" id="refCleanUnused" title="Retire d'un coup les domaines, natures, niveaux de détail, tags, disciplines, grandeurs et verbes de relation qui ne servent plus nulle part">Nettoyer les valeurs inutilisées</button>
           </div>
           <div class="seg" style="margin-bottom:12px">
             <button class="segbtn" id="refTabDomaine" aria-selected="true">Domaines</button>
             <button class="segbtn" id="refTabClasse" aria-selected="false">Natures</button>
             <button class="segbtn" id="refTabNiveau" aria-selected="false">Niveaux de détail</button>
+            <button class="segbtn" id="refTabTag" aria-selected="false">Tags</button>
             <button class="segbtn" id="refTabDisc" aria-selected="false">Disciplines</button>
             <button class="segbtn" id="refTabGrandeur" aria-selected="false">Grandeurs</button>
             <button class="segbtn" id="refTabVerbe" aria-selected="false">Verbes de relation</button>
@@ -894,6 +905,12 @@
             <div class="mgtablewrap"><table class="mgtable">
               <thead><tr><th>Nom</th><th>Description</th><th>Objets</th><th></th></tr></thead>
               <tbody id="ref_classe_body"></tbody>
+            </table></div>
+          </div>
+          <div id="refViewTag" class="hidden">
+            <div class="mgtablewrap"><table class="mgtable">
+              <thead><tr><th>Nom</th><th>Description</th><th>Objets</th><th></th></tr></thead>
+              <tbody id="ref_tag_body"></tbody>
             </table></div>
           </div>
           <div id="refViewNiveau" class="hidden">
@@ -955,7 +972,7 @@
           <button class="btn ghost sm" id="cyFullscreen" style="margin-left:auto">Plein écran</button>
         </div>
         <details class="cyfilters">
-          <summary>Filtrer par nature / domaine / niveau / statut</summary>
+          <summary>Filtrer par nature / domaine / niveau / tag / statut</summary>
           <div class="cyfiltercols">
             <div>
               <div class="cyfiltercolhead"><span class="lab">Nature</span>
@@ -974,6 +991,12 @@
                 <span class="cyfilterall"><button type="button" data-target="cyFilterNiveau" data-check="1">Tout</button><button type="button" data-target="cyFilterNiveau" data-check="0">Aucun</button></span>
               </div>
               <div id="cyFilterNiveau"></div>
+            </div>
+            <div>
+              <div class="cyfiltercolhead"><span class="lab">Tag</span>
+                <span class="cyfilterall"><button type="button" data-target="cyFilterTag" data-check="1">Tout</button><button type="button" data-target="cyFilterTag" data-check="0">Aucun</button></span>
+              </div>
+              <div id="cyFilterTag"></div>
             </div>
             <div>
               <div class="cyfiltercolhead"><span class="lab">Statut</span>
@@ -1104,11 +1127,17 @@ const REL_GLYPHS = {
 const relGlyph = t => REL_GLYPHS[t] || REL_GLYPHS.association;
 const CARDS = ['0..1','1','0..*','1..*'];
 
-const SCHEMA_VERSION = 10; // à incrémenter ici ET dans metamodele.sql à chaque migration
-const APP_VERSION = 'v0.16'; // à incrémenter à chaque commit taggé
+const SCHEMA_VERSION = 11; // à incrémenter ici ET dans metamodele.sql à chaque migration
+const APP_VERSION = 'v0.17'; // à incrémenter à chaque commit taggé
 // Historique des nouveautés affiché au clic sur le badge de version (plus récent en premier) ;
 // à compléter à chaque nouvelle version, en même temps que APP_VERSION et le tag git.
 const CHANGELOG = [
+  { version:'v0.17', date:'2026-11-26', items:[
+    "Objets : nouveau champ « Tags ». Tapez un tag puis Entrée (ou une virgule) ; plusieurs tags par objet, les tags déjà utilisés sont proposés pendant la saisie.",
+    "Fiches : les tags apparaissent dans la liste des objets, avec un filtre pour n'afficher qu'un tag ou les objets sans tag. « Dupliquer » les recopie.",
+    "Diagramme : nouvelle colonne de filtre « Tag ». Un objet reste affiché s'il porte au moins un des tags cochés. Les configurations enregistrées retiennent ce filtre.",
+    "Référentiel : nouvel onglet « Tags » pour supprimer ceux qui ne servent plus, pris en compte par « Nettoyer les valeurs inutilisées »."
+  ]},
   { version:'v0.16', date:'2026-11-25', items:[
     "Objets : nouveau champ « Niveau de détail » (par exemple Métier, Métier applicatif, Applicatif). Comme la nature et le domaine, les niveaux se créent en les tapant et se réutilisent ensuite.",
     "Fiches : le niveau apparaît dans la liste des objets, avec un filtre pour n'afficher qu'un niveau. « Dupliquer » le recopie.",
@@ -1595,11 +1624,35 @@ BEGIN UPDATE niveau_detail SET uid = lower(hex(randomblob(16))) WHERE rowid = NE
 ALTER TABLE objet ADD COLUMN niveau_id INTEGER REFERENCES niveau_detail(id) ON DELETE SET NULL;
 CREATE INDEX idx_objet_niveau ON objet(niveau_id);
 ALTER TABLE filtre_diagramme ADD COLUMN niveaux TEXT;
+
+-- v11 : tags libres sur les objets (plusieurs par objet), filtre supplémentaire de la liste et du
+-- diagramme. objet_tag a son id et son uid, comme les autres tables, pour la fusion à trois versions.
+CREATE TABLE tag (
+    id          INTEGER PRIMARY KEY,
+    nom         TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+ALTER TABLE tag ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_tag_uid ON tag(uid);
+CREATE TRIGGER trg_tag_uid AFTER INSERT ON tag FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE tag SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+CREATE TABLE objet_tag (
+    id        INTEGER PRIMARY KEY,
+    objet_id  INTEGER NOT NULL REFERENCES objet(id) ON DELETE CASCADE,
+    tag_id    INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+    UNIQUE (objet_id, tag_id)
+);
+ALTER TABLE objet_tag ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_objet_tag_uid ON objet_tag(uid);
+CREATE TRIGGER trg_objet_tag_uid AFTER INSERT ON objet_tag FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE objet_tag SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+CREATE INDEX idx_objet_tag_tag ON objet_tag(tag_id);
+ALTER TABLE filtre_diagramme ADD COLUMN tags TEXT;
 `;
 
 let SQL=null, db=null, fileHandle=null, dbName="modele.db", viewMode='fiches';
 let dirty=false, backupTimer=null;
-let cy=null, cySvgReady=false, natureColor={}, domaineFill={}, cyNatures=[], cyDomaines=[], cyNiveaux=[], cyPropsByObj={};
+let cy=null, cySvgReady=false, natureColor={}, domaineFill={}, cyNatures=[], cyDomaines=[], cyNiveaux=[], cyTags=[], cyPropsByObj={};
 let cyImpact=null, impactSelectedNode=null;
 let cyLayoutAuto=true, cyImpactLayoutAuto=true;
 const CY_LARGE_GRAPH_THRESHOLD=300;
@@ -1646,7 +1699,7 @@ function repairOrphans(d=db){
 /* ---------- ouverture / création ---------- */
 // Tables dont chaque ligne porte un identifiant stable (uid), dans l'ordre d'affichage des résumés
 const UID_TABLES = ['objet','propriete','applicabilite','relation','verbe_relation','contrainte','domaine','classe_objet',
-  'discipline','niveau_detail','type_enumere','valeur_enumeree','grandeur_physique','unite','lien_exigence','filtre_diagramme'];
+  'discipline','niveau_detail','tag','objet_tag','type_enumere','valeur_enumeree','grandeur_physique','unite','lien_exigence','filtre_diagramme'];
 /* v6 -> v7 (idempotent) : table meta + colonne uid. Les uid des lignes existantes sont
    déterministes (« objet-12 ») : deux personnes qui migrent la même base v6 obtiennent les
    mêmes, ce qui permet de comparer ou fusionner leurs versions. Les lignes créées ensuite
@@ -1685,8 +1738,23 @@ function migrateV10(d){
   d.run("CREATE INDEX IF NOT EXISTS idx_objet_niveau ON objet(niveau_id)");
   if(cols('filtre_diagramme').length && !cols('filtre_diagramme').includes('niveaux')) d.run("ALTER TABLE filtre_diagramme ADD COLUMN niveaux TEXT");
 }
+/* v10 -> v11 (idempotent) : tags des objets + tags retenus par les configurations du diagramme. */
+function migrateV11(d){
+  const cols=t=>(d.exec("PRAGMA table_info("+t+")")[0]||{values:[]}).values.map(v=>v[1]);
+  d.run("CREATE TABLE IF NOT EXISTS tag (\n    id          INTEGER PRIMARY KEY,\n    nom         TEXT NOT NULL UNIQUE,\n    description TEXT\n)");
+  d.run("CREATE TABLE IF NOT EXISTS objet_tag (\n    id        INTEGER PRIMARY KEY,\n    objet_id  INTEGER NOT NULL REFERENCES objet(id) ON DELETE CASCADE,\n"
+    +"    tag_id    INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,\n    UNIQUE (objet_id, tag_id)\n)");
+  for(const t of ['tag','objet_tag']){
+    if(!cols(t).includes('uid')) d.run("ALTER TABLE "+t+" ADD COLUMN uid TEXT");
+    d.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_"+t+"_uid ON "+t+"(uid)");
+    d.run("CREATE TRIGGER IF NOT EXISTS trg_"+t+"_uid AFTER INSERT ON "+t+" FOR EACH ROW WHEN NEW.uid IS NULL\n"
+      +"BEGIN UPDATE "+t+" SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END");
+  }
+  d.run("CREATE INDEX IF NOT EXISTS idx_objet_tag_tag ON objet_tag(tag_id)");
+  if(cols('filtre_diagramme').length && !cols('filtre_diagramme').includes('tags')) d.run("ALTER TABLE filtre_diagramme ADD COLUMN tags TEXT");
+}
 // Met une base (ouverte, ou version GitLab à comparer/fusionner) au schéma courant
-function migrateSchema(d){ migrateV7(d); migrateV8(d); migrateV9(d); migrateV10(d); }
+function migrateSchema(d){ migrateV7(d); migrateV8(d); migrateV9(d); migrateV10(d); migrateV11(d); }
 async function openBytes(bytes,name){
   await ensureSql();
   glDetach(); // un modèle ouvert depuis le disque n'est relié à GitLab que si glOpen le relie ensuite
@@ -1709,7 +1777,7 @@ async function openBytes(bytes,name){
     // passés par ce garde-fou avant l'introduction du filtre par statut dans le diagramme)
     const filtreCols = exec("PRAGMA table_info(filtre_diagramme)").map(c=>c.name);
     if(!filtreCols.includes('statuts')){ run("ALTER TABLE filtre_diagramme ADD COLUMN statuts TEXT"); }
-    migrateSchema(db); // v6 -> v7 : table meta + uid ; v7 -> v8 : nom technique des relations ; v8 -> v9 : disposition des configurations ; v9 -> v10 : niveau de détail
+    migrateSchema(db); // v6 -> v7 : table meta + uid ; v7 -> v8 : nom technique des relations ; v8 -> v9 : disposition des configurations ; v9 -> v10 : niveau de détail ; v10 -> v11 : tags
     run("PRAGMA user_version = "+SCHEMA_VERSION); // schéma déjà à jour, juste jamais marqué : on rattrape la version au vol
   }
   const rep=repairOrphans();
@@ -1772,6 +1840,43 @@ function ensureUnite(grandeurNom, symbole, libelle){
 // En modification, la fiche est suivie par son uid (et non par son nom) : on peut ainsi
 // renommer l'objet sans en créer un second (issue #20).
 let objEditUid=null;
+/* ---- Tags des objets (issue #32) ---- */
+let objTags=[]; // tags de la fiche Objet en cours de saisie
+const sortTags=a=>a.sort((x,y)=>x.localeCompare(y,'fr',{sensitivity:'base'}));
+const sameTag=(a,b)=>a.toLocaleLowerCase('fr')===b.toLocaleLowerCase('fr');
+function allTags(){ return sortTags(exec("SELECT nom FROM tag").map(r=>r.nom)); }
+// Map id d'objet -> noms de ses tags (triés)
+function tagsByObjet(){
+  const m=new Map();
+  exec("SELECT ot.objet_id oid, t.nom FROM objet_tag ot JOIN tag t ON t.id=ot.tag_id").forEach(r=>{ if(!m.has(r.oid)) m.set(r.oid,[]); m.get(r.oid).push(r.nom); });
+  m.forEach(sortTags);
+  return m;
+}
+// Ajoute à la liste les tags tapés (séparés par des virgules), sans doublon ; un tag déjà connu
+// garde son écriture d'origine, quelle que soit la casse saisie.
+function mergeTagText(list, text){
+  const known=allTags(), out=list.slice();
+  String(text||'').split(',').map(t=>t.trim().replace(/\s+/g,' ')).filter(Boolean).forEach(t=>{
+    if(!out.some(x=>sameTag(x,t))) out.push(known.find(x=>sameTag(x,t))||t);
+  });
+  return out;
+}
+function renderObjTags(){
+  el('o_tags').innerHTML=objTags.map((t,i)=>`<span class="tagchip">${esc(t)}<button type="button" data-i="${i}" title="Retirer ce tag" aria-label="Retirer le tag ${esc(t)}">×</button></span>`).join('');
+  if(db) fillDatalist('dl_tag', allTags().filter(t=>!objTags.some(x=>sameTag(x,t))));
+}
+function commitTagInput(){ objTags=mergeTagText(objTags, v('o_tag')); el('o_tag').value=''; renderObjTags(); }
+// Ne touche que ce qui change : les liens conservés gardent leur identifiant (fusion GitLab/GitHub).
+function setObjetTags(objetId, noms){
+  const ids=noms.map(nom=>{
+    const found=exec("SELECT id,nom FROM tag").find(r=>sameTag(r.nom,nom));
+    if(found) return found.id;
+    run("INSERT INTO tag(nom) VALUES (?)",[nom]);
+    return exec("SELECT id FROM tag WHERE nom=?",[nom])[0].id;
+  });
+  exec("SELECT id,tag_id FROM objet_tag WHERE objet_id=?",[objetId]).forEach(r=>{ if(!ids.includes(r.tag_id)) run("DELETE FROM objet_tag WHERE id=?",[r.id]); });
+  ids.forEach(t=>run("INSERT OR IGNORE INTO objet_tag(objet_id,tag_id) VALUES (?,?)",[objetId,t]));
+}
 function checkObjetEdit(){
   if(objEditUid!=null) return; // en modification, changer le nom = renommer
   const nom=v('o_nom').trim();
@@ -1789,6 +1894,7 @@ function loadObjetForm(uid){
   el('o_nom').value=row.nom;
   el('o_classe').value=row.classe||""; el('o_domaine').value=row.domaine||""; el('o_def').value=row.definition||""; el('o_niveau').value=row.niveau||"";
   el('o_disc_code').value=row.disc_code||""; el('o_disc_nom').value="";
+  objTags=(tagsByObjet().get(row.id)||[]).slice(); el('o_tag').value=''; renderObjTags();
   setObjetEditMode(row.uid, row.nom);
 }
 function setObjetEditMode(uid, nom){
@@ -1800,7 +1906,7 @@ function setObjetEditMode(uid, nom){
   el('addObjet').textContent = on ? "Mettre à jour l'objet" : "Ajouter l'objet";
 }
 function resetObjetForm(){
-  clear(['o_nom','o_domaine','o_classe','o_niveau','o_disc_code','o_disc_nom','o_def']); setObjetEditMode(null);
+  clear(['o_nom','o_domaine','o_classe','o_niveau','o_disc_code','o_disc_nom','o_def','o_tag']); objTags=[]; renderObjTags(); setObjetEditMode(null);
 }
 function resolveOrCreateDiscipline(code, nom){
   code=(code||"").trim(); if(!code) return null;
@@ -1832,6 +1938,7 @@ function addOrUpdateObjet(){
     const nvid=ensureNiveau(v('o_niveau'));
     const discId=resolveOrCreateDiscipline(v('o_disc_code'), v('o_disc_nom'));
     const def=v('o_def').trim()||null;
+    const tags=mergeTagText(objTags, v('o_tag')); // un tag tapé mais pas encore validé est pris aussi
     // en modification : la fiche suivie ; sinon (Entrée tapée avant de quitter le champ) : celle qui porte ce nom
     const existing = objEditUid!=null ? exec("SELECT id,nom FROM objet WHERE uid=?",[objEditUid])[0]
                                       : exec("SELECT id,nom FROM objet WHERE nom=?",[nom])[0];
@@ -1840,9 +1947,11 @@ function addOrUpdateObjet(){
       if(exec("SELECT 1 FROM objet WHERE nom=? AND id<>?",[nom,existing.id]).length)
         return toast("Un autre objet s'appelle déjà « "+nom+" »","err");
       run("UPDATE objet SET nom=?,domaine_id=?,classe_id=?,niveau_id=?,discipline_id=?,definition=? WHERE id=?",[nom,did,cid,nvid,discId,def,existing.id]);
+      setObjetTags(existing.id, tags);
       toast(existing.nom!==nom ? "Objet « "+existing.nom+" » renommé en « "+nom+" » et mis à jour" : "Objet « "+nom+" » mis à jour","ok");
     }else{
       run("INSERT INTO objet(nom,domaine_id,classe_id,niveau_id,discipline_id,definition) VALUES (?,?,?,?,?,?)",[nom,did,cid,nvid,discId,def]);
+      setObjetTags(exec("SELECT id FROM objet WHERE nom=?",[nom])[0].id, tags);
       toast("Objet « "+nom+" » ajouté","ok");
     }
     resetObjetForm();
@@ -1867,6 +1976,7 @@ function duplicateObjet(id){
         [nom,src.domaine_id,src.classe_id,src.niveau_id,src.discipline_id,src.definition]);
     const nid=exec("SELECT id FROM objet WHERE nom=?",[nom])[0].id;
     run("INSERT INTO applicabilite(objet_id,propriete_id,obligatoire,discipline_id,ordre) SELECT ?,propriete_id,obligatoire,discipline_id,ordre FROM applicabilite WHERE objet_id=?",[nid,id]);
+    run("INSERT INTO objet_tag(objet_id,tag_id) SELECT ?,tag_id FROM objet_tag WHERE objet_id=?",[nid,id]);
     const n=exec("SELECT COUNT(*) n FROM applicabilite WHERE objet_id=?",[nid])[0].n;
     toast("Objet « "+nom+" » créé d'après « "+src.nom+" »"+(n?" avec "+n+" propriété(s) affectée(s)":""),"ok");
     refreshAll();
@@ -2207,6 +2317,7 @@ function friendly(e){
 
 /* ---------- rendu ---------- */
 const MG_MAX_ROWS = 300;
+const NO_TAG = '— sans tag';
 let mgExpandedObjId = null;
 let mgExpandedPropId = null;
 
@@ -2236,6 +2347,9 @@ function refreshAll(){
   fillFilterSelect('mgObjDomaine', exec("SELECT DISTINCT COALESCE(d.nom,'— sans domaine') n FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id ORDER BY n").map(r=>r.n), 'Tous domaines');
   fillFilterSelect('mgObjNiveau', exec("SELECT nd.nom n FROM niveau_detail nd WHERE EXISTS (SELECT 1 FROM objet o WHERE o.niveau_id=nd.id) ORDER BY nd.id").map(r=>r.n)
     .concat(exec("SELECT 1 FROM objet WHERE niveau_id IS NULL LIMIT 1").length?['— sans niveau']:[]), 'Tous niveaux');
+  fillFilterSelect('mgObjTag', sortTags(exec("SELECT nom FROM tag t WHERE EXISTS (SELECT 1 FROM objet_tag ot WHERE ot.tag_id=t.id)").map(r=>r.nom))
+    .concat(exec("SELECT 1 FROM objet o WHERE NOT EXISTS (SELECT 1 FROM objet_tag ot WHERE ot.objet_id=o.id) LIMIT 1").length?[NO_TAG]:[]), 'Tous tags');
+  renderObjTags();
   { const sel=el('mgObjDiscipline'); const cur=sel.value;
     const discs=exec(`SELECT DISTINCT disc.code,disc.nom FROM objet o JOIN discipline disc ON disc.id=o.discipline_id ORDER BY disc.code`);
     sel.innerHTML='<option value="">Toutes disciplines</option>'+discs.map(d=>`<option value="${esc(d.code)}">${esc(d.code)} — ${esc(d.nom)}</option>`).join('');
@@ -2277,13 +2391,15 @@ function statutSelectHtml(kind, id, statut){
 
 /* ---- Objets : liste filtrable/cherchable avec detail depliable ---- */
 function renderMgObjets(){
-  const search=v('mgObjSearch').trim(), nature=v('mgObjNature'), domaine=v('mgObjDomaine'), niveau=v('mgObjNiveau'), discipline=v('mgObjDiscipline'), statut=v('mgObjStatut');
+  const search=v('mgObjSearch').trim(), nature=v('mgObjNature'), domaine=v('mgObjDomaine'), niveau=v('mgObjNiveau'), discipline=v('mgObjDiscipline'), tag=v('mgObjTag'), statut=v('mgObjStatut');
   const where=[]; const params=[];
   if(search){ where.push("(o.nom LIKE ? OR o.definition LIKE ?)"); params.push('%'+search+'%','%'+search+'%'); }
   if(nature){ where.push("COALESCE(c.nom,'— sans nature')=?"); params.push(nature); }
   if(domaine){ where.push("COALESCE(d.nom,'— sans domaine')=?"); params.push(domaine); }
   if(niveau){ where.push("COALESCE(nd.nom,'— sans niveau')=?"); params.push(niveau); }
   if(discipline){ where.push("disc.code=?"); params.push(discipline); }
+  if(tag===NO_TAG) where.push("NOT EXISTS (SELECT 1 FROM objet_tag ot WHERE ot.objet_id=o.id)");
+  else if(tag){ where.push("EXISTS (SELECT 1 FROM objet_tag ot JOIN tag t ON t.id=ot.tag_id WHERE ot.objet_id=o.id AND t.nom=?)"); params.push(tag); }
   if(statut){ where.push("o.statut=?"); params.push(statut); }
   const whereSql = where.length ? 'WHERE '+where.join(' AND ') : '';
   const baseFrom = `FROM objet o LEFT JOIN domaine d ON d.id=o.domaine_id LEFT JOIN classe_objet c ON c.id=o.classe_id LEFT JOIN niveau_detail nd ON nd.id=o.niveau_id LEFT JOIN discipline disc ON disc.id=o.discipline_id ${whereSql}`;
@@ -2294,22 +2410,23 @@ function renderMgObjets(){
                       ${baseFrom} ORDER BY o.nom LIMIT ${MG_MAX_ROWS}`, params);
   el('mgObjCount').textContent = total+' objet'+(total>1?'s':'');
   const body=el('mgObjBody'); body.innerHTML='';
-  const fills=domaineFills();
-  if(!rows.length) body.innerHTML='<tr><td colspan="8" class="noprops">Aucun objet.</td></tr>';
+  const fills=domaineFills(), objetTags=tagsByObjet();
+  if(!rows.length) body.innerHTML='<tr><td colspan="9" class="noprops">Aucun objet.</td></tr>';
   rows.forEach(o=>{
     const tr=document.createElement('tr'); tr.className='mgrow'; tr.dataset.id=o.id;
     tr.innerHTML=`<td><span class="mgname">${esc(o.nom)}</span>${o.definition?`<span class="mgdef">${esc(o.definition)}</span>`:''}</td>
       <td>${esc(o.classe)}</td><td><span class="domchip" style="background:${fills[o.domaine]||NO_DOMAIN_FILL}">${esc(o.domaine)}</span></td>
       <td>${o.niveau?esc(o.niveau):'—'}</td>
+      <td>${objetTags.has(o.id)?'<span class="taglist">'+objetTags.get(o.id).map(t=>`<span class="tagchip">${esc(t)}</span>`).join('')+'</span>':'—'}</td>
       <td>${o.disc_code?esc(o.disc_code)+' — '+esc(o.disc_nom):'—'}</td><td>${o.nprop}</td>
       <td>${statutSelectHtml('objet',o.id,o.statut)}</td>
       <td class="mgactions"><button class="btn xs ghost" data-act="edit">Éditer</button>
-        <button class="btn xs ghost" data-act="dup" title="Créer un objet identique (nature, domaine, niveau de détail, discipline, définition et propriétés affectées) sous un autre nom">Dupliquer</button>
+        <button class="btn xs ghost" data-act="dup" title="Créer un objet identique (nature, domaine, niveau de détail, discipline, tags, définition et propriétés affectées) sous un autre nom">Dupliquer</button>
         <button class="btn xs danger" data-act="del">Supprimer</button></td>`;
     body.appendChild(tr);
     if(mgExpandedObjId===o.id){
       const dtr=document.createElement('tr'); dtr.className='mgdetail';
-      dtr.innerHTML=`<td colspan="8">${renderObjPropsDetail(o.id, o.nom)}</td>`;
+      dtr.innerHTML=`<td colspan="9">${renderObjPropsDetail(o.id, o.nom)}</td>`;
       body.appendChild(dtr);
     }
   });
@@ -2441,6 +2558,9 @@ const REF_CONFIGS = {
   niveau: { table:'niveau_detail', label:'Niveau de détail', body:'ref_niveau_body',
     listSql:"SELECT id,nom,description FROM niveau_detail ORDER BY id",
     usageSql:"SELECT COUNT(*) n FROM objet WHERE niveau_id=?", usageLabel:'objet(s)' },
+  tag: { table:'tag', label:'Tag', body:'ref_tag_body',
+    listSql:"SELECT id,nom,description FROM tag ORDER BY nom COLLATE NOCASE",
+    usageSql:"SELECT COUNT(*) n FROM objet_tag WHERE tag_id=?", usageLabel:'objet(s)' },
   verbe: { table:'verbe_relation', label:'Verbe de relation', body:'ref_verbe_body',
     listSql:"SELECT id,nom,description FROM verbe_relation ORDER BY nom",
     usageSql:"SELECT COUNT(*) n FROM relation WHERE verbe_id=?", usageLabel:'relation(s)' }
@@ -2485,6 +2605,7 @@ const REF_UNUSED = [
   { label:'domaine(s)', table:'domaine', nomSql:'t.nom', where:"NOT EXISTS (SELECT 1 FROM objet o WHERE o.domaine_id=t.id)" },
   { label:'nature(s)', table:'classe_objet', nomSql:'t.nom', where:"NOT EXISTS (SELECT 1 FROM objet o WHERE o.classe_id=t.id)" },
   { label:'niveau(x) de détail', table:'niveau_detail', nomSql:'t.nom', where:"NOT EXISTS (SELECT 1 FROM objet o WHERE o.niveau_id=t.id)" },
+  { label:'tag(s)', table:'tag', nomSql:'t.nom', where:"NOT EXISTS (SELECT 1 FROM objet_tag ot WHERE ot.tag_id=t.id)" },
   { label:'discipline(s)', table:'discipline', nomSql:"t.code||' — '||t.nom",
     where:"NOT EXISTS (SELECT 1 FROM objet o WHERE o.discipline_id=t.id) AND NOT EXISTS (SELECT 1 FROM applicabilite a WHERE a.discipline_id=t.id)" },
   { label:'grandeur(s) (avec leurs unités)', table:'grandeur_physique', nomSql:'t.nom',
@@ -2511,11 +2632,11 @@ function cleanUnusedRef(){
   toast(total+" valeur(s) inutilisée(s) supprimée(s) du référentiel","ok"); refreshAll();
 }
 function renderRefTables(){
-  renderRefSimple('domaine'); renderRefSimple('classe'); renderRefSimple('niveau'); renderRefSimple('verbe');
+  renderRefSimple('domaine'); renderRefSimple('classe'); renderRefSimple('niveau'); renderRefSimple('tag'); renderRefSimple('verbe');
   renderRefDisc(); renderRefGrandeur();
 }
 function setRefSubView(name){
-  const map={domaine:['refTabDomaine','refViewDomaine'], classe:['refTabClasse','refViewClasse'], niveau:['refTabNiveau','refViewNiveau'],
+  const map={domaine:['refTabDomaine','refViewDomaine'], classe:['refTabClasse','refViewClasse'], niveau:['refTabNiveau','refViewNiveau'], tag:['refTabTag','refViewTag'],
              disc:['refTabDisc','refViewDisc'], grandeur:['refTabGrandeur','refViewGrandeur'], verbe:['refTabVerbe','refViewVerbe']};
   Object.keys(map).forEach(k=>{
     el(map[k][0]).setAttribute('aria-selected', String(k===name));
@@ -2602,6 +2723,9 @@ function buildCyElements(){
     cyNiveaux=exec("SELECT nom FROM niveau_detail ORDER BY id").map(r=>r.nom).filter(n=>used.has(n));
     if(used.has('— sans niveau')) cyNiveaux.push('— sans niveau');
   }
+  const objetTags=tagsByObjet(); // « sans tag » en dernier dans le filtre
+  cyTags=sortTags([...new Set([...objetTags.values()].flat())]);
+  if(objs.some(o=>!objetTags.has(o.id))) cyTags.push(NO_TAG);
   domaineFill=domaineFills();
 
   const props = exec(`SELECT a.objet_id,p.nom,p.type,p.multivalue,gp.nom AS grandeur,u.symbole AS unite,a.obligatoire
@@ -2619,7 +2743,7 @@ function buildCyElements(){
     const nomAffiche = decorateNodeLabel(o.nom, o.classe, o.domaine);
     const labelFull = buildCyNodeLabel(nomAffiche, byObj[o.id]||[]);
     return { data:{ id:'n'+o.id, uid:o.uid, nom:o.nom, label:nomAffiche, labelCompact:nomAffiche, labelFull,
-             classe:o.classe, domaine:o.domaine, niveau:o.niveau, statut:o.statut, discCode:o.disc_code||'', discNom:o.disc_nom||'',
+             classe:o.classe, domaine:o.domaine, niveau:o.niveau, tags:objetTags.get(o.id)||[NO_TAG], statut:o.statut, discCode:o.disc_code||'', discNom:o.disc_nom||'',
              definition:o.definition||'', color:natureColor[o.classe], fill:domaineFill[o.domaine]||NO_DOMAIN_FILL },
       classes:'obj' };
   });
@@ -2828,6 +2952,13 @@ function renderCyLegendFilters(){
     row.querySelector('input').addEventListener('change', applyCyFilters);
     hostV.appendChild(row);
   });
+  const hostT=el('cyFilterTag'); hostT.innerHTML='';
+  cyTags.forEach(t=>{
+    const row=document.createElement('label'); row.className='check'; row.style.display='flex';
+    row.innerHTML=`<input type="checkbox" checked data-tag="${esc(t)}">${esc(t)}`;
+    row.querySelector('input').addEventListener('change', applyCyFilters);
+    hostT.appendChild(row);
+  });
   const hostS=el('cyFilterStatut'); hostS.innerHTML='';
   Object.keys(STATUT_LABELS).forEach(s=>{
     const row=document.createElement('label'); row.className='check'; row.style.display='flex';
@@ -2842,8 +2973,10 @@ function applyCyFilters(){
   const okD=new Set([...document.querySelectorAll('#cyFilterDomaine input:checked')].map(i=>i.dataset.domaine));
   const okS=new Set([...document.querySelectorAll('#cyFilterStatut input:checked')].map(i=>i.dataset.statut));
   const okV=new Set([...document.querySelectorAll('#cyFilterNiveau input:checked')].map(i=>i.dataset.niveau));
+  const okT=new Set([...document.querySelectorAll('#cyFilterTag input:checked')].map(i=>i.dataset.tag));
   cy.batch(()=>{
-    cy.nodes('.obj').forEach(n=>n.toggleClass('flt-hidden', !okN.has(n.data('classe')) || !okD.has(n.data('domaine')) || !okS.has(n.data('statut')) || !okV.has(n.data('niveau'))));
+    cy.nodes('.obj').forEach(n=>n.toggleClass('flt-hidden', !okN.has(n.data('classe')) || !okD.has(n.data('domaine')) || !okS.has(n.data('statut')) || !okV.has(n.data('niveau'))
+      || !n.data('tags').some(t=>okT.has(t)))); // au moins un des tags cochés
     cy.edges().forEach(e=>e.toggleClass('flt-hidden', e.source().hasClass('flt-hidden')||e.target().hasClass('flt-hidden')));
   });
   updateCyStats();
@@ -2869,13 +3002,19 @@ function renderCyFilterConfigs(){
     host.appendChild(row);
   });
 }
+// Tags cochés, à enregistrer dans une configuration ; null (= pas de filtre) quand tout est coché,
+// pour qu'un tag créé ensuite ne soit pas masqué par la configuration.
+function checkedCyTags(){
+  const all=[...document.querySelectorAll('#cyFilterTag input')], on=all.filter(i=>i.checked);
+  return on.length===all.length ? null : JSON.stringify(on.map(i=>i.dataset.tag));
+}
 // Issue #30 : met à jour la configuration appliquée avec l'état actuel du diagramme, sans retaper son nom.
 function updateActiveFilterConfig(id){
   const row=exec("SELECT nom FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
   const pick=(sel,key)=>JSON.stringify([...document.querySelectorAll(sel+' input:checked')].map(i=>i.dataset[key]));
   try{
-    run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=?,niveaux=?,disposition=? WHERE id=?",
-      [pick('#cyFilterNature','nature'),pick('#cyFilterDomaine','domaine'),pick('#cyFilterStatut','statut'),pick('#cyFilterNiveau','niveau'),JSON.stringify(currentCyDisposition()),id]);
+    run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=?,niveaux=?,tags=?,disposition=? WHERE id=?",
+      [pick('#cyFilterNature','nature'),pick('#cyFilterDomaine','domaine'),pick('#cyFilterStatut','statut'),pick('#cyFilterNiveau','niveau'),checkedCyTags(),JSON.stringify(currentCyDisposition()),id]);
     toast("Configuration « "+row.nom+" » mise à jour (filtres et disposition des objets)","ok");
     renderCyFilterConfigs();
   }catch(e){ toast(friendly(e),"err"); }
@@ -2887,14 +3026,15 @@ function saveCurrentFilterConfig(){
   const domaines=[...document.querySelectorAll('#cyFilterDomaine input:checked')].map(i=>i.dataset.domaine);
   const statuts=[...document.querySelectorAll('#cyFilterStatut input:checked')].map(i=>i.dataset.statut);
   const niveaux=[...document.querySelectorAll('#cyFilterNiveau input:checked')].map(i=>i.dataset.niveau);
+  const tags=checkedCyTags();
   const disposition=JSON.stringify(currentCyDisposition());
   try{
     const existing=exec("SELECT id FROM filtre_diagramme WHERE nom=?",[nom])[0];
     if(existing){
-      run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=?,niveaux=?,disposition=? WHERE id=?",[JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),JSON.stringify(niveaux),disposition,existing.id]);
+      run("UPDATE filtre_diagramme SET natures=?,domaines=?,statuts=?,niveaux=?,tags=?,disposition=? WHERE id=?",[JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),JSON.stringify(niveaux),tags,disposition,existing.id]);
       toast("Configuration « "+nom+" » mise à jour (filtres et disposition des objets)","ok");
     }else{
-      run("INSERT INTO filtre_diagramme(nom,natures,domaines,statuts,niveaux,disposition) VALUES (?,?,?,?,?,?)",[nom,JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),JSON.stringify(niveaux),disposition]);
+      run("INSERT INTO filtre_diagramme(nom,natures,domaines,statuts,niveaux,tags,disposition) VALUES (?,?,?,?,?,?,?)",[nom,JSON.stringify(natures),JSON.stringify(domaines),JSON.stringify(statuts),JSON.stringify(niveaux),tags,disposition]);
       toast("Configuration « "+nom+" » enregistrée (filtres et disposition des objets)","ok");
     }
     cyActiveConfigId=(existing||exec("SELECT id FROM filtre_diagramme WHERE nom=?",[nom])[0]).id;
@@ -2919,7 +3059,7 @@ function applyCyDisposition(pos){
   return n;
 }
 function applyFilterConfig(id, silent){
-  const row=exec("SELECT nom,natures,domaines,statuts,niveaux,disposition FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
+  const row=exec("SELECT nom,natures,domaines,statuts,niveaux,tags,disposition FROM filtre_diagramme WHERE id=?",[id])[0]; if(!row) return;
   const natures=JSON.parse(row.natures||'[]'), domaines=JSON.parse(row.domaines||'[]');
   // statuts : absent (JSON null) sur une config enregistree avant l'ajout de ce filtre —
   // on considere alors tous les statuts coches, pour ne pas masquer silencieusement des
@@ -2930,6 +3070,9 @@ function applyFilterConfig(id, silent){
   // niveaux : absent sur une config enregistrée avant v0.16 -> tous cochés, pour ne rien masquer
   const niveaux = row.niveaux!=null ? JSON.parse(row.niveaux) : null;
   document.querySelectorAll('#cyFilterNiveau input').forEach(i=>{ i.checked=niveaux===null || niveaux.includes(i.dataset.niveau); });
+  // tags : absent (config antérieure à la v0.17, ou tout coché à l'enregistrement) -> tous cochés
+  const tags = row.tags!=null ? JSON.parse(row.tags) : null;
+  document.querySelectorAll('#cyFilterTag input').forEach(i=>{ i.checked=tags===null || tags.includes(i.dataset.tag); });
   document.querySelectorAll('#cyFilterStatut input').forEach(i=>{ i.checked=statuts.includes(i.dataset.statut); });
   applyCyFilters();
   let disp=null; try{ disp=row.disposition ? JSON.parse(row.disposition) : null; }catch(e){ disp=null; }
@@ -4040,6 +4183,7 @@ const GL_LABELS = { // [singulier, pluriel, féminin]
   objet:['objet','objets',0], propriete:['propriété','propriétés',1], applicabilite:['affectation','affectations',1],
   relation:['relation','relations',1], verbe_relation:['verbe','verbes',0], contrainte:['contrainte','contraintes',1],
   domaine:['domaine','domaines',0], classe_objet:['nature','natures',1], discipline:['discipline','disciplines',1], niveau_detail:['niveau de détail','niveaux de détail',0],
+  tag:['tag','tags',0], objet_tag:['tag d\u2019objet','tags d\u2019objet',0],
   type_enumere:['liste de valeurs','listes de valeurs',1], valeur_enumeree:['valeur de liste','valeurs de liste',1],
   grandeur_physique:['grandeur','grandeurs',1], unite:['unité','unités',1], lien_exigence:['lien externe','liens externes',0],
   filtre_diagramme:['filtre du diagramme','filtres du diagramme',0]
@@ -4260,7 +4404,7 @@ const MERGE_COLS = { nom:'nom', definition:'définition', description:'descripti
   role_source:'rôle source', role_cible:'rôle cible', nom_technique:'nom technique', disposition:'disposition des objets', valeur:'valeur', libelle:'libellé', message:'message',
   severite:'sévérité', code:'code', symbole:'symbole', iri_externe:'IRI externe', systeme_externe:'système externe',
   objet_id:'objet', propriete_id:'propriété', relation_id:'relation', grandeur_id:'grandeur', commentaire:'commentaire',
-  favori:'favori', natures:'natures', domaines:'domaines', statuts:'statuts', niveaux:'niveaux' };
+  favori:'favori', natures:'natures', domaines:'domaines', statuts:'statuts', niveaux:'niveaux', tags:'tags', tag_id:'tag' };
 function mergeSchema(d){
   const q=sql=>(d.exec(sql)[0]||{values:[]}).values;
   const by={};
@@ -4310,12 +4454,13 @@ function mergeModels(baseBytes, mineDb, theirsBytes, choices, who){
         case 'relation': return 'relation « '+n('objet',r.source_id)+' » '+(r.verbe_id?n('verbe_relation',r.verbe_id):r.type)+' « '+n('objet',r.cible_id)+' »';
         case 'valeur_enumeree': return 'valeur « '+r.valeur+' » de la liste « '+n('type_enumere',r.type_enumere_id)+' »';
         case 'contrainte': return 'contrainte '+r.type+' de « '+n('propriete',r.propriete_id)+' »';
+        case 'objet_tag': return 'tag « '+n('tag',r.tag_id)+' » de « '+n('objet',r.objet_id)+' »';
         case 'lien_exigence': return 'lien externe '+r.iri_externe;
         case 'unite': return r.symbole;
         case 'discipline': return r.code+(r.nom?' '+r.nom:'');
         default: return r.nom!=null ? String(r.nom) : r.uid;
       } };
-    const what=(t,r)=>{ const l=label(t,r); return ['applicabilite','relation','valeur_enumeree','contrainte','lien_exigence'].includes(t) ? l : GL_LABELS[t][0]+' « '+l+' »'; };
+    const what=(t,r)=>{ const l=label(t,r); return ['applicabilite','objet_tag','relation','valeur_enumeree','contrainte','lien_exigence'].includes(t) ? l : GL_LABELS[t][0]+' « '+l+' »'; };
     const val=(s,c,v)=> v==null||v==='' ? '(vide)' : c==='disposition' ? '(modifiée)' : s.fks[c] ? label(s.fks[c], find(s.fks[c],v)) : String(v);
     const diffTxt=(s,a,b)=>s.cmp.filter(c=>a[c]!==b[c]).map(c=>(MERGE_COLS[c]||c)+' : '+val(s,c,b[c])).join(' ; ');
     const changed=(s,a,b)=>s.cmp.filter(c=>a[c]!==b[c]);
@@ -4800,11 +4945,25 @@ function wire(){
   el('refTabDomaine').onclick=()=>setRefSubView('domaine');
   el('refTabClasse').onclick=()=>setRefSubView('classe');
   el('refTabNiveau').onclick=()=>setRefSubView('niveau');
+  el('refTabTag').onclick=()=>setRefSubView('tag');
+  // Tags : Entrée ou virgule ajoute le tag ; Entrée sur le champ vide valide la fiche, comme ailleurs
+  el('o_tag').addEventListener('keydown',e=>{
+    if(e.key!=='Enter' && e.key!==',') return;
+    e.preventDefault();
+    if(v('o_tag').trim()) commitTagInput(); else if(e.key==='Enter') addOrUpdateObjet();
+  });
+  // virgule (liste collée, claviers mobiles) ou suggestion choisie dans la liste proposée. Pas d'ajout à la
+  // sortie du champ : la puce déplacerait le bouton sous le clic, et la validation prend déjà le texte restant.
+  el('o_tag').addEventListener('input',e=>{
+    const t=v('o_tag'), choisi=(!e.inputType || e.inputType==='insertReplacementText') && allTags().includes(t);
+    if(t.includes(',') || choisi) commitTagInput();
+  });
+  el('o_tags').addEventListener('click',e=>{ const b=e.target.closest('button[data-i]'); if(b){ objTags.splice(+b.dataset.i,1); renderObjTags(); } });
   el('refTabDisc').onclick=()=>setRefSubView('disc');
   el('refTabGrandeur').onclick=()=>setRefSubView('grandeur');
   el('refTabVerbe').onclick=()=>setRefSubView('verbe');
   el('refCleanUnused').onclick=cleanUnusedRef;
-  ['ref_domaine_body','ref_classe_body','ref_niveau_body','ref_disc_body','ref_grandeur_body','ref_verbe_body'].forEach(id=>{
+  ['ref_domaine_body','ref_classe_body','ref_niveau_body','ref_tag_body','ref_disc_body','ref_grandeur_body','ref_verbe_body'].forEach(id=>{
     el(id).addEventListener('click', e=>{
       const btn=e.target.closest('button[data-ref]'); if(!btn || btn.disabled) return;
       deleteRefRow(btn.dataset.ref, +btn.dataset.id);
@@ -4816,6 +4975,7 @@ function wire(){
   el('mgObjNature').addEventListener('change', renderMgObjets);
   el('mgObjDomaine').addEventListener('change', renderMgObjets);
   el('mgObjNiveau').addEventListener('change', renderMgObjets);
+  el('mgObjTag').addEventListener('change', renderMgObjets);
   el('mgObjDiscipline').addEventListener('change', renderMgObjets);
   el('mgObjStatut').addEventListener('change', renderMgObjets);
   el('mgPropSearch').addEventListener('input', debounce(renderMgProps,150));

@@ -17,7 +17,7 @@ PRAGMA foreign_keys = ON;   -- OFF par défaut sous SQLite : à réactiver à CH
 -- Version de schéma : à incrémenter à chaque migration (nouvelle table/colonne),
 -- ici et dans SCHEMA_BASE (modea-editeur.html) en parallèle. Sert à openBytes() côté
 -- éditeur pour détecter un fichier trop ancien plutôt que de planter en silence.
-PRAGMA user_version = 10;
+PRAGMA user_version = 11;
 
 -- -----------------------------------------------------------------------------
 --  Domaine fonctionnel — regroupement métier des objets (facultatif mais utile)
@@ -553,3 +553,27 @@ BEGIN UPDATE niveau_detail SET uid = lower(hex(randomblob(16))) WHERE rowid = NE
 ALTER TABLE objet ADD COLUMN niveau_id INTEGER REFERENCES niveau_detail(id) ON DELETE SET NULL;
 CREATE INDEX idx_objet_niveau ON objet(niveau_id);
 ALTER TABLE filtre_diagramme ADD COLUMN niveaux TEXT;
+
+-- v11 : tags libres sur les objets (plusieurs par objet), filtre supplémentaire de la liste et du
+-- diagramme. objet_tag a son id et son uid, comme les autres tables, pour la fusion à trois versions.
+CREATE TABLE tag (
+    id          INTEGER PRIMARY KEY,
+    nom         TEXT NOT NULL UNIQUE,
+    description TEXT
+);
+ALTER TABLE tag ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_tag_uid ON tag(uid);
+CREATE TRIGGER trg_tag_uid AFTER INSERT ON tag FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE tag SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+CREATE TABLE objet_tag (
+    id        INTEGER PRIMARY KEY,
+    objet_id  INTEGER NOT NULL REFERENCES objet(id) ON DELETE CASCADE,
+    tag_id    INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
+    UNIQUE (objet_id, tag_id)
+);
+ALTER TABLE objet_tag ADD COLUMN uid TEXT;
+CREATE UNIQUE INDEX idx_objet_tag_uid ON objet_tag(uid);
+CREATE TRIGGER trg_objet_tag_uid AFTER INSERT ON objet_tag FOR EACH ROW WHEN NEW.uid IS NULL
+BEGIN UPDATE objet_tag SET uid = lower(hex(randomblob(16))) WHERE rowid = NEW.rowid; END;
+CREATE INDEX idx_objet_tag_tag ON objet_tag(tag_id);
+ALTER TABLE filtre_diagramme ADD COLUMN tags TEXT;

@@ -2,7 +2,7 @@
 // (colonne disposition des configurations du diagramme, issue #22), avec les vraies fonctions de
 // modea-editeur.html dans jsdom.
 // Usage : node scripts/test_referentiel.cjs      Dépendance : jsdom (npm install --prefix scripts jsdom).
-const SCHEMA_V = 10;
+const SCHEMA_V = 11;
 const fs = require('fs'), path = require('path'), os = require('os'), cp = require('child_process');
 const { JSDOM, VirtualConsole } = require('jsdom');
 const root = path.resolve(__dirname, '..');
